@@ -16,6 +16,8 @@ they're listed so you know they're handled, not so you redo them.
 - [x] **[done]** `Robot` / `Constants` / `RobotContainer` in AdvantageKit template shape
 - [x] **[done]** `RobotState` reduced to pose / velocity / geometry helpers
 - [ ] Verify team number in `.wpilib/wpilib_preferences.json`
+- [ ] Configure `tools/log-sync` with the 2027 team-number IP and **verify one upload
+      actually works** — do this at season start, not the night before an event
 - [ ] Update WPILib to the 2027 release (`build.gradle` plugin version, `settings.gradle` `frcYear`)
 - [ ] Update AdvantageKit to the matching 2027 version
 - [ ] Update CTRE Phoenix 6, PathPlannerLib, PhotonVision, Studica vendordeps
@@ -75,6 +77,16 @@ and are wrong. If you only remember one thing: **measure top speed and slip curr
 - [ ] **8. Run wheel radius characterization** (auto chooser → enable auto → let it spin at
       least two full rotations → **disable to print results**) → `kWheelRadius`
       *(must come after Pigeon calibration — it divides by gyro rotation)*
+
+### Stage 3b — Verify before building on it
+
+- [ ] **8b. Odometry accuracy check.** Drive a measured 5 m straight, a 2 m box without
+      rotating, and 10 spins in place. Compare `Odometry/Robot` to reality each time.
+      Nothing in the code checks gear ratio, wheel radius or module positions — this is the
+      only thing that catches them, and they compound into every auto and every vision fusion
+      downstream. See the characterization doc § Step 0b for what each failure mode points at
+- [ ] Record the three results in `docs/robot-spec.md` so later drift is distinguishable
+      from a new problem
 
 ### Stage 4 — Feedforward and feedback
 
@@ -138,6 +150,10 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
 - [ ] Use MotionMagic for anything with real inertia or travel; set cruise velocity and
       acceleration deliberately (they are Hard Stop items)
 - [ ] `kI = 0` everywhere unless you can explain the windup behavior during a stall
+- [ ] **Set up the sim gain-sweep test harness** with the first mechanism you tune.
+      `src/test/java` is empty and the `/pid-tune` skill assumes a JUnit sweep exists. The
+      2026 season used one to find PathPlanner gains without touching the robot; building it
+      once means every later retune starts from a working harness instead of robot time
 - [ ] Build any distance → setpoint interpolation tables against the real field element
 - [ ] Validate vision std dev scaling against real AprilTag observations
 - [ ] Re-validate the vision rejection thresholds against 2027 logs (they're 2026-derived)
@@ -160,14 +176,30 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
 - [ ] Write `docs/driver-controls-card.md` and print it for the drive team
 - [ ] Drive practice before the first event, not at it
 
+## First Deploy Of The Season
+
+Run the first-deploy gate in
+[.claude/rules/04-build.md](../.claude/rules/04-build.md#first-deploy-of-the-season--extra-gate)
+before the robot is enabled for the first time. Short version:
+
+- [ ] `./gradlew build` passes (not just `compileJava`)
+- [ ] `TunerConstants` has been regenerated with Tuner X **for this robot**
+- [ ] Phoenix Tuner device count matches what the code expects
+- [ ] `Constants.currentMode` resolves to `REAL`; `simMode` not left on `REPLAY`
+- [ ] Tuning and demo flags OFF
+- [ ] USB drive present for logging
+- [ ] Working tree clean — `GitDirty` reads "All changes committed"
+- [ ] Robot on blocks, hand on disable, for the first enable
+
 ## Pre-Competition
 
-- [ ] `./gradlew build` passes clean
-- [ ] `Constants.currentMode` resolves to `REAL` on the robot
-- [ ] Tuning and demo mode flags are OFF
-- [ ] USB drive present so `WPILOGWriter` can write to `/U/logs`
+- [ ] Fill in `docs/pre-match-checklist.md` with the 2027 mechanism checks and the expected
+      Phoenix device count, then **print it for the pit**
+- [ ] Update the `Pre-Match Checklist` dashboard string in `Robot.java` to match it
 - [ ] Battery logger reporting for every subsystem
 - [ ] Check `robotPeriodic` loop timing against the 20 ms budget
 - [ ] Smoke test every subsystem on carpet
 - [ ] Confirm the AprilTag layout on the coprocessor matches `FieldConstants` (welded vs AndyMark)
-- [ ] Set up `tools/log-sync` so match logs upload from the pit between matches
+- [ ] Confirm `tools/log-sync` still uploads from the pit network at the venue
+- [ ] Start a competition change log — every change between matches, with why (see
+      `docs/pre-match-checklist.md`)

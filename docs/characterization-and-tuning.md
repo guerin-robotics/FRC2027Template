@@ -113,6 +113,7 @@ plausible and are wrong.
 | 3 | Direction / inversion check | `k*Inverted` | Tuning on top of a wrong inversion wastes the session |
 | 4 | **Pigeon mount calibration** | `pigeonConfigs` | Wheel radius is derived from gyro rotation |
 | 5 | **Wheel radius characterization** | `kWheelRadius` | Needs a trustworthy heading |
+| 5b | **Odometry accuracy check** | *(verification, sets nothing)* | Catches gear ratio / radius / module position errors before they compound into everything downstream |
 | 6 | **Drive FF characterization** | `kS`, `kV` | Needs correct gear ratios |
 | 7 | Drive `kA` *(if path following)* | `kA` | Feedforward must already be right |
 | 8 | Drive `kP` | `kP` | Only corrects what feedforward misses |
@@ -227,6 +228,44 @@ setpoint to wheel rot/s by dividing by the radius), and your measured top speed.
 If the number is more than ~5% off nominal, something else is wrong — usually
 `kDriveGearRatio`. Fix that before continuing; a bad gear ratio hides in the wheel radius
 result.
+
+### Step 0b: Verify odometry before trusting anything downstream
+
+Wheel radius, gear ratio, and module positions each look fine in isolation and only reveal
+themselves as a compounding position error. Nothing in the code checks them. Spend ten
+minutes here — it is the cheapest bug you will ever find.
+
+**Straight-line test.** Tape a start line and a mark exactly 5.00 m away.
+
+1. Reset pose (`B` on the controller, or `drive.setPose()`)
+2. Drive straight to the mark, stop, read `Odometry/Robot` X in AdvantageScope
+3. It should read 5.00 m ± 5 cm (1%)
+
+| Result | Points at |
+|---|---|
+| Consistently long or short by a fixed % | Wheel radius, or `kDriveGearRatio` |
+| Error grows with distance | Same — confirm on a 10 m run to separate it from noise |
+| Distance right but heading drifts | Pigeon mount calibration |
+
+**Box test.** Drive a 2 m square back to the start *without rotating* (pure translation,
+field-relative).
+
+1. Reset pose, drive the square, stop where you started
+2. `Odometry/Robot` should return to within ~10 cm of the origin
+3. Physically measure the robot's real offset from the start mark and compare
+
+| Result | Points at |
+|---|---|
+| Closes in odometry but the robot is physically elsewhere | Module positions in `TunerConstants`, or an inversion |
+| Consistent rotational drift around the loop | Pigeon mount calibration, or `kSteerGearRatio` |
+| Large error in one direction only | A single module — check each `k*XPos` / `k*YPos` sign |
+
+**Spin test.** Rotate in place exactly 10 full turns by joystick, then compare
+`Odometry/Robot` rotation against 3600°. More than ~2% off means gyro or steer ratio.
+
+Redo all three after any drivetrain rebuild, tread change, or `TunerConstants`
+regeneration. Record the numbers in `docs/robot-spec.md` so you can tell normal drift from a
+new problem later.
 
 ### Step 1: kS and kV
 

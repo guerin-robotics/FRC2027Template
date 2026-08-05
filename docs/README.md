@@ -18,6 +18,7 @@ Process and workflow docs. Nothing in them depends on a particular robot or game
 | [ai-development-playbook.md](ai-development-playbook.md) | The team-facing case for AI-assisted development: why, the concerns, the guardrails. For mentors and leads. |
 | [review-checklist.md](review-checklist.md) | Run before submitting or merging any change |
 | [change-classification.md](change-classification.md) | The five risk levels, with worked examples |
+| [pre-match-checklist.md](pre-match-checklist.md) | Event-day checklist. Structure is ready; fill in the 2027 mechanism checks and device count, then print it |
 | [characterization-and-tuning.md](characterization-and-tuning.md) | Running the FF/wheel-radius/SysId routines and turning their output into gains. Covers the TorqueCurrentFOC units trap, drive and steer specifically, then a general recipe split by velocity vs position control |
 
 ## Procedure kept, data needs filling in

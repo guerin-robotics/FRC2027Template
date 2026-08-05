@@ -8,6 +8,7 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.lib.AllianceFlipUtil;
@@ -82,6 +83,24 @@ public class Robot extends LoggedRobot {
     // Instantiate our RobotContainer. This will perform all our button bindings,
     // and put our autonomous chooser on the dashboard.
     robotContainer = new RobotContainer();
+
+    // Short pre-match checklist, visible from the driver station without paper.
+    // TODO: fill in the device count and add one line per 2027 mechanism, in the order the
+    // drive team exercises them. Keep this in sync with docs/pre-match-checklist.md — that
+    // is the full version; this is the pit-side reminder.
+    SmartDashboard.putString(
+        "Pre-Match Checklist",
+        """
+        Phoenix Tuner: ___ devices
+        USB drive in (no USB = no log)
+        Correct code deployed, GitDirty clean
+        Tuning/demo mode OFF
+        Drive: all 4 modules
+        Vision: tags detected
+        Correct auto selected
+        Robot on auto start pose
+        Swap battery
+        """);
   }
 
   /** This function is called periodically during all modes. */

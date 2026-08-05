@@ -88,10 +88,34 @@ If a compile error says `*AutoLogged` is missing a field you just added:
 ## Deploy Verification (physical robot only)
 
 Before declaring a change ready to deploy:
+
 1. Compile locally: `./gradlew compileJava`
-2. Check `Constants.currentMode` resolves to `REAL` on the robot
+2. Check `Constants.currentMode` resolves to `REAL` on the robot — in particular that
+   `simMode` was not left on `REPLAY` after a debugging session
 3. Check any tuning/demo mode flags are `false` (unless intentional)
 4. Verify the USB drive is present for log writing
+
+### First deploy of the season — extra gate
+
+The first time this code drives a real robot, before enabling:
+
+- [ ] `./gradlew build` passes (not just `compileJava`)
+- [ ] `generated/TunerConstants.java` has been **regenerated with Tuner X** for this robot.
+      The values in the template are the 2026 robot's and are wrong for anything else
+- [ ] Phoenix Tuner device count matches what the code expects. A missing device shows up
+      as a mechanism that silently does nothing
+- [ ] CANivore bus utilization is sane; no CAN error frames
+- [ ] `Constants.currentMode` resolves to `REAL`
+- [ ] Tuning and demo flags `false`
+- [ ] USB drive present — no USB means no match log, and the first drive session is exactly
+      when you want one
+- [ ] Working tree is clean and committed. `BuildConstants.GIT_DIRTY` should read
+      "All changes committed" so the log can be matched back to source
+- [ ] Someone on the driver station with a hand on disable, robot on blocks for the first
+      enable
+
+The full event-day version of this lives in
+[docs/pre-match-checklist.md](../../docs/pre-match-checklist.md).
 
 ---
 
