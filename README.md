@@ -48,6 +48,20 @@ estimation, PathPlanner autos, and full AdvantageKit logging and replay. Nothing
 **Governance** — `CLAUDE.md` and `.claude/` carry the team's AI rules, prompt templates
 and skills forward.
 
+**Docs** — `docs/` carries the team documentation, genericized. The workflow docs
+(`ai-development-handbook.md`, `ai-development-playbook.md`, `review-checklist.md`,
+`change-classification.md`) are ready to use; the robot-describing ones are skeletons with
+banners saying what to fill in. See [docs/README.md](docs/README.md).
+
+**Style reference** — `template/` holds the five-file subsystem pattern every mechanism
+must follow, plus [GUIDE.md](template/GUIDE.md) and a
+[new-season checklist](template/NEW_SEASON_CHECKLIST.md). Not part of the Gradle build.
+
+**Tooling** — `tools/` holds ClaudeScope (`.wpilog` / NT querying with `/scope` and
+`/simulate` skills), log-sync (roboRIO → Google Drive between matches), and
+wpilib-agent-tools (Python CLI for sim, NT4 recording, log analysis). See
+[tools/README.md](tools/README.md).
+
 ---
 
 ## What Was Removed

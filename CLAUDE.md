@@ -197,14 +197,43 @@ Team skills (slash commands) are in `.claude/skills/`:
 
 ---
 
-## Documentation to Rebuild
+## Documentation
 
-The 2026 repo carried a `docs/` directory that was genuinely useful and was left out of
-this template because every page described 2026 hardware. Recreate these as the 2027
-robot takes shape:
+`docs/` carried over from 2026, genericized. See [docs/README.md](docs/README.md) for the
+index and the current state of each file.
 
-- `docs/hardware-layout.md` — every CAN device, its ID, and its bus
-- `docs/subsystem-ownership.md` — which file owns which mechanism
-- `docs/review-checklist.md` — pre-merge checklist
-- `docs/change-classification.md` — worked examples of the risk tiers above
-- `docs/driver-controls-card.md` — one-page button map for the drive team
+Ready to use: `ai-development-handbook.md`, `ai-development-playbook.md`,
+`review-checklist.md`, `change-classification.md`.
+
+Need robot data filled in (each carries a banner saying what):
+`robot-spec.md`, `hardware-layout.md`, `subsystem-ownership.md`,
+`VISION_DEBUG_CHECKLIST.md`, `driver-controls-card.md`, `drive-controller-mode.md`.
+
+**Keep `docs/robot-spec.md` current.** It is the artifact that lets a new team member or
+an agent make a correct change without reading every file. A doc that describes the old
+behavior after you changed it is worse than no doc — update it in the same commit.
+
+---
+
+## Style Reference
+
+`template/` holds a working example of the team's subsystem pattern — the five files every
+mechanism must have. It is **not** part of the Gradle build, so it is never compiled or
+deployed; the examples deliberately reference classes that don't exist yet.
+
+- [template/GUIDE.md](template/GUIDE.md) — the five-file pattern, what carried over, what debt is still open
+- [template/NEW_SEASON_CHECKLIST.md](template/NEW_SEASON_CHECKLIST.md) — season startup sequence
+- `template/src/` — copy these when scaffolding a mechanism
+
+`subsystems/vision/` in `src/` is the same pattern in production form.
+
+---
+
+## Tooling
+
+`tools/` holds season-agnostic developer tooling — see [tools/README.md](tools/README.md).
+None of it is part of the robot build.
+
+- **ClaudeScope** — `/scope` and `/simulate` skills for querying `.wpilog` and live NT
+- **log-sync** — pulls match logs off the roboRIO to Google Drive between matches
+- **wpilib-agent-tools** — Python CLI for sim, NT4 recording, and log analysis
