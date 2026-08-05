@@ -232,8 +232,26 @@ deployed; the examples deliberately reference classes that don't exist yet.
 ## Tooling
 
 `tools/` holds season-agnostic developer tooling — see [tools/README.md](tools/README.md).
-None of it is part of the robot build.
+None of it is part of the robot build, and it is excluded from Spotless so upstream pulls
+stay clean.
 
 - **ClaudeScope** — `/scope` and `/simulate` skills for querying `.wpilog` and live NT
 - **log-sync** — pulls match logs off the roboRIO to Google Drive between matches
 - **wpilib-agent-tools** — Python CLI for sim, NT4 recording, and log analysis
+
+`.agent/skills/` holds two harness-agnostic skills:
+
+- `replay-testing.md` — how to replay a match log deterministically against current code
+- `tools.md` — which of the above tools to reach for, and when
+
+---
+
+## CI
+
+`.github/workflows/build.yml` runs `spotlessCheck` then `build` on every PR and push to
+main. **If it fails, fix the code — do not weaken the workflow.**
+
+`.github/instructions/default.instructions.md` is the GitHub Copilot instruction file;
+`.github/agents/` and `.github/prompts/` hold the code-review agent configs. They restate
+the same architecture rules as `.claude/rules/` for a different harness — if you change a
+rule in one place, change it in both or they will drift.

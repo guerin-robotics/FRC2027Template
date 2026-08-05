@@ -1,0 +1,95 @@
+{
+  "keyboardJoysticks": [
+    {
+      "axisConfig": [
+        {
+          "decKey": 83,
+          "incKey": 87
+        },
+        {
+          "decKey": 68,
+          "incKey": 65
+        },
+        {
+          "decKey": 264,
+          "incKey": 265
+        }
+      ],
+      "axisCount": 3,
+      "buttonCount": 10,
+      "buttonKeys": [
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        48
+      ],
+      "povConfig": [
+        {
+          "key0": 262,
+          "key180": 263
+        }
+      ],
+      "povCount": 0
+    },
+    {
+      "axisConfig": [
+        {
+          "decKey": 74,
+          "incKey": 76
+        },
+        {
+          "decKey": 73,
+          "incKey": 75
+        }
+      ],
+      "axisCount": 2,
+      "buttonCount": 4,
+      "buttonKeys": [
+        77,
+        44,
+        46,
+        47
+      ],
+      "povCount": 0
+    },
+    {
+      "axisCount": 2,
+      "buttonCount": 6,
+      "buttonKeys": [
+        260,
+        268,
+        266,
+        261,
+        269,
+        267
+      ],
+      "povCount": 0
+    },
+    {
+      "axisCount": 0,
+      "buttonCount": 0,
+      "povCount": 0
+    }
+  ],
+  "robotJoysticks": [
+    {
+      "useGamepad": true
+    },
+    {
+      "guid": "78696e70757401000000000000000000"
+    },
+    {
+      "guid": "030000004f0400000ab1000000000000",
+      "useGamepad": true
+    },
+    {
+      "guid": "Keyboard0"
+    }
+  ]
+}

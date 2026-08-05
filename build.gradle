@@ -177,12 +177,18 @@ task(eventDeploy) {
 createVersionFile.dependsOn(eventDeploy)
 
 // Spotless formatting
+//
+// `tools/**` is excluded from every target below. Those are vendored upstream
+// projects (ClaudeScope, wpilib-agent-tools) — reformatting them makes the next
+// upstream pull conflict on whitespace in files we never wrote. Same reasoning for
+// the AdvantageScope layouts, which are machine-generated and get overwritten
+// wholesale whenever someone re-exports one.
 project.compileJava.dependsOn(spotlessApply)
 spotless {
     java {
         target fileTree(".") {
             include "**/*.java"
-            exclude "**/build/**", "**/build-*/**"
+            exclude "**/build/**", "**/build-*/**", "tools/**"
         }
         toggleOffOn()
         googleJavaFormat()
@@ -193,7 +199,7 @@ spotless {
     groovyGradle {
         target fileTree(".") {
             include "**/*.gradle"
-            exclude "**/build/**", "**/build-*/**"
+            exclude "**/build/**", "**/build-*/**", "tools/**"
         }
         greclipse()
         indentWithSpaces(4)
@@ -203,14 +209,16 @@ spotless {
     json {
         target fileTree(".") {
             include "**/*.json"
-            exclude "**/build/**", "**/build-*/**", ".wpilib/**", "graphify-out/**"
+            exclude "**/build/**", "**/build-*/**", ".wpilib/**", "graphify-out/**",
+                    "tools/**", "Advantage Scope Layouts/**", "simgui*.json",
+                    "networktables.json"
         }
         gson().indentWithSpaces(2)
     }
     format "misc", {
         target fileTree(".") {
             include "**/*.md", "**/.gitignore"
-            exclude "**/build/**", "**/build-*/**", "graphify-out/**"
+            exclude "**/build/**", "**/build-*/**", "graphify-out/**", "tools/**"
         }
         trimTrailingWhitespace()
         indentWithSpaces(2)
