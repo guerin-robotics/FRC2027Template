@@ -115,12 +115,16 @@ current-limited**. Measure the real number rather than trusting the configured o
 The limits in `TunerConstants` were tuned against real 2026 motor heating and brownout
 data. Carry them forward as starting points.
 
-| Limit | 2026 value | Note |
+| Limit | Shipped value | Note |
 |---|---|---|
-| Drive supply | 60 A | Raised from 40 A mid-season: +12% peak accel, but 4× the brownouts |
-| Steer stator | 60 A | Caps per-module peaks at 60 A (was hitting 95 A before the cap) |
-| Steer supply | 40 A | |
-| Slip current | 80 A | |
+| Drive supply | 60 A | 2026 raised this from 40 A mid-season: +12% peak accel, but 4× the brownouts |
+| Steer stator | 40 A | Also clamps the steer torque-current request in `ModuleIOTalonFX` |
+| Steer supply | 40 A | 2026 ran a 60 A stator cap here after seeing 95 A per-module peaks |
+| Drive stator / slip | 80 A | `kSlipCurrent` — **must be measured**, see characterization doc § Step 4 |
+
+Values above are what `TunerConstants` ships with today, not measurements for any particular
+robot. Verify them against the file rather than trusting this table — if the two disagree,
+the file is right and this table is stale.
 
 **Never raise a current limit without stating why the old one was insufficient.**
 

@@ -101,13 +101,112 @@ Note what is **not** here: there is no built-in steer characterization.
 
 ---
 
+## The Order — Do Not Shuffle This
+
+Each step depends on the ones above it. Skipping ahead produces numbers that look
+plausible and are wrong.
+
+| # | Step | Sets | Why it must come after the previous |
+|---|---|---|---|
+| 1 | Tuner X swerve generator | CAN IDs, gear ratios, module positions | Everything reads these |
+| 2 | Encoder offsets (Tuner X wizard) | `k*EncoderOffset` | Modules must point where the code thinks they point |
+| 3 | Direction / inversion check | `k*Inverted` | Tuning on top of a wrong inversion wastes the session |
+| 4 | **Pigeon mount calibration** | `pigeonConfigs` | Wheel radius is derived from gyro rotation |
+| 5 | **Wheel radius characterization** | `kWheelRadius` | Needs a trustworthy heading |
+| 6 | **Drive FF characterization** | `kS`, `kV` | Needs correct gear ratios |
+| 7 | Drive `kA` *(if path following)* | `kA` | Feedforward must already be right |
+| 8 | Drive `kP` | `kP` | Only corrects what feedforward misses |
+| 9 | Steer tuning (manual) | steer `kP`/`kD`/`kS` | Independent of drive, but do it before driving hard |
+| 10 | **Slip current** | `kSlipCurrent` | Needs the drivetrain running properly to push against a wall |
+| 11 | **Top speed** | `kSpeedAt12Volts` | Needs correct wheel radius *and* working feedforward |
+| 12 | Mass / MOI / wheel COF | `PP_CONFIG` in `Drive.java` | Path following inputs |
+| 13 | PathPlanner PID | `AutoBuilder.configure()` | Needs all of the above |
+| 14 | Heading-hold gains | `ANGLE_KP` / `ANGLE_KD` | Needs a drivetrain that tracks velocity |
+
+The three easiest mistakes, all of which produce confident nonsense:
+
+- **Measuring top speed before characterizing.** You measure how badly the drivetrain is
+  tuned, then write that number down as the robot's capability.
+- **Wheel radius before Pigeon calibration.** The routine divides by gyro rotation.
+- **Any of it before regenerating `TunerConstants`.** The gear ratios in this template are
+  the 2026 robot's.
+
+---
+
+## Part 0 — Before Any Characterization
+
+### Pigeon 2 mount calibration
+
+Everything that reads a heading depends on this: odometry, wheel radius characterization,
+`joystickDriveAtAngle`, and every vision rejection filter that uses yaw rate. If the Pigeon
+is not mounted perfectly flat and square — and it never is — its raw yaw axis is tilted
+relative to the robot's, and the error grows the further you drive.
+
+**Do this before the wheel radius routine, not after.**
+
+1. Robot on a **flat, level** surface. Not the shop floor if the shop floor slopes
+2. In Tuner X, select the Pigeon 2 → **Mount Calibration** → run the wizard. It measures the
+   device's orientation and computes yaw/pitch/roll mount offsets
+3. Record the three numbers it reports
+
+Then decide where they live. `TunerConstants` ships with:
+
+```java
+// Configs for the Pigeon 2; leave this null to skip applying Pigeon 2 configs
+private static final Pigeon2Configuration pigeonConfigs = null;
+```
+
+| Option | Behavior | Tradeoff |
+|---|---|---|
+| Leave `null` | Tuner X writes the calibration to the device; code never overwrites it | Calibration lives only on that physical device. Swap the Pigeon, lose it silently |
+| Set in code | Applied on every boot | Version controlled, survives device swap and firmware reflash. **Preferred** |
+
+To set it in code:
+
+```java
+private static final Pigeon2Configuration pigeonConfigs =
+    new Pigeon2Configuration()
+        .withMountPose(
+            new MountPoseConfigs()
+                .withMountPoseYaw(0.0)     // degrees, from Tuner X mount calibration
+                .withMountPosePitch(0.0)
+                .withMountPoseRoll(0.0));
+```
+
+Import `com.ctre.phoenix6.configs.MountPoseConfigs`. Recent Phoenix 6 also accepts `Angle`
+measures (`Degrees.of(...)`) on these setters — either compiles; use whichever matches the
+surrounding style.
+
+**Verify it worked:** with the robot level and stationary, `Drive/Gyro/…` pitch and roll
+should read ≈ 0. Then push the robot in a straight line by hand across the field — heading
+should stay put. Then spin it 360° by hand and confirm it returns to its starting heading.
+
+### Motor direction and inversion check
+
+Before any closed-loop control, confirm at low output that each module drives and steers the
+direction you expect. Getting this wrong and then tuning on top of it wastes a whole
+session. Inversion changes are a Hard Stop (`.claude/rules/02-hardware.md`) — verify, don't
+guess.
+
+---
+
 ## Part 1 — Drive Motors
 
-### Step 0: Wheel radius (do this first)
+### Step 0: Wheel radius
 
-Everything downstream is scaled by wheel radius. A 3% radius error is a 3% error in every
-velocity setpoint, every odometry distance, and every kV you measure. Nominal 2 in wheels
-measure closer to 1.9 in once the tread wears.
+**Prerequisite: the Pigeon must be mount-calibrated first** — this routine derives radius
+from the ratio of gyro rotation to wheel rotation, so a wrong yaw axis produces a
+confidently wrong radius. See [Pigeon 2 mount calibration](#pigeon-2-mount-calibration).
+
+Wheel radius sets the conversion between wheel rotations and meters. A 3% radius error is a
+3% error in every odometry distance, every commanded velocity (`Module` converts a m/s
+setpoint to wheel rot/s by dividing by the radius), and your measured top speed. Nominal
+2 in wheels measure closer to 1.9 in once the tread wears.
+
+> It does **not** corrupt `kS`/`kV`. Those are measured in amps per *wheel rotation/sec*,
+> and `SensorToMechanismRatio = DriveMotorGearRatio` means the encoder already reports wheel
+> rotations regardless of radius. Do wheel radius first anyway — top speed and
+> `kSpeedAt12Volts` both depend on it, and it is cheap to run.
 
 1. Robot on carpet with room to spin, all wheels loaded normally (not on blocks — tread
    compression matters)
@@ -144,11 +243,12 @@ steady-state velocity — it fights viscous drag and gearbox losses.
 
 ```
 ********** Drive FF Characterization Results **********
-  kS: 3.18000
-  kV: 1.20000
+  kS: 7.26299
+  kV: 0.41537
 ```
 
-6. Put them in `TunerConstants.driveGains`: `.withKS(3.18).withKV(1.2)`
+6. Put them in `TunerConstants.driveGains`: `.withKS(...).withKV(...)`
+   *(the numbers above show the output format — they are not values to copy)*
 
 **Caveats worth knowing:**
 
@@ -209,11 +309,85 @@ Leave `kI = 0`. Integral on a drive velocity loop winds up during traction loss 
 produces a lurch when grip returns. `kD` on a velocity loop amplifies encoder noise —
 leave it at 0 unless you have a specific reason.
 
-**Sanity check with the carried-over numbers.** Drive `kV = 1.2 A` per wheel rot/s. Top
-speed 4.0 m/s with a 2 in wheel is `4.0 / (2π · 0.0508) ≈ 12.5` wheel rot/s, so kV
-contributes ~15 A, plus `kS` 3.18 A ≈ **18 A steady state at full speed**. Against an 80 A
-slip limit that leaves plenty of headroom for acceleration. If your measured numbers imply
-a steady-state draw near the slip limit, something is wrong.
+**Sanity check your numbers.** Predict steady-state current at full speed and compare it
+against `kSlipCurrent`:
+
+```
+top wheel speed [rot/s] = kSpeedAt12Volts / (2π · kWheelRadius)
+steady-state current    ≈ kS + kV · (top wheel speed)
+```
+
+With a 2 in wheel and 4.0 m/s that is `4.0 / (2π · 0.0508) ≈ 12.5` wheel rot/s. Whatever
+`kS + kV · 12.5` comes to should sit **well under** `kSlipCurrent`, leaving the rest as
+headroom for acceleration. If it lands near the slip limit, something is wrong — most often
+a gear ratio or a wheel radius, not the gains.
+
+> **A note on `kV = 0`.** The gains shipped in `TunerConstants` today have `kV = 0`, which
+> would be broken under voltage control but is a legitimate starting point under
+> `TorqueCurrentFOC`: at constant velocity a torque-current loop only has to supply friction
+> torque, so `kS` alone can carry a surprising amount and `kP` handles the rest. Measure `kV`
+> anyway — if it comes out meaningfully non-zero, your drivetrain has real viscous drag and
+> feedforward should carry it rather than making `kP` fight for it every loop.
+
+### Step 4: Slip current
+
+`kSlipCurrent` is the torque current at which the wheels break traction. It is not a
+comfort setting — it is a measurement, and it feeds three things at once in
+`ModuleIOTalonFX`:
+
+```java
+driveConfig.TorqueCurrent.PeakForwardTorqueCurrent = constants.SlipCurrent;
+driveConfig.TorqueCurrent.PeakReverseTorqueCurrent = -constants.SlipCurrent;
+driveConfig.CurrentLimits.StatorCurrentLimit       = constants.SlipCurrent;
+```
+
+Set it too high and the closed loop commands torque the carpet cannot deliver — the wheels
+spin, odometry drifts, and acceleration actually gets *worse*. Too low and you leave
+acceleration on the table.
+
+**Measure it after `kS`/`kV`,** so the drivetrain is running properly when you push it.
+
+1. Robot on **competition carpet** — a different surface gives a different number, and this
+   is a friction measurement
+2. Push the robot squarely against a solid wall or have several people brace it. It must not
+   be able to move
+3. Slowly ramp drive torque current — a scratch command stepping
+   `runCharacterization(amps)` upward works, or use Tuner X control on one motor
+4. Watch `Drive/Module0/DriveTorqueCurrentAmps` against
+   `SwerveStates/Measured` velocity in AdvantageScope
+5. **Slip is the current at which measured velocity starts rising while the robot is not
+   moving.** Record it
+6. Put it in `TunerConstants.kSlipCurrent`
+
+Take the number from the module that slips *first* — the drivetrain is limited by its worst
+module, not its average. Re-measure whenever tread is replaced or the robot's weight changes
+significantly.
+
+> Safety: a robot that suddenly gains traction against a wall lunges. Keep hands and feet
+> clear, and have someone on disable.
+
+### Step 5: Top speed
+
+`kSpeedAt12Volts` is used by `SwerveDriveKinematics.desaturateWheelSpeeds()` and by
+`Drive.getMaxLinearSpeedMetersPerSec()`, so it bounds every joystick command and every
+path. **Measure it last** — you need correct wheel radius for the conversion and correct
+`kS`/`kV` for the drivetrain to actually reach its ceiling.
+
+1. Longest clear straight run you have, on carpet, with a **fully charged** battery
+2. Drive flat out in a straight line long enough for velocity to plateau
+3. Read the plateau from `SwerveChassisSpeeds/Measured` `vx` in AdvantageScope, or from
+   `SwerveStates/Measured` speeds
+4. Take the **sustained plateau**, not the peak sample
+5. Set `TunerConstants.kSpeedAt12Volts` to the measured value
+
+Set it to what the robot actually does, not the theoretical free speed. The 2026 robot was
+configured for 4.0 m/s and logs showed it topping out near 3.8 m/s, **voltage-saturated
+rather than current-limited** — meaning more current limit would not have helped. An
+overstated value makes the kinematics believe in headroom that does not exist, and
+desaturation then scales module speeds wrongly.
+
+Re-check on a low battery. If top speed falls off sharply, that is a battery or brownout
+problem, not a tuning problem.
 
 ---
 
@@ -234,19 +408,29 @@ Steer position is in **azimuth rotations** (`FusedCANcoder` + `RotorToSensorRati
 - `kD` is **amps per azimuth rot/s of error**
 - `kS` is amps to break static friction in the azimuth
 
-That is why the carried-over `kP = 3750` is not a typo. One full rotation of error is
-enormous; the realistic operating range is a degree or two:
+That is why a steer `kP` in the **thousands** is not a typo. One full rotation of error is
+enormous; the realistic operating range is a degree or two, so divide by 360 to get a feel
+for it:
 
 ```
-kP = 3750 A/rot  →  1° error   = 3750 / 360  ≈ 10.4 A
-                 →  5° error   ≈ 52 A
-                 →  6° error   ≈ 60 A  ← saturates the 60 A steer clamp
+amps per degree of error = kP / 360
+degrees to saturation    = 360 · (steer stator limit) / kP
+```
+
+For the `kP = 2000` shipped today, against the 40 A steer stator limit:
+
+```
+kP = 2000 A/rot  →  1° error  ≈ 5.6 A
+                 →  5° error  ≈ 28 A
+                 →  7.2° error → 40 A  ← saturates the steer clamp
 ```
 
 The steer request is clamped to the stator limit by
-`turnConfig.TorqueCurrent.PeakForwardTorqueCurrent`, so the loop saturates past ~6° of
-error and behaves like bang-bang until it gets close. That is fine and intended for an
-azimuth.
+`turnConfig.TorqueCurrent.PeakForwardTorqueCurrent`, so past that error the loop saturates
+and behaves like bang-bang until it gets close. That is fine and intended for an azimuth.
+
+Recompute both numbers whenever you change `kP` or the steer stator limit — they move
+together, and "kP looks big" is never the right reason to lower one.
 
 ### Procedure
 
@@ -257,12 +441,11 @@ azimuth.
    `setTurnPosition`)
 4. Raise `kP` until the module snaps to the setpoint without visibly overshooting. Too high
    and it buzzes audibly at rest — back off until the buzz stops
-5. Add `kD` only if there is overshoot at the end of a step. `kD = 50` in the carried-over
-   gains is doing exactly this
+5. Add `kD` only if there is overshoot at the end of a step. Start around `kP / 100`
 6. Add `kS` last, and only if the module consistently stalls a fraction of a degree short of
    the setpoint. Raise until it settles cleanly; too much and it hunts around the target
-7. `kV` compensates viscous drag while slewing. The carried-over `1.94` is small relative to
-   `kP`; leave it unless the module lags on fast slews
+7. `kV` compensates viscous drag while slewing. It ships at 0 — add it only if the module
+   visibly lags on fast slews
 8. Leave `kA = 0` — an azimuth has very little inertia and there is no acceleration
    feedforward on a plain `PositionTorqueCurrentFOC` request
 
@@ -393,7 +576,7 @@ Template for a tuning commit message:
 Set drive kS/kV from 2027-01-15 characterization run
 
 Measured on carpet, full battery, after regenerating TunerConstants for the
-new gearbox. kS 2.90 A, kV 1.05 A per wheel rot/s (was 3.18 / 1.2 from 2026).
+new gearbox. kS 2.90 A, kV 1.05 A per wheel rot/s (was 7.26299 / 0.0 placeholder).
 
 Behavioral consequence: feedforward now carries steady-state velocity without
 kP contribution; path following should show less cross-track error.
@@ -407,7 +590,7 @@ shows up as sluggish response and overshoot on direction changes.
 
 | Symptom | Likely cause |
 |---|---|
-| Gains "look insanely large" | You are reading amps as volts. `kP = 3750` is normal for an azimuth in A/rotation |
+| Gains "look insanely large" | You are reading amps as volts. A steer `kP` in the thousands is normal — it is A per *azimuth rotation* |
 | Characterization prints nothing | You never disabled. Results print in `finallyDo`, on command end |
 | kV is way off from last season | Gear ratio or `SensorToMechanismRatio` changed, or wheel radius is stale — redo Step 0 |
 | Wheel radius result is absurd | `kDriveGearRatio` is wrong, or the gyro isn't reporting (check `Drive/Gyro/connected`) |

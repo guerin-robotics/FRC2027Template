@@ -209,7 +209,8 @@ Ready to use: `ai-development-handbook.md`, `ai-development-playbook.md`,
 [docs/characterization-and-tuning.md](docs/characterization-and-tuning.md).** Both drive and
 steer run `ClosedLoopOutputType.TorqueCurrentFOC`, so every gain and every characterization
 output is in **amps, not volts**. Reading them as volts makes correct values look absurd
-(steer `kP = 3750` is normal in A/rotation) and makes wrong ones look reasonable.
+(a steer `kP` in the thousands is normal — it is amps per *azimuth rotation*) and makes
+wrong ones look reasonable.
 
 Need robot data filled in (each carries a banner saying what):
 `robot-spec.md`, `hardware-layout.md`, `subsystem-ownership.md`,

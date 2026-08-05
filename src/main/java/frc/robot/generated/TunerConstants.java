@@ -33,6 +33,10 @@ public class TunerConstants {
 
   // The steer motor uses any SwerveModule.SteerRequestType control request with the
   // output type specified by SwerveModuleConstants.SteerMotorClosedLoopOutput
+  // TODO: TUNE STEER manually — there is no built-in steer characterization routine.
+  // Order: kP -> kD -> kS. Units are AMPS per AZIMUTH ROTATION, so values in the thousands
+  // are normal (kP 2000 A/rot is ~5.6 A per degree of error).
+  // See docs/characterization-and-tuning.md § Part 2.
   private static final Slot0Configs steerGains =
       new Slot0Configs()
           .withKP(2000)
@@ -44,6 +48,11 @@ public class TunerConstants {
           .withStaticFeedforwardSign(StaticFeedforwardSignValue.UseClosedLoopSign);
   // When using closed-loop control, the drive motor uses the control
   // output type specified by SwerveModuleConstants.DriveMotorClosedLoopOutput
+  // TODO: RUN CHARACTERIZATION and replace these. These are starting placeholders, not
+  // measurements for any particular robot. Order: wheel radius -> FF characterization
+  // (kS/kV) -> kA if path following -> kP. Units are AMPS, not volts, because
+  // kDriveClosedLoopOutput is TorqueCurrentFOC.
+  // See docs/characterization-and-tuning.md § Part 1.
   private static final Slot0Configs driveGains =
       new Slot0Configs().withKP(60).withKI(0).withKD(0.0).withKS(7.26299).withKV(0.0).withKA(0.0);
 
@@ -69,6 +78,13 @@ public class TunerConstants {
 
   // The stator current at which the wheels start to slip;
   // This needs to be tuned to your individual robot
+  //
+  // TODO: MEASURE SLIP CURRENT on competition carpet, AFTER kS/kV are set. Brace the robot
+  // against a wall and ramp torque current until the wheels break traction. This one value
+  // sets the peak torque-current clamp AND the stator limit in ModuleIOTalonFX, so too high
+  // means commanding torque the carpet cannot deliver — wheels spin, odometry drifts, and
+  // acceleration gets worse. Take the number from the module that slips FIRST.
+  // See docs/characterization-and-tuning.md § Step 4.
   private static final Current kSlipCurrent = Amps.of(80);
 
   // Initial configs for the drive and steer motors and the azimuth encoder; these cannot be null.
@@ -92,6 +108,21 @@ public class TunerConstants {
                   .withSupplyCurrentLimitEnable(true));
   private static final CANcoderConfiguration encoderInitialConfigs = new CANcoderConfiguration();
   // Configs for the Pigeon 2; leave this null to skip applying Pigeon 2 configs
+  //
+  // TODO: PERFORM PIGEON MOUNT CALIBRATION and set the result here. Run the Tuner X Pigeon 2
+  // mount calibration on a flat, level surface, then replace this null with:
+  //
+  //   new Pigeon2Configuration()
+  //       .withMountPose(
+  //           new MountPoseConfigs()
+  //               .withMountPoseYaw(0.0)     // degrees, from Tuner X
+  //               .withMountPosePitch(0.0)
+  //               .withMountPoseRoll(0.0));
+  //
+  // Left null, the calibration lives only on that physical Pigeon — swap the device and it
+  // is silently lost. Setting it here version-controls it. Do this BEFORE running wheel
+  // radius characterization, which derives radius from gyro rotation.
+  // See docs/characterization-and-tuning.md § Pigeon 2 mount calibration.
   private static final Pigeon2Configuration pigeonConfigs = null;
 
   // CAN bus that the devices are located on;
@@ -100,6 +131,13 @@ public class TunerConstants {
 
   // Theoretical free speed (m/s) at 12 V applied output;
   // This needs to be tuned to your individual robot
+  //
+  // TODO: MEASURE TOP SPEED — do this LAST, after wheel radius and kS/kV are set. Drive a
+  // long straight on a full battery and take the sustained plateau from
+  // SwerveChassisSpeeds/Measured, not the peak sample. Bounds every joystick command and
+  // every path via desaturateWheelSpeeds(), so an optimistic value makes the kinematics
+  // believe in headroom that does not exist. The 2026 robot was configured 4.0 and logs
+  // showed ~3.8, voltage-saturated. See docs/characterization-and-tuning.md § Step 5.
   public static final LinearVelocity kSpeedAt12Volts = MetersPerSecond.of(4.0); // 4.2
 
   // Every 1 rotation of the azimuth results in kCoupleRatio drive motor turns;
@@ -108,6 +146,12 @@ public class TunerConstants {
 
   private static final double kDriveGearRatio = 7.03125;
   private static final double kSteerGearRatio = 26.09090909090909;
+
+  // TODO: RUN WHEEL RADIUS CHARACTERIZATION and set the measured value. Nominal 2 in wheels
+  // measure closer to 1.9 in with worn tread. Requires a mount-calibrated Pigeon first.
+  // Affects odometry distance, the m/s to wheel-rot/s setpoint conversion, and top speed
+  // (it does NOT affect kS/kV, which are already in amps per wheel rotation).
+  // See docs/characterization-and-tuning.md § Step 0.
   private static final Distance kWheelRadius = Inches.of(2);
 
   private static final boolean kInvertLeftSide = false;

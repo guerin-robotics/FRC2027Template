@@ -56,7 +56,8 @@ stubs is meaningless. Offer to add a simple physics model (e.g., WPILib
 **Know your units before proposing a single number.** Check the mechanism's
 `ClosedLoopOutputType`. Under `TorqueCurrentFOC` — which both drive and steer
 use in this repo — every gain is in **amps**, not volts, and values that look
-absurd as volts are correct as amps (steer `kP = 3750` A/rotation). Under
+absurd as volts are correct as amps (a steer `kP` in the thousands is amps
+per azimuth rotation). Under
 `Voltage` they are volts. `docs/characterization-and-tuning.md` has the full
 units table and the per-mode procedures; read it before this step.
 
