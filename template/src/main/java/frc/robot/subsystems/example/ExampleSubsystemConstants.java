@@ -17,13 +17,17 @@ import frc.robot.Constants;
  * <p><b>WHAT DOES NOT GO HERE:</b>
  *
  * <ul>
- *   <li><b>CAN IDs.</b> Those live in {@code HardwareConstants.CanIds} so every ID on the robot is
- *       visible in one place. See {@code .claude/rules/02-hardware.md}.
- *   <li><b>Timeouts used by commands.</b> Those belong with the other wait constants, not scattered
- *       across subsystem files.
- *   <li><b>Anything another subsystem needs to read.</b> If two subsystems want the same number,
- *       that is a sign it belongs in a shared constants class.
+ *   <li><b>CAN IDs.</b> Those live in {@code Constants.CanIds} so every ID on the robot is visible
+ *       in one table. See {@code .claude/rules/02-hardware.md}.
+ *   <li><b>Setpoints, timeouts and tolerances.</b> Those go in {@code Constants} — the rule is that
+ *       anything you would change in the pit between matches lives in one file, so nobody has to
+ *       remember which of several places it was.
  * </ul>
+ *
+ * <p>What belongs here instead is everything that describes how this mechanism is <i>built</i> or
+ * <i>characterized</i>: gains, current limits, gear ratio, sim model parameters, and any
+ * interpolation table. A distance-to-RPM map is structure rather than a knob, and putting it in
+ * {@code Constants} would bury the values people actually reach for.
  *
  * <p><b>UNITS:</b> if this mechanism uses any {@code *TorqueCurrentFOC} control request — and the
  * drivetrain in this template does — then {@link #KS}, {@link #KV}, {@link #KA} and {@link #KP} are

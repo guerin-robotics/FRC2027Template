@@ -114,24 +114,31 @@ competition pressure was a known 2026 risk.
 
 ---
 
-## 7. HardwareConstants.java
+## 7. Where Constants Live
 
-**TODO — this class does not exist yet.** Create it with the first non-swerve mechanism.
-
-Suggested structure, carried from 2026:
+**One constants file.** 2026 had both `Constants` and `HardwareConstants`, and the split meant
+remembering which of the two a value lived in while a match clock was running. They are merged.
 
 ```
-HardwareConstants
-├── CanIds              every non-swerve CAN ID, each with a // CANivore or // RIO CAN comment
-├── CompConstants
-│   ├── Voltages        open-loop setpoints
-│   ├── Velocities      closed-loop setpoints
-│   ├── Positions       mechanism positions
-│   ├── Waits           every timeout — nothing inline
-│   └── Thresholds      alignment tolerances, readiness bands
-├── TuningConstants     TUNING_MODE / DEMO_MODE flags and tuning setpoints
-└── [game] Zones        field zone boundaries and enums
+Constants
+├── Mode / simMode / currentMode   runtime mode selection
+├── disableHAL                     unit-test escape hatch
+├── tuningMode                     enables dashboard-adjustable constants; FALSE for competition
+├── CanIds                         every non-swerve CAN ID, each with // CANivore or // RIO CAN
+├── Setpoints                      voltages, velocities, positions a mechanism is commanded to
+├── Waits                          every command timeout — nothing inline
+└── Thresholds                     alignment tolerances, readiness bands
 ```
+
+The rule: **if you would change it in the pit between matches, it goes in `Constants`.**
+
+Everything describing how a mechanism is built or characterized stays in that subsystem's own
+`*Constants.java` — gains and their sim/real split, current limits, gear ratio, sim model
+parameters, and interpolation maps. A distance-to-setpoint table is structure rather than a
+knob, and putting it in `Constants` would bury the values people actually reach for.
+
+Swerve is outside both: its IDs, ratios, gains and limits are Tuner X output in
+`generated/TunerConstants.java` and must not be hand-edited.
 
 ---
 

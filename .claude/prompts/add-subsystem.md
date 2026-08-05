@@ -39,7 +39,7 @@ Create:
 
 Wire the real and sim implementations in RobotContainer under the existing
 real/sim/replay switch — all three branches. Add the CAN ID constant to the CAN
-ID constants class (create HardwareConstants.CanIds if it does not exist yet).
+CAN ID to Constants.CanIds, with a // CANivore or // RIO CAN comment on the line.
 Run ./gradlew compileJava before reporting complete.
 ```
 

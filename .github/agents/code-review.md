@@ -31,7 +31,7 @@ This is a Java WPILib Command-Based FRC robot project. Key structural facts:
 - **`RobotContainer.java`** wires subsystems and commands to controller buttons and auto paths.
 - **`RobotState.java`** is a singleton that tracks robot pose, velocity, and field geometry.
 - **`Triggers.java`** defines reusable boolean triggers for game state. It may not exist yet — early in the season bindings live inline in `RobotContainer`.
-- **`HardwareConstants.java`** holds CAN IDs, controller ports, and match-tuned voltages/speeds. It may not exist yet.
+- **`Constants.java`** is the single constants file: runtime mode, CAN IDs, setpoints, command timeouts and tolerances. There is no separate `HardwareConstants`.
 - **`Constants.java`** selects simulation vs real vs replay mode.
 - **`generated/TunerConstants.java`** is CTRE Tuner X output and the single source of truth for all drivetrain geometry, CAN IDs and gains. Never hand-edit it.
 - Swerve uses CTRE TalonFX motors, CANcoders and a Pigeon 2, all on the CANivore bus.

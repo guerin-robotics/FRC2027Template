@@ -102,7 +102,7 @@ wpilib-agent-tools (Python CLI for sim, NT4 recording, log analysis). See
 ## What Was Removed
 
 All 2026 mechanisms (flywheel, hood, prestage, upper/lower feeder, transport, intake pivot,
-intake roller), their commands and sequences, `HardwareConstants`, `Triggers`,
+intake roller), their commands and sequences, `HardwareConstants` (folded into `Constants`), `Triggers`,
 `HubShiftUtil`, `RobotModelVisualizer`, the 2026 field geometry in `FieldConstants`, the
 2026 PathPlanner autos and paths, and the `ALPHA`/`COMP` robot-type switch —
 `COMP_TunerConstants` is now simply `TunerConstants`.

@@ -321,7 +321,7 @@ the quality of the context it gets.
 [WHAT]     Add jam detection to the intake roller.
 [BEHAVIOR] If stator current exceeds 60 A for more than 250 ms while the
            intake command is active, stop the roller and log a warning.
-[WHERE]    IntakeRoller subsystem. Threshold constants in HardwareConstants.
+[WHERE]    IntakeRoller subsystem. Threshold constants in Constants.Thresholds.
 [VERIFY]   Show me it working in sim by faking a current spike in IOSim.
 ```
 
@@ -493,7 +493,7 @@ public void periodic() {
    follower (and opposition), encoder, control mode.
 2. Fill in `.claude/prompts/add-subsystem.md` and paste. Claude generates all
    six files from `template/src/`, adds the CAN ID to
-   `HardwareConstants.CanIds`, wires real/sim/replay in `RobotContainer`,
+   `Constants.CanIds`, wires real/sim/replay in `RobotContainer`,
    compiles, and writes the unit tests.
 3. Review: CAN ID matches the wiring sheet; correct bus; config via
    `PhoenixUtil.tryUntilOk(...)`; current limits set **low** (§6) and

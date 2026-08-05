@@ -106,8 +106,8 @@ For changes to `@AutoLog` inputs classes:
 | What | Where |
 |---|---|
 | Swerve CAN IDs, gains, geometry, current limits | `generated/TunerConstants.java` (Tuner X generated) |
-| Other CAN IDs | `HardwareConstants.CanIds` |
-| Timeouts | `HardwareConstants` — never inline |
+| Other CAN IDs | `Constants.CanIds` |
+| Setpoints / timeouts / tolerances | `Constants.Setpoints` / `.Waits` / `.Thresholds` — never inline |
 | PID gains (mechanisms) | `[Subsystem]Constants.java` or IO implementation |
 | Path-following gains | `Drive.java` (`AutoBuilder.configure`) |
 | Heading-hold gains | `DriveCommands.java` (`ANGLE_KP` / `ANGLE_KD`) |

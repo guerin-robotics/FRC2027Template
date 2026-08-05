@@ -40,7 +40,7 @@ Do not write a single line of code until you have read and understood the releva
 ### Required reads before implementing
 1. **`README.md`** — understand the robot's physical mechanisms, software architecture, operator controls, and constants policy
 2. **`src/main/java/frc/robot/RobotContainer.java`** — understand how subsystems are instantiated and how commands are bound to buttons and autos
-3. **`src/main/java/frc/robot/HardwareConstants.java`** — understand CAN IDs, controller ports, and match-tuned values
+3. **`src/main/java/frc/robot/Constants.java`** — the one constants file: CAN IDs, setpoints, timeouts, tolerances, mode flags
 4. **`src/main/java/frc/robot/Constants.java`** — understand simulation mode and robot variant selection
 5. **Any subsystems directly touched by the issue** — read both the subsystem class and its IO interface + all IO implementations
 6. **Any command files directly touched by the issue** — read them fully, not just the method you plan to change
@@ -73,7 +73,7 @@ Write out your implementation plan as a checklist before making any edits. Ask y
 - What new files (if any) need to be created?
 - What is the correct order of changes so nothing is left in a broken state mid-implementation?
 - Does this change require a new IO interface, a new IO implementation, or changes to an existing one?
-- Does this change require new constants? If so, where do they belong (`HardwareConstants`, a subsystem constants file, or `Constants`)?
+- Does this change require new constants? If so, where do they belong — `Constants` for anything you'd change in the pit, or the subsystem's own `*Constants.java` for gains, limits, geometry and maps?
 - Does this require a new command, a new subsystem method, or both?
 - How will this be tested or verified?
 
@@ -86,7 +86,7 @@ Write out your implementation plan as a checklist before making any edits. Ask y
 - **IO implementations belong in the `io/` subfolder** — create `<Name>IOReal.java` (or `IOTalonFX`, `IOSparkMax`, etc.) and `<Name>IOSim.java` when adding hardware
 - **Commands declare requirements** — every command must declare every subsystem it controls via `addRequirements()` or by using subsystem factory methods (`subsystem.run()`, `subsystem.runOnce()`, `subsystem.startEnd()`)
 - **AdvantageKit logging for all sensor inputs** — new `Inputs` classes must be annotated with `@AutoLog`; call `Logger.processInputs("Name", inputs)` in `periodic()`
-- **Constants go in the right place** — CAN IDs and hardware port numbers → `HardwareConstants.CanIds`; match-tuned speeds/voltages → `HardwareConstants.CompConstants`; subsystem PID gains and limits → the subsystem's `*Constants.java` file
+- **Constants go in the right place** — CAN IDs → `Constants.CanIds`; setpoints, timeouts and tolerances → `Constants.Setpoints` / `.Waits` / `.Thresholds`; subsystem gains, current limits, gear ratios and interpolation maps → the subsystem's `*Constants.java`. There is no `HardwareConstants`
 
 ### Code style rules
 - Write clear, descriptive variable names (`leftMotorVolts`, not `lmv`)
@@ -143,7 +143,7 @@ These apply to every task you take on:
 - **Think about failure modes**: For every command you write, ask "what happens if this command is interrupted mid-execution?" Make sure the robot is left in a safe state.
 - **FRC safety first**: This code runs on a 125-lb robot moving at speed around students. When in doubt about whether to leave a motor running or stop it, stop it.
 - **Build early, build often**: Run `./gradlew build` after each meaningful chunk of changes. Catching a compile error early is far cheaper than finding it after many changes.
-- **Don't guess at hardware**: If you're unsure about a CAN ID, motor type, or sensor configuration, look it up in `HardwareConstants.java` or the subsystem's IO implementation. Never invent hardware configuration.
+- **Don't guess at hardware**: If you're unsure about a CAN ID, motor type, or sensor configuration, look it up in `Constants.CanIds`, `generated/TunerConstants.java` for swerve, or the subsystem's IO implementation. Never invent hardware configuration.
 - **Leave the code better than you found it**: If you notice a small, obvious bug in code you are touching (not just adjacent to), fix it and note it in the PR description. Do not fix bugs in unrelated files.
 
 ---
@@ -162,7 +162,7 @@ These apply to every task you take on:
 | Field dimensions and AprilTag layout | `src/main/java/frc/lib/FieldConstants.java` |
 | Alliance coordinate flipping | `src/main/java/frc/lib/AllianceFlipUtil.java` |
 | Game state triggers | `src/main/java/frc/robot/Triggers.java` (may not exist yet) |
-| CAN IDs for non-swerve hardware | `src/main/java/frc/robot/HardwareConstants.java` (may not exist yet) |
+| CAN IDs for non-swerve hardware | `src/main/java/frc/robot/Constants.java` (`CanIds`) |
 | The subsystem pattern to copy | `template/src/` and `docs/robot-spec.md` |
 
 ### Subsystem IO pattern summary

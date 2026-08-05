@@ -10,13 +10,13 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Voltage;
 import frc.lib.PhoenixUtil;
-import frc.robot.HardwareConstants; // TODO: create — see .claude/rules/02-hardware.md
+import frc.robot.Constants;
 
 /**
  * Real hardware implementation of ExampleSubsystemIO.
  *
  * <p>TEMPLATE INSTRUCTIONS: 1. Replace "TODO_MOTOR_CAN_ID" with your CAN ID constant from
- * HardwareConstants 2. Replace "TODO_CAN_BUS" with "rio" or "Canivore" 3. Configure
+ * Constants.CanIds 2. Replace "TODO_CAN_BUS" with "rio" or "Canivore" 3. Configure
  * TalonFXConfiguration for your motor (current limits, neutral mode, etc.) 4. Add StatusSignal
  * fields for every signal in ExampleSubsystemIOInputs 5. Add control request objects (VoltageOut,
  * VelocityTorqueCurrentFOC, etc.) 6. Call BaseStatusSignal.refreshAll() at the top of
@@ -38,7 +38,7 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   private final VoltageOut voltageRequest = new VoltageOut(0).withEnableFOC(true);
 
   public ExampleSubsystemIOReal() {
-    motor = new TalonFX(HardwareConstants.CanIds.EXAMPLE_MOTOR, "rio"); // TODO: update CAN bus
+    motor = new TalonFX(Constants.CanIds.EXAMPLE_MOTOR, "rio"); // TODO: add the ID and set the bus
 
     // Everything numeric comes from ExampleSubsystemConstants — nothing is inlined here.
     // Gains go through the get* accessors so sim and real each get their own set.
@@ -135,7 +135,7 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   //   private final TalonFX follower;
   //
   //   // ...in the constructor, AFTER configuring the leader:
-  //   follower = new TalonFX(HardwareConstants.CanIds.EXAMPLE_FOLLOWER, "rio");
+  //   follower = new TalonFX(Constants.CanIds.EXAMPLE_FOLLOWER, "rio");
   //   PhoenixUtil.tryUntilOk(5, () -> follower.getConfigurator().apply(config));
   //
   //   // opposeLeaderDirection is TRUE when the follower is physically mounted facing the

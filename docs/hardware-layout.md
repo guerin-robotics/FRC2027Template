@@ -52,7 +52,7 @@ Everything that is not odometry-critical.
 | | | | | |
 
 Add a row per device as it is wired. Match each entry to a constant in
-`HardwareConstants.CanIds` with a `// CANivore` or `// RIO CAN` comment on the line.
+`Constants.CanIds` with a `// CANivore` or `// RIO CAN` comment on the line.
 
 ---
 

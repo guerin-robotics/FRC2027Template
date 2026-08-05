@@ -6,7 +6,7 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import frc.robot.HardwareConstants;
+import frc.robot.Constants;
 import frc.robot.subsystems.example.ExampleSubsystem;
 import java.util.function.BooleanSupplier;
 
@@ -60,13 +60,13 @@ public class ExampleCommands {
     return Commands.sequence(
             Commands.waitUntil(
                     () -> subsystem.isAtVelocity()) // TODO: add isAtVelocity() to subsystem
-                .withTimeout(HardwareConstants.CompConstants.Waits.mechanismReadySeconds),
+                .withTimeout(Constants.Waits.MECHANISM_READY_SECONDS),
             // Phase 2 gets the REMAINING budget, not a fresh one. This is what
             // guarantees the whole sequence finishes inside the total budget.
             Commands.waitUntil(isAligned)
                 .withTimeout(
-                    HardwareConstants.CompConstants.Waits.totalTimeoutSeconds
-                        - HardwareConstants.CompConstants.Waits.mechanismReadySeconds),
+                    Constants.Waits.TOTAL_TIMEOUT_SECONDS
+                        - Constants.Waits.MECHANISM_READY_SECONDS),
             runAtVelocity(subsystem, velocity))
         .withName("Example_AfterReady");
   }

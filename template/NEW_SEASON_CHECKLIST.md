@@ -28,7 +28,7 @@ they're listed so you know they're handled, not so you redo them.
 
 - [ ] Add 2027 field geometry to `frc/lib/FieldConstants.java` (scoring elements, zones, lines)
 - [ ] Add scoring targets and any zone classification to `RobotState`
-- [ ] Create `HardwareConstants.java` — start with an empty `CanIds` class
+- [ ] Fill in `Constants.CanIds` as devices are assigned — one constants file, no `HardwareConstants`
 - [ ] Sketch the mechanism list and assign each a subsystem name before writing any code
 
 ## Robot Build — Hardware Setup

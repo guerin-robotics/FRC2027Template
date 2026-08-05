@@ -58,11 +58,11 @@ Always state why the old limit was insufficient before raising it.
 | Constant type | File |
 |---|---|
 | Swerve CAN IDs, gains, geometry, current limits | `generated/TunerConstants` (generated — see hardware rules) |
-| Other CAN IDs | `HardwareConstants.CanIds` (create when the first mechanism is added) |
+| Other CAN IDs | `Constants.CanIds` |
 | Vision thresholds | `subsystems/vision/VisionConstants` |
 | Heading-hold gains | `commands/DriveCommands` (ANGLE_KP / ANGLE_KD) |
 | Path-following gains | `subsystems/drive/Drive` (`AutoBuilder.configure`) |
 | Joystick shaping, limited speed | `subsystems/drive/DriveConstants` |
 | Field dimensions, AprilTag layout | `frc/lib/FieldConstants` |
 | PID/FF gains (mechanisms) | `[Subsystem]Constants` or IO implementation |
-| Wait/timeout values | constants class — never inline |
+| Setpoints, timeouts, tolerances | `Constants.Setpoints` / `.Waits` / `.Thresholds` — never inline |

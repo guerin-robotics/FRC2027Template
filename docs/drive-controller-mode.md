@@ -2,7 +2,7 @@
 
 > **NOT IMPLEMENTED IN THIS TEMPLATE.** The 2026 robot had a dashboard-selectable
 > controller swap so the drive team could rotate drivers between matches without a
-> redeploy. It depended on `Triggers.java` and `HardwareConstants.ControllerConstants`,
+> redeploy. It depended on `Triggers.java` and a controller-constants block,
 > neither of which carried over.
 >
 > This document is kept as a **design record**, because the pattern is worth rebuilding

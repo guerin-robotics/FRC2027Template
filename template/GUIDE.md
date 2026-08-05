@@ -73,7 +73,7 @@ competition seasons. Don't rewrite them; extend them.
 | Piece | Why it changes |
 |---|---|
 | All mechanism subsystems | New mechanisms every year |
-| `HardwareConstants` | New CAN IDs, new setpoints, new timeouts — doesn't exist yet, create it |
+| `Constants.CanIds` / `.Setpoints` / `.Waits` / `.Thresholds` | New IDs, setpoints and timeouts every year — sections exist, fill them in |
 | `Triggers.java` | Button and state triggers — doesn't exist yet, create it once bindings outgrow `RobotContainer` |
 | Game geometry in `FieldConstants` | Field elements change completely |
 | Scoring targets and zone logic in `RobotState` | Field coordinates change |
@@ -156,8 +156,8 @@ src/main/java/frc/robot/
 ├── Robot.java                ← lifecycle; keep it thin
 ├── RobotContainer.java       ← wiring and bindings ONLY, no game logic
 ├── RobotState.java           ← shared state; add game geometry here
-├── Constants.java            ← runtime mode
-├── HardwareConstants.java    ← CREATE THIS: CAN IDs, setpoints, timeouts
+├── Constants.java            ← THE constants file: mode, CAN IDs, setpoints,
+│                                waits, thresholds. Anything you'd change in the pit.
 ├── Triggers.java             ← CREATE THIS once bindings outgrow RobotContainer
 ├── generated/
 │   └── TunerConstants.java   ← regenerate with Tuner X; never hand-edit
@@ -180,7 +180,8 @@ frc/lib/                      ← ALL shared utilities: field/alliance, hardware
 
 `template/` is **not** part of the Gradle build — the source set is `src/main/java` only, so
 nothing here is compiled or deployed. The example files intentionally reference classes that
-don't exist yet (`HardwareConstants`) and call methods you're expected to add
-(`isAtVelocity()`). They are a reading reference and a copy source, not working code.
+don't exist yet (`Constants.CanIds.EXAMPLE_MOTOR`, `Constants.Waits.*`) and call methods
+you're expected to add (`isAtVelocity()`). They are a reading reference and a copy source,
+not working code.
 
 Spotless *does* format files here, so keep them syntactically valid Java.
