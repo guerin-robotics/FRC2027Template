@@ -35,19 +35,17 @@ public class TunerConstants {
   // output type specified by SwerveModuleConstants.SteerMotorClosedLoopOutput
   private static final Slot0Configs steerGains =
       new Slot0Configs()
-          .withKP(3750) // 3750 25
+          .withKP(2000)
           .withKI(0)
-          .withKD(50) // 50 0
-          .withKS(0.1) // .1 8 or 10
-          .withKV(1.94) // 1.94 2
+          .withKD(20)
+          .withKS(0)
+          .withKV(0)
           .withKA(0)
           .withStaticFeedforwardSign(StaticFeedforwardSignValue.UseClosedLoopSign);
   // When using closed-loop control, the drive motor uses the control
   // output type specified by SwerveModuleConstants.DriveMotorClosedLoopOutput
   private static final Slot0Configs driveGains =
-      new Slot0Configs().withKP(35).withKI(0).withKD(0.0).withKS(3.18).withKV(1.2);
-  // kp 35 ks 3.18 kv 1.2
-  // kP = 5, kS = 1.93676, kV = 1.07305
+      new Slot0Configs().withKP(60).withKI(0).withKD(0.0).withKS(7.26299).withKV(0.0).withKA(0.0);
 
   // The closed-loop output type to use for the steer motors;
   // This affects the PID/FF gains for the steer motors
@@ -71,7 +69,7 @@ public class TunerConstants {
 
   // The stator current at which the wheels start to slip;
   // This needs to be tuned to your individual robot
-  private static final Current kSlipCurrent = Amps.of(80); // 60
+  private static final Current kSlipCurrent = Amps.of(80);
 
   // Initial configs for the drive and steer motors and the azimuth encoder; these cannot be null.
   // Some configs will be overwritten; check the `with*InitialConfigs()` API documentation.
@@ -88,7 +86,7 @@ public class TunerConstants {
                   // Swerve azimuth does not require much torque output, so we can set a relatively
                   // low
                   // stator current limit to help avoid brownouts without impacting performance.
-                  .withStatorCurrentLimit(Amps.of(60))
+                  .withStatorCurrentLimit(Amps.of(40))
                   .withStatorCurrentLimitEnable(true)
                   .withSupplyCurrentLimit(Amps.of(40))
                   .withSupplyCurrentLimitEnable(true));
