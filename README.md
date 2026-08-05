@@ -45,6 +45,10 @@ unnoticed for a whole season:
 | Brownout counting | `BatteryLogger/BrownoutCount`, `MinVoltage` | 491 brownouts across 23 matches, never surfaced in-event |
 | Pose divergence detection | `Odometry/OffField`, `PoseJumpCount` | Nothing caught a bad pose estimate |
 | Auto duration | `Auto/DurationSeconds`, `Auto/Overran` | Autos overran and truncated the last path every match |
+| Motor sticky faults | `Drive/Module*/Sticky*`, `Drive/AnyStickyFault` | A motor that rebooted mid-match left no trace at all |
+| Motor temperature | `Drive/HottestMotorCelsius` + Alert | Krakens thermally limit before faulting; nothing logged temp |
+| CTRE hoot logging | `.hoot` files on the USB drive | Device-internal state AdvantageKit never sees; required by Tuner X SysId |
+| Vision health | `Vision/Camera*/LatencySeconds`, `HasCalibration` | An uncalibrated camera contributes nothing, silently |
 
 **Utilities**
 
@@ -56,6 +60,7 @@ unnoticed for a whole season:
 | `util/CANBusMonitor` | Bus utilization and error counts |
 | `util/FaultMonitor` | Rolls all fault conditions into one "Robot OK" indicator |
 | `util/MatchMetadataLogger` | Event and match identity, for triaging logs |
+| `util/PhoenixSignalLogger` | CTRE hoot logging, started on enable and stopped on disable |
 | `util/PhoenixUtil` | `tryUntilOk` — retries CTRE config until it sticks |
 | `util/CANUpdateThread` | Async CAN device configuration with retry |
 | `util/LocalADStarAK` | Replay-safe PathPlanner pathfinder |

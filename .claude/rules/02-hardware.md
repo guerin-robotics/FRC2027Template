@@ -142,6 +142,25 @@ battery voltage. Every drivetrain power and energy figure from that season is in
 `ModuleIO` now logs both separately and `BatteryLogger` is fed supply. Keep them distinct in
 any new mechanism.
 
+### Sticky faults
+
+Every TalonFX latches sticky faults until they are explicitly cleared, which means they record
+things that happened **between** your polls. Log at least these four per motor:
+
+| Sticky fault | What it means |
+|---|---|
+| `getStickyFault_BootDuringEnable()` | The device rebooted while the robot was enabled |
+| `getStickyFault_Undervoltage()` | Supply voltage collapsed at the device |
+| `getStickyFault_DeviceTemp()` | The motor hit its thermal limit |
+| `getStickyFault_Hardware()` | Device-reported hardware failure |
+
+`BootDuringEnable` in particular is the difference between "the motor stopped working for three
+seconds and we have no idea why" and "that motor rebooted at 47.2 s, go check its power
+connector". Nothing in 2026 read any of these.
+
+Register them at a low rate — 4 Hz is plenty, because they latch. Put them in the `@AutoLog`
+**inputs**, not `Logger.recordOutput()`: they are hardware reads, and outputs are not replayed.
+
 ### Torque current
 
 If a mechanism uses `TorqueCurrentFOC`, `VelocityTorqueCurrentFOC`, or
@@ -166,6 +185,29 @@ and `template/src/.../ExampleSubsystemIOReal.java` for a copyable version.
 draw, not the torque-producing component, so any value written there is fiction that looks
 real in a log. Leave the field at zero — the schema is shared through the generated
 `*AutoLogged` class, so real and sim still match.
+
+---
+
+## Hoot Logging (CTRE SignalLogger)
+
+Phoenix writes its own `.hoot` logs, separate from AdvantageKit, via `SignalLogger`. Both are
+worth having and they answer different questions:
+
+| | AdvantageKit | Hoot |
+|---|---|---|
+| Records | What the code saw — `@AutoLog` inputs at loop rate | What the devices did — every Phoenix signal at device rate |
+| Includes | Only what you chose to read | Internal control-loop state the code never reads |
+| Enables | Deterministic replay | CTRE Tuner X SysId, deep device diagnosis |
+| CAN cost | n/a | None — recording happens on the CANivore |
+
+When a Kraken misbehaves and the AdvantageKit log shows the command was correct, the hoot file
+is where the answer is.
+
+`PhoenixSignalLogger` wraps this. It starts on enable and stops on disable, so recordings are
+bounded to matches rather than accumulating while the robot sits powered in the pit. Files go to
+`/U/logs` beside the AdvantageKit logs; if the path cannot be set — usually a missing USB stick —
+logging stays off rather than falling back to internal roboRIO storage, which is small and much
+worse to fill. Set `ENABLED = false` in that class to turn it off entirely.
 
 ---
 

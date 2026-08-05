@@ -179,4 +179,22 @@ public class Module {
   public double getTurnTempCelsius() {
     return inputs.turnTempCelsius;
   }
+
+  /**
+   * True if either motor on this module has latched any sticky fault.
+   *
+   * <p>Sticky faults persist until explicitly cleared, so this stays true for the rest of the power
+   * cycle once something goes wrong. That is the point — it means a fault that lasted 200 ms at 47
+   * s into a match is still visible in the pit afterward.
+   */
+  public boolean hasStickyFault() {
+    return inputs.driveStickyBootDuringEnable
+        || inputs.driveStickyUndervoltage
+        || inputs.driveStickyOverTemp
+        || inputs.driveStickyHardwareFault
+        || inputs.turnStickyBootDuringEnable
+        || inputs.turnStickyUndervoltage
+        || inputs.turnStickyOverTemp
+        || inputs.turnStickyHardwareFault;
+  }
 }

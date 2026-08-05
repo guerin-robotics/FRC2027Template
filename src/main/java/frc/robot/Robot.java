@@ -20,6 +20,7 @@ import frc.robot.util.CommandLogger;
 import frc.robot.util.FaultMonitor;
 import frc.robot.util.LoopTimeMonitor;
 import frc.robot.util.MatchMetadataLogger;
+import frc.robot.util.PhoenixSignalLogger;
 import org.littletonrobotics.junction.AutoLogOutputManager;
 import org.littletonrobotics.junction.LogFileUtil;
 import org.littletonrobotics.junction.LoggedRobot;
@@ -115,6 +116,10 @@ public class Robot extends LoggedRobot {
     // command is scheduled or the first few will be missed.
     CommandLogger.start();
 
+    // Configure CTRE hoot logging. Recording itself starts on enable — see PhoenixSignalLogger
+    // for why it is not always-on.
+    PhoenixSignalLogger.configure();
+
     // Instantiate our RobotContainer. This will perform all our button bindings,
     // and put our autonomous chooser on the dashboard.
     robotContainer = new RobotContainer();
@@ -186,6 +191,10 @@ public class Robot extends LoggedRobot {
   public void disabledInit() {
     disabledTimer.restart();
     hasCoasted = false;
+
+    // Close the hoot file. Keeps recordings bounded to matches instead of accumulating while
+    // the robot sits powered in the pit.
+    PhoenixSignalLogger.stop();
   }
 
   /** This function is called periodically when disabled. */
@@ -205,12 +214,18 @@ public class Robot extends LoggedRobot {
     disabledTimer.stop();
   }
 
+  /** Everything that should happen on any enable, regardless of mode. */
+  private void onEnable() {
+    enableBrakeMode();
+    PhoenixSignalLogger.start();
+  }
+
   /** This autonomous runs the autonomous command selected by your {@link RobotContainer} class. */
   @Override
   public void autonomousInit() {
     autonomousCommand = robotContainer.getAutonomousCommand();
 
-    enableBrakeMode();
+    onEnable();
 
     // Time the auto. The 2026 routines overran the auto period and the final path was
     // truncated in every single match — nobody measured it until the season was over.
@@ -259,7 +274,7 @@ public class Robot extends LoggedRobot {
   /** This function is called once when teleop is enabled. */
   @Override
   public void teleopInit() {
-    enableBrakeMode();
+    onEnable();
 
     // This makes sure that the autonomous stops running when
     // teleop starts running. If you want the autonomous to
@@ -277,6 +292,8 @@ public class Robot extends LoggedRobot {
   /** This function is called once when test mode is enabled. */
   @Override
   public void testInit() {
+    onEnable();
+
     // Cancels all running commands at the start of test mode.
     CommandScheduler.getInstance().cancelAll();
   }

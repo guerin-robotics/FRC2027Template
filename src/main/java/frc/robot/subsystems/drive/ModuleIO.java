@@ -25,6 +25,14 @@ public interface ModuleIO {
     // exactly the bug this pair of fields exists to prevent.
     public double driveSupplyCurrentAmps = 0.0;
     public double driveTempCelsius = 0.0;
+
+    // Sticky faults latch until cleared, so they record things that happened BETWEEN polls.
+    // This is the difference between "the motor stopped working for three seconds and we
+    // have no idea why" and "the motor rebooted at 47.2 s". Nothing in 2026 read these.
+    public boolean driveStickyBootDuringEnable = false;
+    public boolean driveStickyUndervoltage = false;
+    public boolean driveStickyOverTemp = false;
+    public boolean driveStickyHardwareFault = false;
     // Torque-producing current. With a *TorqueCurrentFOC request this IS the control
     // signal, which stator current is not — a stalled module and a free-spinning one can
     // draw similar stator current but very different torque current.
@@ -39,6 +47,10 @@ public interface ModuleIO {
     public double turnCurrentAmps = 0.0;
     public double turnSupplyCurrentAmps = 0.0;
     public double turnTempCelsius = 0.0;
+    public boolean turnStickyBootDuringEnable = false;
+    public boolean turnStickyUndervoltage = false;
+    public boolean turnStickyOverTemp = false;
+    public boolean turnStickyHardwareFault = false;
     public double turnTorqueCurrentAmps = 0.0;
 
     public double[] odometryTimestamps = new double[] {};

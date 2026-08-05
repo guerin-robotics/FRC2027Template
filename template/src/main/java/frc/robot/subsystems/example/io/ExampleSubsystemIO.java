@@ -44,6 +44,15 @@ public interface ExampleSubsystemIO {
     // and put the unit in the field name: public double motorTempCelsius = 0.0;
     public Temperature motorTemperature = Celsius.of(0);
 
+    // Sticky faults latch until cleared, so they record what happened BETWEEN polls. Log at
+    // least these four — bootDuringEnable is the one that turns "the motor died for three
+    // seconds" into "the motor rebooted at 47.2 s, check its power connector".
+    // Register at ~4 Hz; they latch, so a fast rate buys nothing.
+    public boolean stickyBootDuringEnable = false;
+    public boolean stickyUndervoltage = false;
+    public boolean stickyOverTemp = false;
+    public boolean stickyHardwareFault = false;
+
     // Add closed-loop reference/error if using PID:
     // public AngularVelocity closedLoopReference = RotationsPerSecond.of(0);
     // public AngularVelocity closedLoopError = RotationsPerSecond.of(0);

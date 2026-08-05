@@ -86,6 +86,8 @@ BatteryLogger/[Subsystem]/Current               — which subsystem drew the mos
 Drive/Module[0-3]-Drive                         — per-module drive SUPPLY current
 Drive/Module[0-3]-Turn                          — per-module steer SUPPLY current
 Drive/HottestMotorCelsius                       — thermal limiting late in a match
+Drive/AnyStickyFault                            — did any motor latch a fault?
+Drive/Module[0-3]/DriveStickyUndervoltage       — the motor browned out, specifically
 Drive/Module[0-3]/DriveTorqueCurrentAmps        — was a module fighting a stall?
 Drive/Module[0-3]/TurnTorqueCurrentAmps         — was a steer motor binding?
 BatteryLogger/BrownoutCount                     — how many brownouts so far
@@ -97,6 +99,24 @@ BatteryLogger/BrownedOutNow                     — timeline of the event itself
 Supply current explains the battery draw; torque current explains *why* the
 mechanism was asking for it. Check both — a module pushing against a wall and a
 module accelerating hard look similar in supply current alone.
+
+**A motor stopped working and then started again**
+```
+Drive/Module[N]/DriveStickyBootDuringEnable  — the device REBOOTED mid-match
+Drive/Module[N]/DriveStickyUndervoltage      — its supply collapsed
+Drive/Module[N]/DriveStickyOverTemp          — it hit thermal limit
+Drive/Module[N]/DriveStickyHardwareFault     — device-reported hardware failure
+Drive/Module[N]/driveConnected               — when it dropped off the bus
+```
+
+Sticky faults latch until cleared, so they capture events that lasted milliseconds and are
+long over by the time anyone looks. A `BootDuringEnable` almost always means a power
+connector, not software. Note these persist for the whole power cycle — check *when* the
+signal went true, not just that it is true.
+
+If the AdvantageKit log shows the command was correct and the motor still misbehaved, pull
+the matching `.hoot` file from `/U/logs` and open it in Tuner X. That has the device's own
+internal control-loop state, which AdvantageKit never sees.
 
 **Loop overrun**
 ```

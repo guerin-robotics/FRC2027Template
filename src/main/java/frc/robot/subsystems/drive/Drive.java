@@ -89,6 +89,12 @@ public class Drive extends SubsystemBase {
       new Alert(
           "A swerve motor is running hot — output will be thermally limited.", AlertType.kWarning);
 
+  private final Alert stickyFaultAlert =
+      new Alert(
+          "A swerve motor latched a sticky fault (reboot, undervoltage, over-temp or hardware). "
+              + "Check Drive/Module*/Sticky* in the log.",
+          AlertType.kWarning);
+
   // TunerConstants doesn't include these constants, so they are declared locally
   static final double ODOMETRY_FREQUENCY = TunerConstants.kCANBus.isNetworkFD() ? 250.0 : 100.0;
   public static final double DRIVE_BASE_RADIUS =
@@ -265,6 +271,7 @@ public class Drive extends SubsystemBase {
 
     // Report current usage to the battery logger for each swerve module
     double hottestMotorCelsius = 0.0;
+    boolean anyStickyFault = false;
     for (int i = 0; i < 4; i++) {
       // SUPPLY current, not stator. BatteryLogger converts this to power against battery
       // voltage, and stator current would overstate the draw — badly, at low speed under load.
@@ -277,10 +284,14 @@ public class Drive extends SubsystemBase {
           Math.max(
               hottestMotorCelsius,
               Math.max(modules[i].getDriveTempCelsius(), modules[i].getTurnTempCelsius()));
+      anyStickyFault |= modules[i].hasStickyFault();
     }
 
     Logger.recordOutput("Drive/HottestMotorCelsius", hottestMotorCelsius);
     motorHotAlert.set(hottestMotorCelsius > MOTOR_HOT_CELSIUS);
+
+    Logger.recordOutput("Drive/AnyStickyFault", anyStickyFault);
+    stickyFaultAlert.set(anyStickyFault);
 
     // ---- Pose sanity ----
     Pose2d estimate = getPose();
@@ -453,6 +464,19 @@ public class Drive extends SubsystemBase {
   /** True when the gyro is reporting. Registered with {@code FaultMonitor}. */
   public boolean isGyroConnected() {
     return gyroInputs.connected;
+  }
+
+  /**
+   * True if any swerve motor has latched a sticky fault this power cycle. Registered with {@code
+   * FaultMonitor}.
+   */
+  public boolean hasStickyFault() {
+    for (var module : modules) {
+      if (module.hasStickyFault()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

@@ -65,6 +65,10 @@ public class ModuleIOTalonFXS implements ModuleIO {
   private final StatusSignal<Current> driveTorqueCurrent;
   private final StatusSignal<Current> driveSupplyCurrent;
   private final StatusSignal<Temperature> driveTemp;
+  private final StatusSignal<Boolean> driveStickyBootDuringEnable;
+  private final StatusSignal<Boolean> driveStickyUndervoltage;
+  private final StatusSignal<Boolean> driveStickyOverTemp;
+  private final StatusSignal<Boolean> driveStickyHardware;
 
   // Inputs from turn motor
   private final StatusSignal<Angle> turnAbsolutePosition;
@@ -76,6 +80,10 @@ public class ModuleIOTalonFXS implements ModuleIO {
   private final StatusSignal<Current> turnTorqueCurrent;
   private final StatusSignal<Current> turnSupplyCurrent;
   private final StatusSignal<Temperature> turnTemp;
+  private final StatusSignal<Boolean> turnStickyBootDuringEnable;
+  private final StatusSignal<Boolean> turnStickyUndervoltage;
+  private final StatusSignal<Boolean> turnStickyOverTemp;
+  private final StatusSignal<Boolean> turnStickyHardware;
 
   // Connection debouncers
   private final Debouncer driveConnectedDebounce =
@@ -176,6 +184,10 @@ public class ModuleIOTalonFXS implements ModuleIO {
     driveTorqueCurrent = driveTalon.getTorqueCurrent();
     driveSupplyCurrent = driveTalon.getSupplyCurrent();
     driveTemp = driveTalon.getDeviceTemp();
+    driveStickyBootDuringEnable = driveTalon.getStickyFault_BootDuringEnable();
+    driveStickyUndervoltage = driveTalon.getStickyFault_Undervoltage();
+    driveStickyOverTemp = driveTalon.getStickyFault_DeviceTemp();
+    driveStickyHardware = driveTalon.getStickyFault_Hardware();
 
     // Create turn status signals
     turnAbsolutePosition = candi.getPWM1Position();
@@ -187,6 +199,10 @@ public class ModuleIOTalonFXS implements ModuleIO {
     turnTorqueCurrent = turnTalon.getTorqueCurrent();
     turnSupplyCurrent = turnTalon.getSupplyCurrent();
     turnTemp = turnTalon.getDeviceTemp();
+    turnStickyBootDuringEnable = turnTalon.getStickyFault_BootDuringEnable();
+    turnStickyUndervoltage = turnTalon.getStickyFault_Undervoltage();
+    turnStickyOverTemp = turnTalon.getStickyFault_DeviceTemp();
+    turnStickyHardware = turnTalon.getStickyFault_Hardware();
 
     // Configure periodic frames
     BaseStatusSignal.setUpdateFrequencyForAll(
@@ -207,7 +223,21 @@ public class ModuleIOTalonFXS implements ModuleIO {
     // Temperature changes on the order of minutes, so it does not belong in the 50 Hz group.
     // It still has to be registered explicitly — optimizeBusUtilization() below disables every
     // signal that isn't, which is how the 2026 intake follower ended up publishing at 4 Hz.
-    BaseStatusSignal.setUpdateFrequencyForAll(4.0, driveTemp, turnTemp);
+    // Temperature and faults both change slowly, and sticky faults latch until cleared, so
+    // 4 Hz loses nothing. All of these still have to be registered explicitly —
+    // optimizeBusUtilization() below disables anything that isn't.
+    BaseStatusSignal.setUpdateFrequencyForAll(
+        4.0,
+        driveTemp,
+        turnTemp,
+        driveStickyBootDuringEnable,
+        driveStickyUndervoltage,
+        driveStickyOverTemp,
+        driveStickyHardware,
+        turnStickyBootDuringEnable,
+        turnStickyUndervoltage,
+        turnStickyOverTemp,
+        turnStickyHardware);
     ParentDevice.optimizeBusUtilizationForAll(driveTalon, turnTalon);
   }
 
@@ -222,7 +252,11 @@ public class ModuleIOTalonFXS implements ModuleIO {
             driveCurrent,
             driveTorqueCurrent,
             driveSupplyCurrent,
-            driveTemp);
+            driveTemp,
+            driveStickyBootDuringEnable,
+            driveStickyUndervoltage,
+            driveStickyOverTemp,
+            driveStickyHardware);
     var turnStatus =
         BaseStatusSignal.refreshAll(
             turnPosition,
@@ -231,7 +265,11 @@ public class ModuleIOTalonFXS implements ModuleIO {
             turnCurrent,
             turnTorqueCurrent,
             turnSupplyCurrent,
-            turnTemp);
+            turnTemp,
+            turnStickyBootDuringEnable,
+            turnStickyUndervoltage,
+            turnStickyOverTemp,
+            turnStickyHardware);
     var turnEncoderStatus = BaseStatusSignal.refreshAll(turnAbsolutePosition);
 
     // Update drive inputs
@@ -243,6 +281,10 @@ public class ModuleIOTalonFXS implements ModuleIO {
     inputs.driveTorqueCurrentAmps = driveTorqueCurrent.getValueAsDouble();
     inputs.driveSupplyCurrentAmps = driveSupplyCurrent.getValueAsDouble();
     inputs.driveTempCelsius = driveTemp.getValueAsDouble();
+    inputs.driveStickyBootDuringEnable = driveStickyBootDuringEnable.getValue();
+    inputs.driveStickyUndervoltage = driveStickyUndervoltage.getValue();
+    inputs.driveStickyOverTemp = driveStickyOverTemp.getValue();
+    inputs.driveStickyHardwareFault = driveStickyHardware.getValue();
 
     // Update turn inputs
     inputs.turnConnected = turnConnectedDebounce.calculate(turnStatus.isOK());
@@ -255,6 +297,10 @@ public class ModuleIOTalonFXS implements ModuleIO {
     inputs.turnTorqueCurrentAmps = turnTorqueCurrent.getValueAsDouble();
     inputs.turnSupplyCurrentAmps = turnSupplyCurrent.getValueAsDouble();
     inputs.turnTempCelsius = turnTemp.getValueAsDouble();
+    inputs.turnStickyBootDuringEnable = turnStickyBootDuringEnable.getValue();
+    inputs.turnStickyUndervoltage = turnStickyUndervoltage.getValue();
+    inputs.turnStickyOverTemp = turnStickyOverTemp.getValue();
+    inputs.turnStickyHardwareFault = turnStickyHardware.getValue();
 
     // Update odometry inputs
     inputs.odometryTimestamps =

@@ -154,6 +154,7 @@ public class RobotContainer {
     // Register any new mechanism's health conditions here too.
     FaultMonitor.getInstance().register("Gyro disconnected", () -> !drive.isGyroConnected());
     FaultMonitor.getInstance().register("Pose off field", drive::isPoseOffField);
+    FaultMonitor.getInstance().register("Swerve motor sticky fault", drive::hasStickyFault);
     for (int i = 0; i < vision.getCameraCount(); i++) {
       final int cameraIndex = i;
       FaultMonitor.getInstance()
