@@ -61,6 +61,41 @@ Two consequences that bite people:
 
 ---
 
+## Tuning Without Redeploying
+
+Every loop below is "change a gain, run, look, change it again". Doing that through
+edit-build-deploy-enable is roughly two minutes per iteration, and a session is dozens of
+iterations — most of a tuning session is spent waiting rather than tuning.
+
+`LoggedTunableNumber` removes that. Set `Constants.tuningMode = true`, deploy once, and the
+tunables appear on the dashboard under **Tuning/** where they can be adjusted while enabled.
+
+```java
+private static final LoggedTunableNumber kP = new LoggedTunableNumber("Drive/HeadingKp", 8.5);
+
+// Cheap reads: just call get()
+controller.setP(kP.get());
+
+// Expensive rebuilds: only when something actually changed
+LoggedTunableNumber.ifChanged(
+    hashCode(),
+    () -> controller.setPID(kP.get(), 0.0, kD.get()),
+    kP, kD);
+```
+
+The heading-hold gains in `DriveCommands` are wired this way as the worked example.
+
+Two rules, both learned the hard way by teams every year:
+
+1. **Write the values back into the code and commit them.** Dashboard values live in
+   NetworkTables and are gone at the next reboot. A tuning session that ends without a commit
+   accomplished nothing.
+2. **`tuningMode` must be false for competition.** With it on, every tunable does NT traffic
+   inside the 20 ms loop, and the robot is one stray dashboard edit away from a different gain
+   set. Turning it off is on the pre-competition checklist.
+
+---
+
 ## Safety
 
 Changing gains is a **Level 3** change (`docs/change-classification.md`), and doing it

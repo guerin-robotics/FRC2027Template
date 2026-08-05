@@ -24,6 +24,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConstants;
+import frc.robot.util.LoggedTunableNumber;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.LinkedList;
@@ -52,10 +53,19 @@ public class DriveCommands {
 
   // Heading-hold gains, tuned on the 2026 competition robot. Re-tune for 2027 —
   // these depend on robot mass and moment of inertia, not on the game.
-  private static final double ANGLE_KP = 8.5;
-  private static final double ANGLE_KD = 0.3;
-  private static final double ANGLE_MAX_VELOCITY = 12.0;
-  private static final double ANGLE_MAX_ACCELERATION = 20.0;
+  //
+  // These are the worked example of LoggedTunableNumber. With Constants.tuningMode on they
+  // appear under "Tuning/Drive/..." on the dashboard and can be adjusted while the robot is
+  // enabled; with it off they are exactly these numbers and cost nothing. Whatever you land
+  // on during a session, write it back here and commit it — dashboard values are not saved.
+  private static final LoggedTunableNumber angleKp =
+      new LoggedTunableNumber("Drive/HeadingKp", 8.5);
+  private static final LoggedTunableNumber angleKd =
+      new LoggedTunableNumber("Drive/HeadingKd", 0.3);
+  private static final LoggedTunableNumber angleMaxVelocity =
+      new LoggedTunableNumber("Drive/HeadingMaxVelocity", 12.0);
+  private static final LoggedTunableNumber angleMaxAcceleration =
+      new LoggedTunableNumber("Drive/HeadingMaxAccel", 20.0);
 
   private static final double FF_START_DELAY = 2.0; // Secs
 
@@ -189,16 +199,35 @@ public class DriveCommands {
     // Create PID controller
     ProfiledPIDController angleController =
         new ProfiledPIDController(
-            ANGLE_KP,
+            angleKp.get(),
             0.0,
-            ANGLE_KD,
-            new TrapezoidProfile.Constraints(ANGLE_MAX_VELOCITY, ANGLE_MAX_ACCELERATION));
+            angleKd.get(),
+            new TrapezoidProfile.Constraints(angleMaxVelocity.get(), angleMaxAcceleration.get()));
     angleController.enableContinuousInput(-Math.PI, Math.PI);
+
+    // Stable id for change detection, so gains can be adjusted while this command runs.
+    int tuningId = angleController.hashCode();
 
     // Construct command
     return Commands.run(
             () -> {
               drive.areWheelsXed = false;
+
+              // Pick up live gain edits while tuning. No-op when tuningMode is off, and even
+              // when on this only rebuilds when a value actually changed rather than every loop.
+              LoggedTunableNumber.ifChanged(
+                  tuningId,
+                  () -> {
+                    angleController.setPID(angleKp.get(), 0.0, angleKd.get());
+                    angleController.setConstraints(
+                        new TrapezoidProfile.Constraints(
+                            angleMaxVelocity.get(), angleMaxAcceleration.get()));
+                  },
+                  angleKp,
+                  angleKd,
+                  angleMaxVelocity,
+                  angleMaxAcceleration);
+
               // Get linear velocity
               Translation2d linearVelocity =
                   getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble());

@@ -34,4 +34,19 @@ public final class Constants {
    * frc.lib.AllianceFlipUtil#refresh()}.
    */
   public static boolean disableHAL = false;
+
+  /**
+   * Enables dashboard-adjustable constants ({@code LoggedTunableNumber} / {@code
+   * LoggedTunableBoolean}).
+   *
+   * <p><b>MUST BE FALSE FOR COMPETITION.</b> With it on, every tunable publishes to NetworkTables
+   * and reads back from it, which puts dashboard traffic in the 20 ms loop and leaves the robot one
+   * stray edit away from a different gain set. With it off, tunables return their compiled-in
+   * defaults and cost nothing.
+   *
+   * <p>Turning this on is a deliberate act at the start of a tuning session, and turning it off
+   * again is part of the pre-competition checklist. Values discovered while it is on live only in
+   * NetworkTables — write them into the constants and commit them, or they vanish on reboot.
+   */
+  public static final boolean tuningMode = false;
 }

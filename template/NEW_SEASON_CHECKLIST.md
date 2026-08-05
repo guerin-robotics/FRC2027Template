@@ -186,7 +186,9 @@ before the robot is enabled for the first time. Short version:
 - [ ] `TunerConstants` has been regenerated with Tuner X **for this robot**
 - [ ] Phoenix Tuner device count matches what the code expects
 - [ ] `Constants.currentMode` resolves to `REAL`; `simMode` not left on `REPLAY`
-- [ ] Tuning and demo flags OFF
+- [ ] `Constants.tuningMode` is FALSE — tunables must not be dashboard-adjustable at an event
+- [ ] Any gain found during a tuning session has been written back into the constants and
+      committed; dashboard values do not survive a reboot
 - [ ] USB drive present for logging
 - [ ] Working tree clean — `GitDirty` reads "All changes committed"
 - [ ] Robot on blocks, hand on disable, for the first enable

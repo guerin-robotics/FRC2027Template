@@ -21,7 +21,22 @@ import org.littletonrobotics.junction.Logger;
  */
 public class BatteryLogger {
 
-  /** Default loop period in seconds (20 ms). */
+  /**
+   * Assumed loop period in seconds, used to turn instantaneous power into accumulated energy.
+   *
+   * <p><b>KNOWN LIMITATION — energy figures are wrong whenever the loop overruns.</b> This is a
+   * fixed assumption, not a measurement. If the robot is actually running at 30 Hz (33 ms loops,
+   * which is what 2026 did all season), every {@code Energy} value below is understated by roughly
+   * 40%, because each loop covered 33 ms of real time but only 20 ms was accounted for.
+   *
+   * <p>Current and power are instantaneous and are unaffected. Only the accumulating {@code Energy}
+   * channels are wrong, and only in proportion to the overrun.
+   *
+   * <p>The fix is to measure real elapsed time between calls and clamp it against a ceiling so a
+   * pause (disable, breakpoint, replay) does not dump a huge slug of energy in one step. {@code
+   * LoopTimeMonitor} already measures the loop duration this would need. Left as-is deliberately
+   * for now — check {@code LoopTiming/AverageMs} before trusting any energy number.
+   */
   private static final double LOOP_PERIOD_SECS = 0.02;
 
   // ---- Running totals for the current loop cycle ----

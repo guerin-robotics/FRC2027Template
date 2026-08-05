@@ -2,6 +2,7 @@ package frc.robot.util;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.Subsystem;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.littletonrobotics.junction.Logger;
@@ -67,6 +68,27 @@ public class CommandLogger {
     // Per-name boolean. Keep publishing false after a command ends so the channel stays in the
     // log rather than disappearing, which makes it graphable across the whole match.
     Logger.recordOutput("Commands/All/" + name, count > 0);
+  }
+
+  /**
+   * Logs which command currently owns a subsystem.
+   *
+   * <p>Complements {@code Commands/Active}, which is robot-wide. When one mechanism misbehaves, the
+   * question is usually "what was driving *this* subsystem at that moment" — including whether it
+   * had fallen back to its default command, which the global list does not make obvious.
+   *
+   * <p>Call from the subsystem's {@code periodic()}:
+   *
+   * <pre>
+   * CommandLogger.recordCurrentCommand("Drive", this);
+   * </pre>
+   *
+   * @param name Log key prefix, normally the subsystem name
+   * @param subsystem The subsystem to inspect
+   */
+  public static void recordCurrentCommand(String name, Subsystem subsystem) {
+    Command current = CommandScheduler.getInstance().requiring(subsystem);
+    Logger.recordOutput(name + "/CurrentCommand", current == null ? "None" : current.getName());
   }
 
   /**
