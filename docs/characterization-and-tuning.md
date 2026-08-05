@@ -592,7 +592,10 @@ sequence from a log without it.
    at rest, find the current that exactly holds it against gravity. Set the matching
    `GravityType`:
    - `Elevator_Static` — constant force regardless of position
-   - `Arm_Cosine` — force varies with `cos(angle)`, so **zero must be horizontal**. Get the
+   - `Arm_Cosine` — force varies with `cos(angle)`, so **the cosine reference must be
+     horizontal**. When mechanism zero is the stow position instead, set
+     `Slot0.GravityArmPositionOffset` to the negative of the angle at which the arm is level
+     rather than redefining zero. Get the
      sensor offset right or `kG` fights you through the range of motion
 2. **kS** — additional current to break static friction, beyond `kG`
 3. **kP** — amps per **mechanism rotation** of error. Remember the scale: if your mechanism

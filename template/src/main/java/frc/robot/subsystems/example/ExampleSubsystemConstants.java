@@ -171,27 +171,45 @@ public class ExampleSubsystemConstants {
   //
   // public static final double GEAR_RATIO = ;
   //
-  // Phoenix then needs that total SPLIT AT THE ENCODER. The two must multiply back to
-  // GEAR_RATIO — if they do not, either the top speed or the reported position is wrong, and
-  // nothing will tell you which.
+  // Phoenix then needs that total SPLIT AT THE ENCODER, and the split is decided by ONE
+  // question: WHERE IS THE ENCODER? Answer that before writing either number.
   //
   //   ROTOR_TO_SENSOR_RATIO      motor rotations per encoder rotation  (rotor/CANcoder fusion)
   //   SENSOR_TO_MECHANISM_RATIO  encoder rotations per mechanism rotation
   //
-  // NO EXTERNAL ENCODER — the rotor is the sensor, so the whole reduction is on the far side:
+  // The two must multiply back to GEAR_RATIO. If they do not, either the top speed or the
+  // reported position is wrong, and nothing will tell you which.
+  //
+  // ---- Case 1: motor encoder only, no CANcoder ----
+  // The rotor is the sensor, so the whole reduction sits on the far side of it.
   //   ROTOR_TO_SENSOR_RATIO     = 1.0
   //   SENSOR_TO_MECHANISM_RATIO = GEAR_RATIO
   //
-  // CANCODER ON THE MECHANISM'S OWN SHAFT — the encoder already turns with the mechanism, so
-  // the whole reduction is on the motor side:
+  // ---- Case 2: CANcoder on the mechanism itself ----
+  // Typically a hex-bore CANcoder on the shaft the mechanism actually turns on. The encoder
+  // already reads mechanism rotations, so there is nothing left below it.
   //   ROTOR_TO_SENSOR_RATIO     = GEAR_RATIO
   //   SENSOR_TO_MECHANISM_RATIO = 1.0
   //
-  // CANCODER PARTWAY DOWN THE CHAIN — split it where the encoder physically sits. The 2026
-  // hood was motor → 30T belt → 20T shaft → CANcoder → 12T lantern → 122T hood:
-  //   ROTOR_TO_SENSOR_RATIO     = 30.0 / 20.0  = 1.5
-  //   SENSOR_TO_MECHANISM_RATIO = 122.0 / 12.0 ≈ 10.17
-  //   GEAR_RATIO                = 1.5 * 10.17  ≈ 15.25
+  // Cases 1 and 2 cover nearly everything this team builds. Prefer them.
+  //
+  // ---- Case 3: CANcoder on an intermediate shaft ----
+  // There is still gearing BETWEEN the encoder and the mechanism. Split the total where the
+  // encoder physically sits.
+  //
+  // The 2026 hood is the example, and it is worth reading carefully because the trap is in the
+  // vocabulary. That code calls the encoder's shaft the "output shaft" — meaning the GEARBOX
+  // output, not the mechanism. A 12T lantern gear on that shaft still drives a 122T hood gear
+  // after it, so the encoder turns about ten times per hood rotation:
+  //
+  //   motor → belt → shaft (CANcoder here) → 12T lantern → 122T hood
+  //   ROTOR_TO_SENSOR_RATIO     = 5.33            (measured, motor to that shaft)
+  //   SENSOR_TO_MECHANISM_RATIO = 122.0 / 12.0    ≈ 10.17
+  //   GEAR_RATIO                = 5.33 * 10.17    ≈ 54.2
+  //
+  // "Output shaft" is ambiguous and has cost time before. The only question that matters is
+  // whether the encoder turns 1:1 with the thing you are trying to measure. If anything geared
+  // sits after it, you are in case 3.
   //
   // public static final double ROTOR_TO_SENSOR_RATIO = ;
   // public static final double SENSOR_TO_MECHANISM_RATIO = ;
@@ -205,6 +223,14 @@ public class ExampleSubsystemConstants {
   // SENSOR_DISCONTINUITY_POINT is where the absolute reading wraps — 1.0 gives [0, 1), 0.5 gives
   // [-0.5, 0.5). Put the discontinuity somewhere the mechanism never travels, or position jumps a
   // full rotation mid-motion.
+  //
+  // 1.0 IS RARELY THE RIGHT ANSWER, despite being the obvious-looking default. It puts the wrap
+  // at 0, and 0 is almost always the stow position — the one place the mechanism sits most of
+  // the match. The reading then flips between ~0.0 and ~1.0 every time it settles there, and a
+  // position loop chases a full rotation of phantom error.
+  //
+  // 0.5 puts the wrap at half a turn away, which for any mechanism travelling less than 180°
+  // from zero is nowhere near its range. Start there for arms and pivots.
   //
   // public static final double MAGNET_OFFSET_ROTATIONS = ;
   // public static final double SENSOR_DISCONTINUITY_POINT = ;
@@ -374,6 +400,15 @@ public class ExampleSubsystemConstants {
 
   /** How close counts as "at position", in degrees. */
   public static final double POSITION_TOLERANCE_DEGREES = 1.0;
+
+  /**
+   * Where horizontal sits, in mechanism degrees. Rotating mechanisms with gravity load only.
+   *
+   * <p>Used as the {@code Arm_Cosine} reference — see {@link #getPositionFXConfig()}. Zero is
+   * correct only when the mechanism's zero position is genuinely level. Delete this for an elevator
+   * or for anything gravity does not act on.
+   */
+  public static final double GRAVITY_HORIZONTAL_OFFSET_DEGREES = 0.0;
 
   /** How close counts as "at position" for a linear mechanism, in inches. */
   public static final double POSITION_TOLERANCE_INCHES = 0.25;
@@ -646,7 +681,21 @@ public class ExampleSubsystemConstants {
     config.Slot0.kG = getKG();
     config.Slot0.kP = getKP();
     config.Slot0.kD = getKD();
+    // Arm_Cosine for anything that pivots, Elevator_Static for a lift. The difference is real:
+    // gravity torque on an arm varies with the cosine of its angle, peaking horizontal and
+    // vanishing vertical, while an elevator fights the same weight everywhere.
     config.Slot0.GravityType = GravityTypeValue.Arm_Cosine; // Elevator_Static for a lift
+
+    // WHERE IS HORIZONTAL? Arm_Cosine scales kG by cos(position + offset), and it assumes the
+    // peak lands at a cosine argument of zero. If the mechanism's zero is its STOW position
+    // rather than horizontal — which is the usual way to define zero — the compensation peaks
+    // in the wrong place: too little hold current where gravity is strongest, too much where
+    // there is none.
+    //
+    // Set this to the negative of the mechanism angle at which the arm is level. If the pivot
+    // reads 30 degrees when horizontal, the offset is -30 degrees. Leave it at zero ONLY if
+    // zero is genuinely horizontal.
+    config.Slot0.GravityArmPositionOffset = degreesToRotations(GRAVITY_HORIZONTAL_OFFSET_DEGREES);
     // Take the sign of kS from the closed-loop error rather than measured velocity. At rest on a
     // setpoint the velocity is ~0 and noisy, so UseVelocitySign flips and the mechanism chatters.
     config.Slot0.StaticFeedforwardSign = StaticFeedforwardSignValue.UseClosedLoopSign;

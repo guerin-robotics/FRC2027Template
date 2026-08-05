@@ -54,9 +54,22 @@ public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(GEAR_RATIO);
 
 `GEAR_RATIO` is the total reduction and the only ratio anyone quotes. Phoenix needs it split at
 the encoder, and `ROTOR_TO_SENSOR_RATIO * SENSOR_TO_MECHANISM_RATIO` must multiply back to it.
-With no external encoder the split is `1.0` and `GEAR_RATIO`; with a CANcoder on the mechanism's
-own shaft it is `GEAR_RATIO` and `1.0`. Computing top speed from the split half instead of the
-total overstates it by exactly the other half.
+The split is decided by **where the encoder is**:
+
+| Where the encoder is | `ROTOR_TO_SENSOR_RATIO` | `SENSOR_TO_MECHANISM_RATIO` |
+|---|---|---|
+| Motor encoder only | `1.0` | `GEAR_RATIO` |
+| CANcoder on the mechanism itself | `GEAR_RATIO` | `1.0` |
+| CANcoder on an intermediate shaft | ratio above it | ratio below it |
+
+The first two are what we build almost every time — a hex-bore CANcoder on the mechanism shaft,
+or the motor encoder alone. The third is the 2026 hood, where a 12T→122T pair still sat between
+the encoder and the hood. That file calls the encoder's shaft the "output shaft", meaning the
+gearbox output rather than the mechanism, which is exactly how the case gets missed. The question
+that resolves it: **does the encoder turn 1:1 with the thing you are measuring?**
+
+Compute top speed from `GEAR_RATIO`, never from a split half — with a CANcoder on the mechanism
+shaft the other half is `1.0`, so you would be quoting the motor's raw free speed.
 
 `MotorSpecs` reads free speeds from WPILib's `DCMotor`, so the number driving the speed math and
 the number driving the sim model are the same one. It also builds the sim gearbox, so those

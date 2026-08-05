@@ -20,6 +20,8 @@ Hardware:
 - Mechanism type: [rotating / linear]
 - [Linear only: drum or sprocket PITCH diameter XX in, rigging stage count N]
 - [Encoder if position-controlled: CANcoder CAN ID XX on [bus]]
+- Encoder location: [motor encoder only / CANcoder on the mechanism shaft /
+  CANcoder on an intermediate shaft — if so, give the gearing above AND below it]
 - Control mode: [VoltageOut / VelocityTorqueCurrentFOC / MotionMagicTorqueCurrentFOC]
 
 What it needs to do:

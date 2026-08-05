@@ -27,12 +27,13 @@ and a wrong guess produces code that compiles and misbehaves.
 | CAN IDs and bus for each device | A wrong ID silently commands the wrong motor |
 | Follower orientation — same way or opposite | Wrong means the motors fight; it cooks a gearbox |
 | **Gear ratio**, motor rotations per mechanism rotation | Everything downstream is in the wrong units without it, and it sets the computed top speed |
-| External CANcoder? On what shaft? | Decides `RotorToSensorRatio` vs `SensorToMechanismRatio` and whether `FusedCANcoder` is used |
+| **Encoder, and exactly where it sits** | Decides the ratio split and whether `FusedCANcoder` is used. Ask for the shaft, not just yes/no — see below |
 | Control mode — velocity or position | Picks `getVelocityFXConfig()` or `getPositionFXConfig()` and the request type |
 | **Rotating or linear?** | Decides whether positions are degrees or inches, and which profile defaults apply |
 | **Linear only: drum/sprocket PITCH diameter** | The only way to turn rotations into inches. Pitch diameter, not the outer diameter of the flange |
 | **Linear only: rigging stage count** | A 2-stage cascade travels twice per rotation. Miss it and every height is off by an exact integer factor |
 | Gravity-affected? Arm or elevator? | Decides `kG` and `GravityTypeValue` |
+| **Arm only: what angle reads as horizontal?** | `Arm_Cosine` measures from horizontal. If zero is the stow position, `GravityArmPositionOffset` has to carry the difference |
 | Travel limits, if position-controlled | Soft limits. Without them a position goal can drive a mechanism into itself |
 | Setpoints it gets commanded to | These go in `Constants.Setpoints` |
 | Operator controls | Which Xbox buttons, and what each does |
@@ -70,17 +71,29 @@ public static final double GEAR_RATIO = 15.0;                 // TOTAL, motor ->
 public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(GEAR_RATIO);
 ```
 
-`GEAR_RATIO` is the total reduction. Phoenix needs it split at the encoder, and the two halves
-must multiply back to it:
+`GEAR_RATIO` is the total reduction. Phoenix needs it split at the encoder, and the split is
+decided by one question: **where is the encoder?** Ask it explicitly. "Does it have a CANcoder"
+is not enough — you need the shaft.
 
-| Encoder | `ROTOR_TO_SENSOR_RATIO` | `SENSOR_TO_MECHANISM_RATIO` |
+| Where the encoder is | `ROTOR_TO_SENSOR_RATIO` | `SENSOR_TO_MECHANISM_RATIO` |
 |---|---|---|
-| None — rotor is the sensor | `1.0` | `GEAR_RATIO` |
-| CANcoder on the mechanism shaft | `GEAR_RATIO` | `1.0` |
-| CANcoder partway down the chain | ratio above it | ratio below it |
+| Motor encoder only, no CANcoder | `1.0` | `GEAR_RATIO` |
+| CANcoder on the mechanism itself | `GEAR_RATIO` | `1.0` |
+| CANcoder on an intermediate shaft | ratio above it | ratio below it |
 
-Always compute `MAX_SPEED_RPM` from `GEAR_RATIO`, never from the split half — on a fused
-mechanism that overstates top speed by exactly the other half.
+The first two cover nearly everything this team builds — a hex-bore CANcoder on the mechanism
+shaft, or the motor encoder alone. Confirm which, then move on.
+
+**The third case is the one to catch.** The 2026 hood had a CANcoder on a shaft that still drove
+a 12T→122T gear pair after it, so the encoder turned about ten times per hood rotation.
+Compounding the trap, that code calls the encoder's shaft the "output shaft" — meaning the
+*gearbox* output, not the mechanism. The question that actually resolves it: **does the encoder
+turn 1:1 with the thing you are measuring?** If anything geared sits after it, it is case three
+and both numbers have to be worked out.
+
+Always compute `MAX_SPEED_RPM` from `GEAR_RATIO`, never from a split half. On a mechanism with a
+CANcoder on its own shaft, `SENSOR_TO_MECHANISM_RATIO` is `1.0`, so using it would report the
+motor's raw free speed as the mechanism's top speed.
 
 Motion Magic defaults, which are tunable once set:
 
@@ -93,6 +106,20 @@ Motion Magic defaults, which are tunable once set:
 A cruise velocity above `MAX_SPEED_RPM` does not fail loudly. The motor saturates and the
 profile stops being followed, which looks like bad tuning rather than an impossible request
 — so state the computed top speed in your report.
+
+### Two settings that are silently wrong at their defaults
+
+**Gravity reference on a pivot.** `GravityTypeValue.Arm_Cosine` scales kG by
+`cos(position + offset)` and assumes the peak — arm horizontal — lands at a cosine argument of
+zero. Mechanism zero is usually the *stow* position instead, so set
+`Slot0.GravityArmPositionOffset` to the negative of the angle at which the arm is level. Left at
+zero, the pivot gets too little hold current where gravity is strongest and too much where there
+is none. Ask for the horizontal angle; do not assume zero.
+
+**CANcoder discontinuity point.** `1.0` looks like the natural default and is usually wrong: it
+puts the reading's wrap at 0, which is where the mechanism sits most of the match, so the value
+flips between ~0.0 and ~1.0 at rest and a position loop chases a full rotation of phantom error.
+Use `0.5` for arms and pivots unless the travel actually crosses 180°.
 
 ---
 
