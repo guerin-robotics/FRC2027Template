@@ -144,13 +144,39 @@ public class Module {
     return Units.radiansToRotations(inputs.driveVelocityRadPerSec);
   }
 
-  /** Returns the drive motor supply current in amps. */
-  public double getDriveCurrentAmps() {
+  /**
+   * Returns the drive motor STATOR current in amps — current through the windings. Use this for
+   * stall and heating, NOT for battery power.
+   */
+  public double getDriveStatorCurrentAmps() {
     return inputs.driveCurrentAmps;
   }
 
-  /** Returns the turn motor supply current in amps. */
-  public double getTurnCurrentAmps() {
+  /**
+   * Returns the drive motor SUPPLY current in amps — current drawn from the battery. This is the
+   * one that belongs in power and brownout math.
+   */
+  public double getDriveSupplyCurrentAmps() {
+    return inputs.driveSupplyCurrentAmps;
+  }
+
+  /** Returns the turn motor STATOR current in amps. See {@link #getDriveStatorCurrentAmps()}. */
+  public double getTurnStatorCurrentAmps() {
     return inputs.turnCurrentAmps;
+  }
+
+  /** Returns the turn motor SUPPLY current in amps. See {@link #getDriveSupplyCurrentAmps()}. */
+  public double getTurnSupplyCurrentAmps() {
+    return inputs.turnSupplyCurrentAmps;
+  }
+
+  /** Returns the drive motor temperature in Celsius. Krakens thermally throttle when hot. */
+  public double getDriveTempCelsius() {
+    return inputs.driveTempCelsius;
+  }
+
+  /** Returns the turn motor temperature in Celsius. */
+  public double getTurnTempCelsius() {
+    return inputs.turnTempCelsius;
   }
 }

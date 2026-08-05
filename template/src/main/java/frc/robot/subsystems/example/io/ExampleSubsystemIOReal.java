@@ -98,4 +98,42 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     // TODO: replace VoltageOut with VelocityTorqueCurrentFOC if using closed-loop velocity
     // motor.setControl(velocityRequest.withVelocity(velocity.in(RotationsPerSecond)));
   }
+
+  // ==========================================================================================
+  // FOLLOWER MOTORS — delete this block if this mechanism has one motor
+  // ==========================================================================================
+  //
+  // A follower mirrors its leader in hardware. Never command a follower directly while the
+  // leader is running; the two requests fight and the mechanism stalls or oscillates.
+  //
+  //   private final TalonFX follower;
+  //
+  //   // ...in the constructor, AFTER configuring the leader:
+  //   follower = new TalonFX(HardwareConstants.CanIds.EXAMPLE_FOLLOWER, "rio");
+  //   PhoenixUtil.tryUntilOk(5, () -> follower.getConfigurator().apply(config));
+  //
+  //   // opposeLeaderDirection is TRUE when the follower is physically mounted facing the
+  //   // opposite way from the leader. Getting this wrong makes the two motors fight each
+  //   // other — high current, no motion, and it will cook a gearbox. Verify at low output
+  //   // before running closed-loop.
+  //   follower.setControl(new Follower(motor.getDeviceID(), /* opposeLeaderDirection= */ false));
+  //
+  // LOG THE FOLLOWER TOO. It is a real motor drawing real current and generating real heat,
+  // and it can fail independently of the leader — a follower that has quietly stopped looks
+  // exactly like a leader that is underpowered.
+  //
+  //   private final StatusSignal<Current> followerStatorAmps;
+  //   ...
+  //   followerStatorAmps = follower.getStatorCurrent();
+  //
+  // AND REGISTER ITS SIGNALS. This is the trap: optimizeBusUtilization() disables every
+  // signal that was not explicitly registered. In 2026 the intake roller's follower signals
+  // were never added to setUpdateFrequencyForAll(), so after optimization they published at
+  // the 4 Hz default. The data looked present and was simply stale, which is far harder to
+  // notice than data that is missing.
+  //
+  //   BaseStatusSignal.setUpdateFrequencyForAll(50, followerStatorAmps, /* ...and the rest */);
+  //   follower.optimizeBusUtilization();
+  //
+  // Import: com.ctre.phoenix6.controls.Follower
 }

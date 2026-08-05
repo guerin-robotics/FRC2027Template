@@ -70,6 +70,8 @@ Vision/Camera[N]/RejectionReason    — why was it rejected?
 Vision/Camera[N]/Ambiguity          — single-tag PnP ambiguity
 Vision/Camera[N]/AverageTagDistance — how far were the tags?
 Vision/Camera[N]/TagCount           — single-tag or multi-tag solve?
+Vision/Camera[N]/LatencySeconds     — stale observations look like pose lag
+Vision/Camera[N]/HasCalibration     — false = camera contributes nothing, silently
 RobotState/FieldRelativeVelocity    — was the robot spinning at the jump?
 ```
 
@@ -81,8 +83,9 @@ before blaming ambiguity.
 ```
 PowerDistribution/Voltage                       — when did voltage drop below 7 V?
 BatteryLogger/[Subsystem]/Current               — which subsystem drew the most current?
-Drive/Module[0-3]-Drive                         — per-module drive current
-Drive/Module[0-3]-Turn                          — per-module steer current
+Drive/Module[0-3]-Drive                         — per-module drive SUPPLY current
+Drive/Module[0-3]-Turn                          — per-module steer SUPPLY current
+Drive/HottestMotorCelsius                       — thermal limiting late in a match
 Drive/Module[0-3]/DriveTorqueCurrentAmps        — was a module fighting a stall?
 Drive/Module[0-3]/TurnTorqueCurrentAmps         — was a steer motor binding?
 BatteryLogger/BrownoutCount                     — how many brownouts so far

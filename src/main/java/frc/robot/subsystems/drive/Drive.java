@@ -79,6 +79,16 @@ public class Drive extends SubsystemBase {
   private double largestJumpThisLoop = 0.0;
   private int poseJumpCount = 0;
 
+  /**
+   * Kraken X60s begin thermally limiting output well before they fault. A robot that gets slower
+   * late in a match with no other explanation is usually this.
+   */
+  private static final double MOTOR_HOT_CELSIUS = 70.0;
+
+  private final Alert motorHotAlert =
+      new Alert(
+          "A swerve motor is running hot — output will be thermally limited.", AlertType.kWarning);
+
   // TunerConstants doesn't include these constants, so they are declared locally
   static final double ODOMETRY_FREQUENCY = TunerConstants.kCANBus.isNetworkFD() ? 250.0 : 100.0;
   public static final double DRIVE_BASE_RADIUS =
@@ -254,12 +264,23 @@ public class Drive extends SubsystemBase {
     RobotState.getInstance().updateModuleStates(getModuleStates());
 
     // Report current usage to the battery logger for each swerve module
+    double hottestMotorCelsius = 0.0;
     for (int i = 0; i < 4; i++) {
+      // SUPPLY current, not stator. BatteryLogger converts this to power against battery
+      // voltage, and stator current would overstate the draw — badly, at low speed under load.
       Robot.batteryLogger.reportCurrentUsage(
-          "Drive/Module" + i + "-Drive", true, modules[i].getDriveCurrentAmps());
+          "Drive/Module" + i + "-Drive", true, modules[i].getDriveSupplyCurrentAmps());
       Robot.batteryLogger.reportCurrentUsage(
-          "Drive/Module" + i + "-Turn", true, modules[i].getTurnCurrentAmps());
+          "Drive/Module" + i + "-Turn", true, modules[i].getTurnSupplyCurrentAmps());
+
+      hottestMotorCelsius =
+          Math.max(
+              hottestMotorCelsius,
+              Math.max(modules[i].getDriveTempCelsius(), modules[i].getTurnTempCelsius()));
     }
+
+    Logger.recordOutput("Drive/HottestMotorCelsius", hottestMotorCelsius);
+    motorHotAlert.set(hottestMotorCelsius > MOTOR_HOT_CELSIUS);
 
     // ---- Pose sanity ----
     Pose2d estimate = getPose();

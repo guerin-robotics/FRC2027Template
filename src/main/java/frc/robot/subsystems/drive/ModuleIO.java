@@ -17,7 +17,14 @@ public interface ModuleIO {
     public double drivePositionRad = 0.0;
     public double driveVelocityRadPerSec = 0.0;
     public double driveAppliedVolts = 0.0;
+    // STATOR current — current in the windings. Use for stall and heating.
     public double driveCurrentAmps = 0.0;
+    // SUPPLY current — current drawn from the battery. Use for power and brownout analysis.
+    // These are NOT interchangeable: at low speed and high torque, supply is a fraction of
+    // stator. Feeding stator into a battery-power calculation overstates the draw, which is
+    // exactly the bug this pair of fields exists to prevent.
+    public double driveSupplyCurrentAmps = 0.0;
+    public double driveTempCelsius = 0.0;
     // Torque-producing current. With a *TorqueCurrentFOC request this IS the control
     // signal, which stator current is not — a stalled module and a free-spinning one can
     // draw similar stator current but very different torque current.
@@ -30,6 +37,8 @@ public interface ModuleIO {
     public double turnVelocityRadPerSec = 0.0;
     public double turnAppliedVolts = 0.0;
     public double turnCurrentAmps = 0.0;
+    public double turnSupplyCurrentAmps = 0.0;
+    public double turnTempCelsius = 0.0;
     public double turnTorqueCurrentAmps = 0.0;
 
     public double[] odometryTimestamps = new double[] {};

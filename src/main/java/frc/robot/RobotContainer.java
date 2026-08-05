@@ -160,6 +160,14 @@ public class RobotContainer {
           .register(
               "Camera " + cameraIndex + " disconnected",
               () -> !vision.isCameraConnected(cameraIndex));
+      // A connected but uncalibrated camera raises no error and produces no pose — it just
+      // silently stops contributing. Only report it when the camera is actually connected,
+      // otherwise a disconnected camera trips both faults.
+      FaultMonitor.getInstance()
+          .register(
+              "Camera " + cameraIndex + " uncalibrated",
+              () ->
+                  vision.isCameraConnected(cameraIndex) && !vision.isCameraCalibrated(cameraIndex));
     }
 
     // Configure the button bindings

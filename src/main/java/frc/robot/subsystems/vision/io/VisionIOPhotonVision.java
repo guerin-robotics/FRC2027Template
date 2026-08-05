@@ -58,6 +58,11 @@ public class VisionIOPhotonVision implements VisionIO {
   public void updateInputs(VisionIOInputs inputs) {
     inputs.connected = camera.isConnected();
 
+    // Calibration presence. PhotonVision only publishes a camera matrix when the camera is
+    // calibrated at the resolution the pipeline is running, so this is a direct read of
+    // "can this camera produce a 3D pose at all".
+    inputs.hasCalibration = camera.getCameraMatrix().isPresent();
+
     // Read new camera observations
     Set<Short> tagIds = new HashSet<>();
     List<PoseObservation> poseObservations = new LinkedList<>();
@@ -94,19 +99,19 @@ public class VisionIOPhotonVision implements VisionIO {
 
       EstimatedRobotPose estimate = estimatedPose.get();
 
-      HashSet<Integer> trenchIDs = new HashSet<Integer>();
-      trenchIDs.add(1);
-      trenchIDs.add(6);
-      trenchIDs.add(7);
-      trenchIDs.add(12);
-      trenchIDs.add(17);
-      trenchIDs.add(22);
-      trenchIDs.add(23);
-      trenchIDs.add(28);
+      // Record pipeline latency for the newest result we processed.
+      inputs.latencySeconds =
+          (result.metadata.publishTimestampMicros - result.metadata.captureTimestampMicros) / 1e6;
 
-      // Collect all tag IDs seen (estimate.targetsUsed contains every target in the frame)
+      // Collect all tag IDs seen (estimate.targetsUsed contains every target in the frame).
+      //
+      // NOTE: the 2026 version excluded a hardcoded set of tag IDs here — the trench tags,
+      // which were mounted where a solve against them was unreliable. That list was specific
+      // to the 2026 field and has been removed. If a 2027 tag turns out to be untrustworthy,
+      // reintroduce a named, documented exclusion set rather than a bare list of numbers, and
+      // put it in VisionConstants where it can be found.
       for (var target : estimate.targetsUsed) {
-        if (target.fiducialId >= 0 && !trenchIDs.contains(target.fiducialId)) {
+        if (target.fiducialId >= 0) {
           tagIds.add((short) target.fiducialId);
         }
       }

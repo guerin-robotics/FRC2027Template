@@ -31,6 +31,7 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
+import edu.wpi.first.units.measure.Temperature;
 import edu.wpi.first.units.measure.Voltage;
 import frc.robot.generated.TunerConstants;
 import java.util.Queue;
@@ -62,6 +63,8 @@ public class ModuleIOTalonFXS implements ModuleIO {
   private final StatusSignal<Voltage> driveAppliedVolts;
   private final StatusSignal<Current> driveCurrent;
   private final StatusSignal<Current> driveTorqueCurrent;
+  private final StatusSignal<Current> driveSupplyCurrent;
+  private final StatusSignal<Temperature> driveTemp;
 
   // Inputs from turn motor
   private final StatusSignal<Angle> turnAbsolutePosition;
@@ -71,6 +74,8 @@ public class ModuleIOTalonFXS implements ModuleIO {
   private final StatusSignal<Voltage> turnAppliedVolts;
   private final StatusSignal<Current> turnCurrent;
   private final StatusSignal<Current> turnTorqueCurrent;
+  private final StatusSignal<Current> turnSupplyCurrent;
+  private final StatusSignal<Temperature> turnTemp;
 
   // Connection debouncers
   private final Debouncer driveConnectedDebounce =
@@ -169,6 +174,8 @@ public class ModuleIOTalonFXS implements ModuleIO {
     driveAppliedVolts = driveTalon.getMotorVoltage();
     driveCurrent = driveTalon.getStatorCurrent();
     driveTorqueCurrent = driveTalon.getTorqueCurrent();
+    driveSupplyCurrent = driveTalon.getSupplyCurrent();
+    driveTemp = driveTalon.getDeviceTemp();
 
     // Create turn status signals
     turnAbsolutePosition = candi.getPWM1Position();
@@ -178,6 +185,8 @@ public class ModuleIOTalonFXS implements ModuleIO {
     turnAppliedVolts = turnTalon.getMotorVoltage();
     turnCurrent = turnTalon.getStatorCurrent();
     turnTorqueCurrent = turnTalon.getTorqueCurrent();
+    turnSupplyCurrent = turnTalon.getSupplyCurrent();
+    turnTemp = turnTalon.getDeviceTemp();
 
     // Configure periodic frames
     BaseStatusSignal.setUpdateFrequencyForAll(
@@ -192,7 +201,13 @@ public class ModuleIOTalonFXS implements ModuleIO {
         turnVelocity,
         turnAppliedVolts,
         turnCurrent,
-        turnTorqueCurrent);
+        turnTorqueCurrent,
+        driveSupplyCurrent,
+        turnSupplyCurrent);
+    // Temperature changes on the order of minutes, so it does not belong in the 50 Hz group.
+    // It still has to be registered explicitly — optimizeBusUtilization() below disables every
+    // signal that isn't, which is how the 2026 intake follower ended up publishing at 4 Hz.
+    BaseStatusSignal.setUpdateFrequencyForAll(4.0, driveTemp, turnTemp);
     ParentDevice.optimizeBusUtilizationForAll(driveTalon, turnTalon);
   }
 
@@ -201,10 +216,22 @@ public class ModuleIOTalonFXS implements ModuleIO {
     // Refresh all signals
     var driveStatus =
         BaseStatusSignal.refreshAll(
-            drivePosition, driveVelocity, driveAppliedVolts, driveCurrent, driveTorqueCurrent);
+            drivePosition,
+            driveVelocity,
+            driveAppliedVolts,
+            driveCurrent,
+            driveTorqueCurrent,
+            driveSupplyCurrent,
+            driveTemp);
     var turnStatus =
         BaseStatusSignal.refreshAll(
-            turnPosition, turnVelocity, turnAppliedVolts, turnCurrent, turnTorqueCurrent);
+            turnPosition,
+            turnVelocity,
+            turnAppliedVolts,
+            turnCurrent,
+            turnTorqueCurrent,
+            turnSupplyCurrent,
+            turnTemp);
     var turnEncoderStatus = BaseStatusSignal.refreshAll(turnAbsolutePosition);
 
     // Update drive inputs
@@ -214,6 +241,8 @@ public class ModuleIOTalonFXS implements ModuleIO {
     inputs.driveAppliedVolts = driveAppliedVolts.getValueAsDouble();
     inputs.driveCurrentAmps = driveCurrent.getValueAsDouble();
     inputs.driveTorqueCurrentAmps = driveTorqueCurrent.getValueAsDouble();
+    inputs.driveSupplyCurrentAmps = driveSupplyCurrent.getValueAsDouble();
+    inputs.driveTempCelsius = driveTemp.getValueAsDouble();
 
     // Update turn inputs
     inputs.turnConnected = turnConnectedDebounce.calculate(turnStatus.isOK());
@@ -224,6 +253,8 @@ public class ModuleIOTalonFXS implements ModuleIO {
     inputs.turnAppliedVolts = turnAppliedVolts.getValueAsDouble();
     inputs.turnCurrentAmps = turnCurrent.getValueAsDouble();
     inputs.turnTorqueCurrentAmps = turnTorqueCurrent.getValueAsDouble();
+    inputs.turnSupplyCurrentAmps = turnSupplyCurrent.getValueAsDouble();
+    inputs.turnTempCelsius = turnTemp.getValueAsDouble();
 
     // Update odometry inputs
     inputs.odometryTimestamps =

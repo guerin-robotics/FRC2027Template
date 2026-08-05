@@ -99,6 +99,16 @@ public class Vision extends SubsystemBase {
     return inputs[cameraIndex].connected;
   }
 
+  /**
+   * True when PhotonVision reports calibration for this camera. A connected but uncalibrated camera
+   * contributes nothing and raises no error, so this is worth a registered fault.
+   *
+   * @param cameraIndex The index of the camera to check.
+   */
+  public boolean isCameraCalibrated(int cameraIndex) {
+    return inputs[cameraIndex].hasCalibration;
+  }
+
   @Override
   public void periodic() {
     for (int i = 0; i < io.length; i++) {
@@ -241,6 +251,8 @@ public class Vision extends SubsystemBase {
       Logger.recordOutput(cameraKey + "/AverageTagDistance", lastAverageTagDistance);
       Logger.recordOutput(cameraKey + "/LinearStdDev", lastLinearStdDev);
       Logger.recordOutput(cameraKey + "/AngularStdDev", lastAngularStdDev);
+      Logger.recordOutput(cameraKey + "/LatencySeconds", inputs[cameraIndex].latencySeconds);
+      Logger.recordOutput(cameraKey + "/HasCalibration", inputs[cameraIndex].hasCalibration);
       allTagPoses.addAll(tagPoses);
       allRobotPoses.addAll(robotPoses);
       allRobotPosesAccepted.addAll(robotPosesAccepted);

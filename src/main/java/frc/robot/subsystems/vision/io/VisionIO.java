@@ -19,6 +19,16 @@ public interface VisionIO {
         new TargetObservation(Rotation2d.kZero, Rotation2d.kZero);
     public PoseObservation[] poseObservations = new PoseObservation[0];
     public int[] tagIds = new int[0];
+
+    // Pipeline latency: how stale the newest observation is. High latency means the pose
+    // estimator is fusing where the robot USED to be, which looks like pose lag while driving
+    // and is easy to misdiagnose as a bad camera transform or bad gains.
+    public double latencySeconds = 0.0;
+
+    // False when PhotonVision has no calibration for this camera at its current resolution.
+    // An uncalibrated camera does not error — it silently stops producing 3D poses, so the
+    // camera looks connected and healthy while contributing nothing.
+    public boolean hasCalibration = false;
   }
 
   /** Represents the angle to a simple target, not used for pose estimation. */

@@ -121,8 +121,26 @@ At minimum, per motor:
 | `getStatorCurrent()` | Current through the windings — heating and stall |
 | `getSupplyCurrent()` | Current drawn from the battery — brownout analysis |
 | `getVelocity()` | Actual motion |
-| `getDeviceTemp()` | Thermal headroom |
+| `getDeviceTemp()` | Thermal headroom — Krakens limit output before they fault |
 | `getTorqueCurrent()` | **Required for any motor driven by a `*TorqueCurrentFOC` request** |
+
+### Stator vs supply current — do not mix them up
+
+They are different measurements and they are not interchangeable:
+
+- **Stator** is current in the motor windings. It drives heating and indicates stall.
+- **Supply** is current drawn from the battery. It is what belongs in power, energy and
+  brownout math.
+
+At low speed under load, supply is a *fraction* of stator, because the controller is
+chopping. Feeding stator current into a battery-power calculation overstates the draw,
+badly, exactly when the robot is working hardest.
+
+The 2026 code did this: `ModuleIOTalonFX` read `getStatorCurrent()`, `Module` documented the
+accessor as "supply current", and `Drive` passed it to `BatteryLogger`, which multiplies by
+battery voltage. Every drivetrain power and energy figure from that season is inflated.
+`ModuleIO` now logs both separately and `BatteryLogger` is fed supply. Keep them distinct in
+any new mechanism.
 
 ### Torque current
 
@@ -177,7 +195,19 @@ follower.setControl(new Follower(leader.getDeviceID(), opposeLeaderDirection));
 The `opposeLeaderDirection` boolean is `true` when the follower is physically
 mounted in the opposite direction from the leader.
 
-**Never control a follower directly** while the leader is running.
+**Never control a follower directly** while the leader is running. The two requests fight,
+and the mechanism stalls or oscillates while drawing heavy current.
+
+**Log the follower, and register its signals.** A follower is a real motor that draws real
+current, generates real heat, and can fail independently of its leader — a dead follower
+looks exactly like an underpowered leader. And registering matters: `optimizeBusUtilization()`
+disables every signal that was not explicitly passed to `setUpdateFrequencyForAll()`. In 2026
+the intake roller's follower signals were never registered, so after optimization they
+published at the 4 Hz default. The data was present and simply stale, which is much harder to
+spot than data that is missing.
+
+See the commented follower block at the bottom of
+`template/src/.../ExampleSubsystemIOReal.java` for the full pattern.
 
 ---
 
