@@ -10,7 +10,7 @@ they're listed so you know they're handled, not so you redo them.
 ## Before Kickoff — Infrastructure
 
 - [x] **[done]** Repo created from this template (not forked from the 2026 robot)
-- [x] **[done]** `util/` and `frc/lib/` carried over
+- [x] **[done]** `frc/lib/` (all shared utilities) carried over
 - [x] **[done]** `subsystems/drive/` carried over
 - [x] **[done]** `subsystems/vision/` carried over with tuned filter thresholds
 - [x] **[done]** `Robot` / `Constants` / `RobotContainer` in AdvantageKit template shape

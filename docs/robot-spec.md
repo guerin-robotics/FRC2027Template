@@ -52,13 +52,12 @@ Versions live in `vendordeps/` — see `docs/hardware-layout.md` for the table.
 ## 3. Package Structure
 
 ```
-frc/lib/                     AllianceFlipUtil, ContinuousConditionalCommand, FieldConstants
+frc/lib/                     ALL shared utilities — see docs/subsystem-ownership.md
 frc/robot/                   Main, Robot, RobotContainer, RobotState, Constants, BuildConstants
 frc/robot/generated/         TunerConstants (Tuner X generated — never hand-edit)
 frc/robot/subsystems/drive/  Drive, Module, Gyro/Module IO, PhoenixOdometryThread
 frc/robot/subsystems/vision/ Vision, VisionConstants, io/
 frc/robot/commands/          DriveCommands (+ one file per mechanism)
-frc/robot/util/              BatteryLogger, PhoenixUtil, Elastic, LoggedTrigger, LocalADStarAK, …
 ```
 
 TODO — add mechanism packages as they are created.

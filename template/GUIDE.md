@@ -162,9 +162,10 @@ src/main/java/frc/robot/
 ├── commands/
 │   ├── DriveCommands.java    ← carried over; add game alignment commands here
 │   └── [new commands]/       ← static factories, one file per subsystem
-└── util/                     ← carried over; add to it, don't rewrite it
 
-frc/lib/                      ← FieldConstants, AllianceFlipUtil, shared helpers
+frc/lib/                      ← ALL shared utilities: field/alliance, hardware helpers,
+                                 health monitors, tuning. Carried over; add to it,
+                                 don't rewrite it. There is no frc/robot/util.
 ```
 
 ---

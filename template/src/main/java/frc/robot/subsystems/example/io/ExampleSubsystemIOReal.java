@@ -9,8 +9,8 @@ import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Voltage;
+import frc.lib.PhoenixUtil;
 import frc.robot.HardwareConstants; // TODO: create — see .claude/rules/02-hardware.md
-import frc.robot.util.PhoenixUtil;
 
 /**
  * Real hardware implementation of ExampleSubsystemIO.

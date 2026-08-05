@@ -54,22 +54,31 @@ unnoticed for a whole season:
 
 | File | Purpose |
 |---|---|
-| `util/BatteryLogger` | Per-subsystem current accounting, brownout counting, min voltage |
-| `util/CommandLogger` | Publishes which commands are running |
-| `util/LoopTimeMonitor` | Loop duration, peak, overrun count, over-budget alert |
-| `util/CANBusMonitor` | Bus utilization and error counts |
-| `util/FaultMonitor` | Rolls all fault conditions into one "Robot OK" indicator |
-| `util/MatchMetadataLogger` | Event and match identity, for triaging logs |
-| `util/PhoenixSignalLogger` | CTRE hoot logging, started on enable and stopped on disable |
-| `util/PhoenixUtil` | `tryUntilOk` — retries CTRE config until it sticks |
-| `util/CANUpdateThread` | Async CAN device configuration with retry |
-| `util/LocalADStarAK` | Replay-safe PathPlanner pathfinder |
-| `util/LoggedTrigger` | Trigger wrapper that logs its state |
-| `util/Elastic` | Elastic dashboard notifications and tab switching |
-| `util/ThrowingRunnable` | Functional interface for throwing config calls |
+| `lib/BatteryLogger` | Per-subsystem current accounting, brownout counting, min voltage |
+| `lib/CommandLogger` | Publishes which commands are running |
+| `lib/LoopTimeMonitor` | Loop duration, peak, overrun count, over-budget alert |
+| `lib/CANBusMonitor` | Bus utilization and error counts |
+| `lib/FaultMonitor` | Rolls all fault conditions into one "Robot OK" indicator |
+| `lib/MatchMetadataLogger` | Event and match identity, for triaging logs |
+| `lib/PhoenixSignalLogger` | CTRE hoot logging, started on enable and stopped on disable |
+| `lib/PhoenixUtil` | `tryUntilOk` — retries CTRE config until it sticks |
+| `lib/CANUpdateThread` | Async CAN device configuration with retry |
+| `lib/LocalADStarAK` | Replay-safe PathPlanner pathfinder |
+| `lib/LoggedTrigger` | Trigger wrapper that logs its state |
+| `lib/Elastic` | Elastic dashboard notifications and tab switching |
+| `lib/ThrowingRunnable` | Functional interface for throwing config calls |
 | `lib/AllianceFlipUtil` | Alliance mirroring, cached once per loop |
 | `lib/ContinuousConditionalCommand` | Conditional that re-evaluates while running |
 | `lib/FieldConstants` | Field dimensions + AprilTag layout |
+| `lib/GeomUtil` | Pose/Transform/Twist conversions |
+| `lib/PointInPolygon` | Ray-casting zone containment |
+| `lib/EdgeDetector` | Rising/falling edges, and counting edges in a window |
+| `lib/LoggedTunableNumber` | Dashboard-adjustable constant, gated on `tuningMode` |
+| `lib/LoggedTunableBoolean` | Same, for booleans |
+
+Everything shared lives in `frc/lib` — there is no `frc/robot/util`. A utility either applies
+to any robot, in which case it goes there, or it belongs to a subsystem, in which case it goes
+in that subsystem's package.
 
 **Governance** — `CLAUDE.md` and `.claude/` carry the team's AI rules, prompt templates
 and skills forward.

@@ -127,18 +127,45 @@ not your code reads it. Delete the annotation when a method loses its last calle
 
 ## Utility (shared, no owner)
 
+All shared utilities live in `frc/lib/`. There is no `frc/robot/util/` — utilities either
+belong to every robot, in which case they go here, or they belong to a subsystem, in which
+case they go in that subsystem's package.
+
 ```
-frc/lib/AllianceFlipUtil.java
-frc/lib/ContinuousConditionalCommand.java
-frc/lib/FieldConstants.java          ← game-specific; extend each season
-frc/robot/util/BatteryLogger.java
-frc/robot/util/CANUpdateThread.java
-frc/robot/util/Elastic.java
-frc/robot/util/LocalADStarAK.java
-frc/robot/util/LoggedTrigger.java
-frc/robot/util/PhoenixUtil.java
-frc/robot/util/ThrowingRunnable.java
+frc/lib/
+├── Field and alliance
+│   ├── AllianceFlipUtil.java        alliance mirroring, cached per loop
+│   ├── FieldConstants.java          ← game-specific; extend each season
+│   ├── GeomUtil.java                Pose/Transform/Twist conversions
+│   └── PointInPolygon.java          zone containment
+├── Commands and triggers
+│   ├── ContinuousConditionalCommand.java
+│   ├── LoggedTrigger.java
+│   ├── EdgeDetector.java            rising/falling/count-in-window
+│   └── CommandLogger.java           which commands are running
+├── Hardware
+│   ├── PhoenixUtil.java             tryUntilOk config retry
+│   ├── PhoenixSignalLogger.java     CTRE hoot logging
+│   ├── CANBusMonitor.java           bus utilization and errors
+│   ├── CANUpdateThread.java         async CAN config with retry
+│   └── ThrowingRunnable.java
+├── Health and diagnostics
+│   ├── BatteryLogger.java           power accounting, brownout counting
+│   ├── FaultMonitor.java            one "Robot OK" from many conditions
+│   ├── LoopTimeMonitor.java         loop duration and overrun alert
+│   └── MatchMetadataLogger.java     event and match identity
+├── Tuning
+│   ├── LoggedTunableNumber.java     dashboard-adjustable, gated on tuningMode
+│   └── LoggedTunableBoolean.java
+└── Misc
+    ├── Elastic.java                 dashboard notifications and tabs
+    └── LocalADStarAK.java           replay-safe PathPlanner pathfinder
 ```
 
 Everything here is season-agnostic except `FieldConstants`, which holds the field
 dimensions and AprilTag layout and gains game geometry each year.
+
+Three classes read `frc.robot.Constants` — `AllianceFlipUtil`, the two tunables, and
+`PhoenixSignalLogger` — but only for global mode flags (`disableHAL`, `tuningMode`,
+`currentMode`), never for robot structure. If you lift this package into another project,
+those four flags are the only thing you need to supply.

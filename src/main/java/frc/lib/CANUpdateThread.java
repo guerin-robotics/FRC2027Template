@@ -13,7 +13,7 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-package frc.robot.util;
+package frc.lib;
 
 import au.grapplerobotics.ConfigurationFailedException;
 import com.ctre.phoenix6.StatusCode;

@@ -1,4 +1,4 @@
-package frc.robot.util;
+package frc.lib;
 
 import com.ctre.phoenix6.SignalLogger;
 import edu.wpi.first.wpilibj.Alert;
