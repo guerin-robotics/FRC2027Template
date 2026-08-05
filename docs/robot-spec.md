@@ -319,7 +319,6 @@ No game logic here. Ever.
 | `FieldConstants` | Field dimensions + AprilTag layout; gains game geometry each season |
 | `BatteryLogger` | Per-subsystem current accounting for brownout analysis |
 | `PhoenixUtil` | `tryUntilOk` — retries CTRE config until it sticks |
-| `CANUpdateThread` | Async CAN configuration with retry |
 | `LocalADStarAK` | Replay-safe PathPlanner pathfinder |
 | `LoggedTrigger` | Trigger wrapper that logs its own state |
 | `Elastic` | Dashboard notifications and tab switching |

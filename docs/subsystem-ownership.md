@@ -147,7 +147,6 @@ frc/lib/
 │   ├── PhoenixUtil.java             tryUntilOk config retry
 │   ├── PhoenixSignalLogger.java     CTRE hoot logging
 │   ├── CANBusMonitor.java           bus utilization and errors
-│   ├── CANUpdateThread.java         async CAN config with retry
 │   └── ThrowingRunnable.java
 ├── Health and diagnostics
 │   ├── BatteryLogger.java           power accounting, brownout counting
