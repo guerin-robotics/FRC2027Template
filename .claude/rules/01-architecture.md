@@ -85,16 +85,25 @@ Named command classes create unnecessary files and hide composition structure.
 
 ## Triggers
 
-**Rule:** Once the robot has more than the template's drive bindings, all `Trigger` and
-`LoggedTrigger` objects move into a `Triggers.java` singleton. `RobotContainer` then reads
-from `Triggers.getInstance()` and never creates triggers itself.
+**Rule:** All `Trigger` and `LoggedTrigger` objects live in `Triggers.java`.
+`RobotContainer` reads from `Triggers.getInstance()` and never creates a trigger itself.
 
-The template ships with bindings inline in `RobotContainer` because there are only four of
-them and that matches the AdvantageKit template. That is the starting point, not the
-end state — create `Triggers.java` as soon as operator controls and state triggers appear.
+**Rule:** Controller objects are `private` inside `Triggers.java`. Nothing else in the
+codebase may touch one. Axis reads go through `driveXSupplier()` / `driveYSupplier()` /
+`driveRotSupplier()`; buttons go through named accessors.
 
-**Why:** Button logic and state triggers are easier to audit in one place.
-We caught timing bugs in 2026 by being able to see all trigger conditions in one file.
+**Rule:** Trigger accessors are named for the robot action, not the button —
+`resetGyro()`, not `bButton()`. Moving a function to a different button then touches one
+line, and reviewing a binding does not require a controller diagram.
+
+`Triggers.java` exists and the drive bindings already use it. The layout is flight stick
+drives, Xbox operates; ports are in `Constants.Controllers`.
+
+**Why:** Button logic and state triggers are easier to audit in one place — we caught
+timing bugs in 2026 by seeing every condition in one file. Keeping the controllers private
+is what makes the dashboard controller swap addable by editing a single file, and it
+prevents the 2026 bug where one command read a stick directly and followed an input nobody
+was holding while ordinary driving looked fine (`docs/drive-controller-mode.md`).
 
 ---
 

@@ -150,6 +150,60 @@ public final class Constants {
   }
 
   // ============================================================================================
+  // CONTROLLERS
+  // ============================================================================================
+
+  /**
+   * Driver station port assignments and controller tuning.
+   *
+   * <p>The layout is <b>flight stick drives, Xbox operates</b>. Both plug in for every match.
+   *
+   * <p><b>Verify these in the DS USB tab before the first match.</b> Ports are assigned by the
+   * driver station in plug order, not by device type, and a controller that gets unplugged and
+   * replugged can come back on a different one. The symptom is "my controller does nothing", with
+   * no error anywhere — the code is polling a port that has no device on it.
+   *
+   * <p>There is deliberately <b>no deadband constant here.</b> {@code DriveCommands} applies its
+   * own, and it applies it to the translation <i>magnitude</i> rather than per-axis — that is what
+   * makes the deadband a circle instead of a plus-sign, so diagonal inputs near center behave. A
+   * second deadband in the suppliers would reshape that response and is a genuine bug, not a
+   * redundancy. Change the drive deadband in {@code DriveCommands}, where it is applied.
+   */
+  public static final class Controllers {
+
+    private Controllers() {}
+
+    /** Flight stick — the driver. Translation and rotation. */
+    public static final int FLIGHT_STICK_PORT = 0;
+
+    /** Xbox controller — the operator. Mechanisms and overrides. */
+    public static final int XBOX_PORT = 1;
+
+    /**
+     * How far an Xbox analog trigger must be pulled to read as pressed.
+     *
+     * <p>Analog triggers rest near zero but not at it. Binding one as a raw boolean gives spurious
+     * presses from a resting hand.
+     */
+    public static final double TRIGGER_THRESHOLD = 0.5;
+
+    // ---- Swap readiness ----
+    //
+    // The 2026 robot let the drive coach swap which controller drives, from a dashboard
+    // dropdown, so drivers could rotate between matches without a redeploy. That is NOT wired
+    // up here — the flight stick always drives.
+    //
+    // The hooks for it are in place, though: every drive-axis read in the codebase goes through
+    // Triggers.driveXSupplier()/driveYSupplier()/driveRotSupplier(), so adding the swap means
+    // editing Triggers.java and nothing else. No call site has to change.
+    //
+    // If you rebuild it, read docs/drive-controller-mode.md first — particularly the part about
+    // latching the selection in teleopInit() rather than polling it, and the drift bug that
+    // comes from one command reading a controller object directly while everything else uses
+    // the suppliers.
+  }
+
+  // ============================================================================================
   // SETPOINTS
   // ============================================================================================
 

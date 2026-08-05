@@ -1,12 +1,12 @@
 # Driver Controls — Quick Refresh
 
-> **THIS IS A BLANK TEMPLATE. It describes no robot.**
+> **MOSTLY BLANK. The drive controls below are real; the operator controls are not.**
 >
-> The 2026 version of this card was a two-mode button map (flightstick and Xbox) for that
-> season's mechanisms. None of it applies to a 2027 robot, so it was not carried over.
+> The 2026 version of this card was a two-mode button map for that season's mechanisms.
+> None of it applies to a 2027 robot, so it was not carried over.
 >
-> Fill this in once bindings exist, print it, and keep a copy in the pit. The 2026 drive
-> team used it between matches and it was worth the effort to maintain.
+> Fill in the operator section as mechanisms land, print it, and keep a copy in the pit.
+> The 2026 drive team used it between matches and it was worth the effort to maintain.
 
 ---
 
@@ -29,31 +29,40 @@ Write it for someone who has never read the code.
 
 | Port | Device | Who |
 |---|---|---|
-| 0 | TODO | TODO |
-| 1 | TODO | TODO |
+| 0 | Flight stick | Driver — translation and rotation |
+| 1 | Xbox controller | Operator — mechanisms and overrides |
 
-The template ships with a single `CommandXboxController` on port 0, created directly in
-`RobotContainer`. Once there are two operators and real state triggers, move all trigger
-objects into `Triggers.java` — see `.claude/rules/01-architecture.md`.
+Ports are set in `Constants.Controllers`. **Verify them in the DS USB tab before the first
+match.** The driver station assigns ports in plug order, not by device type, and a controller
+that gets unplugged and replugged can come back on a different one. The symptom is "my
+controller does nothing" with no error anywhere.
+
+Both controller objects live in `Triggers.java` and are private. Nothing else in the codebase
+touches them — see `.claude/rules/01-architecture.md`.
 
 ---
 
 ## Driver controls
 
+Flight stick, port 0.
+
 | Control | Action | On release |
 |---|---|---|
-| Left stick | Drive (field-relative translation) | Robot coasts to stop |
-| Right stick X | Rotate | — |
-| A (hold) | Hold heading at 0° while still driving | Returns to normal drive |
-| X (hold) | X the wheels — resists being pushed | Wheels return to normal on next move |
-| B | Reset gyro heading to 0° | — |
-| | | |
+| Stick forward/back | Drive forward/back (field-relative) | Robot coasts to stop |
+| Stick left/right | Drive left/right (field-relative) | Robot coasts to stop |
+| Twist | Rotate | — |
+| Button 2 | Reset gyro heading to 0° | — |
+| Button 3 (hold) | Hold heading at 0° while still driving | Returns to normal drive |
+| Button 4 (hold) | X the wheels — resists being pushed | Wheels return to normal on next move |
 
-*Rows above are the template's default bindings. Replace as the 2027 controls are built.*
+*These are the template's defaults and are wired up now. Button numbers are whatever your
+stick reports — check them in the DS before printing this card.*
 
 ---
 
 ## Operator controls
+
+Xbox controller, port 1. Nothing is bound yet — add a row per function as mechanisms land.
 
 | Control | Action | On release |
 |---|---|---|
@@ -78,7 +87,7 @@ auto-compress behaviors that triggered off a single button press.
 - Field-relative drive is relative to **your alliance wall**. `AllianceFlipUtil` handles
   the red/blue flip; if the robot drives backward from what the driver expects, check
   the alliance color in the driver station before touching code.
-- Resetting the gyro (B) only changes heading, not position. Vision corrects position.
+- Resetting the gyro only changes heading, not position. Vision corrects position.
 - If a mechanism stops responding mid-match, check whether a command with a timeout has
   already expired — the robot is designed to give up rather than hang.
 

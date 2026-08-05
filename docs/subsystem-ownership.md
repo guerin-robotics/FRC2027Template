@@ -113,7 +113,7 @@ permitted.
 ```
 RobotContainer.java   — subsystem wiring + command binding
 RobotState.java       — shared state and field geometry (singleton)
-Triggers.java         — shared button/state trigger objects (create when needed)
+Triggers.java         — all button and state trigger objects; owns the controllers
 [Sequences].java      — composed multi-subsystem pipelines (create when needed)
 ```
 

@@ -114,7 +114,7 @@ For changes to `@AutoLog` inputs classes:
 | Vision thresholds | `subsystems/vision/VisionConstants.java` |
 | Field dimensions / AprilTag layout | `frc/lib/FieldConstants.java` |
 | Game geometry, scoring targets, zones | `RobotState.java` + `FieldConstants` |
-| Button objects | `Triggers.java` (create once bindings outgrow `RobotContainer`) |
+| Button objects | `Triggers.java` — never in `RobotContainer` |
 | Subsystem wiring | `RobotContainer.java` |
 | Multi-subsystem sequences | a dedicated sequences file |
 | Named commands | `RobotContainer.java` (registered before `buildAutoChooser`) |

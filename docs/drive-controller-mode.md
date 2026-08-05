@@ -1,13 +1,18 @@
 # Drive Controller Mode — Swapping Controllers Between Matches
 
-> **NOT IMPLEMENTED IN THIS TEMPLATE.** The 2026 robot had a dashboard-selectable
-> controller swap so the drive team could rotate drivers between matches without a
-> redeploy. It depended on `Triggers.java` and a controller-constants block,
-> neither of which carried over.
+> **THE SWAP IS NOT WIRED UP. The hooks for it are.**
 >
-> This document is kept as a **design record**, because the pattern is worth rebuilding
-> and the details below were learned the hard way at an event. Delete this banner once
-> the 2027 version exists, and rewrite the sections as operating instructions.
+> The flight stick always drives and the Xbox always operates. There is no dashboard
+> chooser and no `XBOX_DRIVE_MODE` latch.
+>
+> What *does* exist is the part that is expensive to retrofit: `Triggers.java`, a
+> `Constants.Controllers` block, and the rule that every drive-axis read goes through
+> `Triggers.driveXSupplier()` / `driveYSupplier()` / `driveRotSupplier()`. Because no
+> call site touches a controller object, **adding the swap means editing `Triggers.java`
+> and nothing else.**
+>
+> The rest of this document is the design record for that work — the details below were
+> learned the hard way at an event. Rewrite it as operating instructions if you build it.
 
 ---
 
@@ -43,13 +48,33 @@ Logger.recordOutput("driveController", ControllerConstants.XBOX_DRIVE_MODE);
 ```
 
 Every drive-axis read then routes through a single accessor rather than touching a
-controller object directly:
+controller object directly. **This part already exists** — the suppliers in `Triggers.java`
+are what every binding uses today:
 
 ```java
-private double getDriveX() { return Triggers.getInstance().driveXSupplier(); }
-private double getDriveY() { return Triggers.getInstance().driveYSupplier(); }
-private double getDriveRot() { return Triggers.getInstance().driveRotSupplier(); }
+// Triggers.java — today, with the flight stick fixed as the driver
+public double driveXSupplier() { return -flightStick.getY(); }
+
+// Triggers.java — what the swap would change it to. Nothing outside this file moves.
+public double driveXSupplier() {
+  return xboxDrive() ? -xbox.getLeftY() : -flightStick.getY();
+}
 ```
+
+Button accessors gate the same way. The 2026 code used a `sourced()` helper so each function
+is polled from exactly one device per loop:
+
+```java
+private Trigger sourced(Trigger whenFlightStickDrives, Trigger whenXboxDrives) {
+  return new Trigger(
+      () -> xboxDrive() ? whenXboxDrives.getAsBoolean() : whenFlightStickDrives.getAsBoolean());
+}
+```
+
+Use the branch rather than `flightStick.button(1).or(xbox.rightTrigger())` — the `.or()` polls
+**both** devices every loop. The branch polls one, so loop cost is the same as the
+single-controller scheme. It also makes colliding bindings mutually exclusive for free: a button
+that means one thing in drive mode and another in override mode only ever has one live meaning.
 
 ### Why latch instead of reading per-loop
 
@@ -63,11 +88,13 @@ Two reasons, both learned in practice:
 
 ### Why every axis read must go through the accessor
 
-This is the failure mode that actually bit. If one command reads
-`Triggers.getInstance().thrustmaster.getX()` directly while the default drive command
-uses the gated supplier, that command follows a joystick nobody is holding. The symptom
-is an align command that drifts on its own while normal driving works fine — hard to
-diagnose, trivial to prevent.
+This is the failure mode that actually bit. If one command reads the flight stick object
+directly while the default drive command uses the gated supplier, that command follows a
+joystick nobody is holding. The symptom is an align command that drifts on its own while
+normal driving works fine — hard to diagnose, trivial to prevent.
+
+The controller fields in `Triggers.java` are `private` specifically so this cannot happen.
+Do not widen them.
 
 ---
 
@@ -91,7 +118,8 @@ enabling, and re-check it after any redeploy between matches.
 
 1. Put the chooser in `RobotContainer`, latch in `Robot.teleopInit()`, log in
    `robotPeriodic()`
-2. Route **every** drive-axis read through the gated suppliers — no exceptions
+2. Route **every** drive-axis read through the gated suppliers — already true, keep it that
+   way; this is the step that is expensive to retrofit and cheap to maintain
 3. Publish the widget under SmartDashboard so it appears before enable
 4. Save the dashboard layout so the widget survives an Elastic restart
 5. Update `docs/driver-controls-card.md` with a section per mode

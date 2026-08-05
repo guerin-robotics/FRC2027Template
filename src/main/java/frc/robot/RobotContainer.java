@@ -12,7 +12,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.lib.FaultMonitor;
 import frc.robot.commands.DriveCommands;
@@ -46,8 +45,9 @@ public class RobotContainer {
   private final Drive drive;
   private final Vision vision;
 
-  // Controller
-  private final CommandXboxController controller = new CommandXboxController(0);
+  // Controllers live in Triggers, not here. This class binds triggers to commands; it does not
+  // own input devices and never touches a controller object directly.
+  // See .claude/rules/01-architecture.md.
 
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
@@ -176,35 +176,36 @@ public class RobotContainer {
   }
 
   /**
-   * Use this method to define your button->command mappings. Buttons can be created by
-   * instantiating a {@link edu.wpi.first.wpilibj.GenericHID} or one of its subclasses, and then
-   * passing it to a {@link edu.wpi.first.wpilibj2.command.button.JoystickButton}.
+   * Binds triggers to commands.
+   *
+   * <p>Triggers come from {@link Triggers#getInstance()} and are never constructed here — see the
+   * class javadoc on {@link Triggers} for why. This method should read as a list of "when this
+   * happens, run that", with no input-device details and no game logic.
    */
   private void configureButtonBindings() {
-    // Default command, normal field-relative drive
+    Triggers triggers = Triggers.getInstance();
+
+    // Default command, normal field-relative drive.
+    //
+    // The suppliers already return robot convention (+X forward, +Y left, +rot CCW) — the
+    // joystick sign flips live inside Triggers. Do not negate them again here.
     drive.setDefaultCommand(
         DriveCommands.joystickDrive(
-            drive,
-            () -> -controller.getLeftY(),
-            () -> -controller.getLeftX(),
-            () -> -controller.getRightX()));
+            drive, triggers::driveXSupplier, triggers::driveYSupplier, triggers::driveRotSupplier));
 
-    // Lock to 0 degrees when A button is held
-    controller
-        .a()
+    // Hold a fixed heading while the driver keeps translation control.
+    triggers
+        .lockHeading()
         .whileTrue(
             DriveCommands.joystickDriveAtAngle(
-                drive,
-                () -> -controller.getLeftY(),
-                () -> -controller.getLeftX(),
-                () -> Rotation2d.kZero));
+                drive, triggers::driveXSupplier, triggers::driveYSupplier, () -> Rotation2d.kZero));
 
-    // Switch to X pattern when X button is held
-    controller.x().whileTrue(DriveCommands.stopWithX(drive));
+    // Wheels into an X so the robot resists being pushed.
+    triggers.stopWithX().whileTrue(DriveCommands.stopWithX(drive));
 
-    // Reset gyro to 0 degrees when B button is pressed
-    controller
-        .b()
+    // Re-zero the gyro to the current heading.
+    triggers
+        .resetGyro()
         .onTrue(
             Commands.runOnce(
                     () ->
