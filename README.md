@@ -18,6 +18,8 @@ estimation, PathPlanner autos, and full AdvantageKit logging and replay. Nothing
 - `subsystems/drive` — full AdvantageKit swerve: `Drive`, `Module`, `PhoenixOdometryThread`,
   and IO implementations for TalonFX, TalonFXS, sim, and replay. Gyro IO for Pigeon2 and
   NavX. Owns the single `SwerveDrivePoseEstimator` and the PathPlanner `AutoBuilder` wiring.
+  Logs torque current on both drive and steer motors alongside stator and supply current, so
+  module load is readable straight from a match log.
 - `subsystems/vision` — multi-camera PhotonVision AprilTag pose estimation with the
   rejection filters tuned against real 2026 match logs (ambiguity, tag distance, a stricter
   single-tag distance limit, angular velocity, pitch/roll, field bounds), per-observation

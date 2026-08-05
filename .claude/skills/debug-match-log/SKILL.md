@@ -33,8 +33,14 @@ which signals confirm or eliminate each.
 Triggers/[gatingTrigger]           — was the composite trigger true?
 [Mechanism]/closedLoopReference    — was it targeting a setpoint?
 [Mechanism]/isReady                — did the readiness condition pass?
+[Mechanism]/torqueCurrentAmps      — was it loaded, stalled, or free-spinning?
 Commands/Active                    — was the command actually scheduled?
 ```
+
+For any mechanism on a `*TorqueCurrentFOC` request, torque current is the control
+signal. High torque current with near-zero velocity means a stall — something is
+physically jammed. Near-zero torque current while a setpoint is commanded means
+the request never reached the motor. Stator current alone cannot separate those two.
 
 **Robot aligned wrong direction**
 ```
@@ -70,12 +76,18 @@ before blaming ambiguity.
 
 **Brownout during match**
 ```
-PowerDistribution/Voltage          — when did voltage drop below 7 V?
-BatteryLogger/[Subsystem]/Current  — which subsystem drew the most current?
-Drive/Module[0-3]-Drive            — per-module drive current
-Drive/Module[0-3]-Turn             — per-module steer current
-[Subsystem]/StatorAmps             — stall detection per subsystem
+PowerDistribution/Voltage                       — when did voltage drop below 7 V?
+BatteryLogger/[Subsystem]/Current               — which subsystem drew the most current?
+Drive/Module[0-3]-Drive                         — per-module drive current
+Drive/Module[0-3]-Turn                          — per-module steer current
+Drive/Module[0-3]/DriveTorqueCurrentAmps        — was a module fighting a stall?
+Drive/Module[0-3]/TurnTorqueCurrentAmps         — was a steer motor binding?
+[Subsystem]/StatorAmps                          — stall detection per subsystem
 ```
+
+Supply current explains the battery draw; torque current explains *why* the
+mechanism was asking for it. Check both — a module pushing against a wall and a
+module accelerating hard look similar in supply current alone.
 
 **Loop overrun**
 ```

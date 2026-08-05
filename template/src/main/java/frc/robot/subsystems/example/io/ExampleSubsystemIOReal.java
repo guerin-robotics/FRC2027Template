@@ -30,6 +30,7 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   private final StatusSignal<Voltage> motorVoltage;
   private final StatusSignal<edu.wpi.first.units.measure.Current> motorStatorAmps;
   private final StatusSignal<edu.wpi.first.units.measure.Current> motorSupplyAmps;
+  private final StatusSignal<edu.wpi.first.units.measure.Current> motorTorqueCurrent;
   private final StatusSignal<AngularVelocity> motorVelocity;
   private final StatusSignal<edu.wpi.first.units.measure.Temperature> motorTemperature;
 
@@ -51,23 +52,38 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     motorVoltage = motor.getMotorVoltage();
     motorStatorAmps = motor.getStatorCurrent();
     motorSupplyAmps = motor.getSupplyCurrent();
+    motorTorqueCurrent = motor.getTorqueCurrent();
     motorVelocity = motor.getVelocity();
     motorTemperature = motor.getDeviceTemp();
 
     // Set update frequency (50 Hz is standard; use 250 Hz for odometry-critical signals)
+    // Torque current goes in the 50 Hz group next to stator/supply current, NOT in a
+    // slower diagnostic group — it is a control signal, not a diagnostic.
     BaseStatusSignal.setUpdateFrequencyForAll(
-        50, motorVoltage, motorStatorAmps, motorSupplyAmps, motorVelocity, motorTemperature);
+        50,
+        motorVoltage,
+        motorStatorAmps,
+        motorSupplyAmps,
+        motorTorqueCurrent,
+        motorVelocity,
+        motorTemperature);
     motor.optimizeBusUtilization();
   }
 
   @Override
   public void updateInputs(ExampleSubsystemIOInputs inputs) {
     BaseStatusSignal.refreshAll(
-        motorVoltage, motorStatorAmps, motorSupplyAmps, motorVelocity, motorTemperature);
+        motorVoltage,
+        motorStatorAmps,
+        motorSupplyAmps,
+        motorTorqueCurrent,
+        motorVelocity,
+        motorTemperature);
 
     inputs.motorVoltage = motorVoltage.getValue();
     inputs.motorStatorAmps = motorStatorAmps.getValue();
     inputs.motorSupplyAmps = motorSupplyAmps.getValue();
+    inputs.motorTorqueCurrentAmps = motorTorqueCurrent.getValue();
     inputs.motorVelocity = motorVelocity.getValue();
     inputs.motorTemperature = motorTemperature.getValue();
   }

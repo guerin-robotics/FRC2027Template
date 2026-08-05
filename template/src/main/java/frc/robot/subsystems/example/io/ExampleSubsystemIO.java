@@ -27,6 +27,15 @@ public interface ExampleSubsystemIO {
     public Voltage motorVoltage = Volts.of(0);
     public Current motorStatorAmps = Amps.of(0);
     public Current motorSupplyAmps = Amps.of(0);
+
+    // Torque-producing current. If this mechanism uses any *TorqueCurrentFOC control
+    // request, log this — it IS the control signal, and stator current is not. A stalled
+    // mechanism and a healthy one can draw similar stator current while their torque
+    // current differs completely, which makes them indistinguishable in replay without
+    // this channel. Costs no extra CAN bandwidth: Phoenix 6 packs TorqueCurrent into the
+    // same status frame as StatorCurrent, which you are already registering below.
+    public Current motorTorqueCurrentAmps = Amps.of(0);
+
     public AngularVelocity motorVelocity = RotationsPerSecond.of(0);
 
     // GOTCHA: AdvantageKit logs Measure-typed fields in SI base units, so a

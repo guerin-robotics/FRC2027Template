@@ -44,6 +44,12 @@ For changes to `@AutoLog` inputs classes:
 
 - [ ] Every new subsystem `periodic()` calls `Logger.processInputs()`
 - [ ] Every new subsystem `periodic()` calls `Robot.batteryLogger.reportCurrentUsage()`
+- [ ] Every new motor logs voltage, stator amps, supply amps, velocity and temperature
+- [ ] Any motor driven by a `*TorqueCurrentFOC` request also logs `getTorqueCurrent()`,
+      registered at 50 Hz next to stator current
+- [ ] New `StatusSignal`s are cached in the constructor and added to the existing batched
+      `BaseStatusSignal.refreshAll(...)`, not fetched inside `updateInputs()`
+- [ ] Sim IO does not invent values for signals it cannot model (e.g. torque current)
 - [ ] New state values use `Logger.recordOutput()` or `@AutoLogOutput`
 - [ ] No `Logger.processInputs()` calls removed
 

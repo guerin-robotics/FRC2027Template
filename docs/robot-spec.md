@@ -165,6 +165,14 @@ re-measuring.
 `feedforwardCharacterization`, `wheelRadiusCharacterization`. Every "align to X" command is
 built by passing a heading supplier to `joystickDriveAtAngle`.
 
+**Logged per module.** Connected flags, drive position/velocity/applied volts, stator
+current and **torque current**, turn absolute/relative position, velocity, applied volts,
+stator current and **torque current**, plus the odometry sample queues. Both motors run
+`*TorqueCurrentFOC` requests, so torque current is the actual control signal — stator
+current alone cannot distinguish a module fighting a stall from one spinning free.
+Registered at 50 Hz in the same frame as stator current, so it adds no CAN traffic.
+`ModuleIOSim` leaves both torque channels at zero rather than inventing a value.
+
 **2026 performance notes.** Voltage-saturated near 3.8 m/s rather than current-limited.
 Drive supply limit went 40 A → 60 A mid-season: ~12% more peak acceleration, 4× the
 brownouts, no change in top speed.
@@ -185,7 +193,9 @@ TODO — add the 2027 alignment commands as they are written.
 **Control mode:** VoltageOut / VelocityTorqueCurrentFOC / MotionMagic…
 **Gains:** kP/kI/kD/kS/kV/kA and where they live
 **Current limits:** supply / stator, and why those values
-**Logged inputs:** the @AutoLog field list
+**Logged inputs:** the @AutoLog field list — voltage, stator amps, supply amps,
+                   velocity, temperature, and torque current if any control request
+                   is *TorqueCurrentFOC (see .claude/rules/02-hardware.md)
 **State queries:** isAtVelocity(), isAtPosition(), … and their tolerances
 **Commands:** every factory, what it does, what it names itself
 **Default command:** what it idles to

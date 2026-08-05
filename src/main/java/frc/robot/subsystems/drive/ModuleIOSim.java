@@ -104,6 +104,11 @@ public class ModuleIOSim implements ModuleIO {
     inputs.turnAppliedVolts = turnAppliedVolts;
     inputs.turnCurrentAmps = Math.abs(turnSim.getCurrentDrawAmps());
 
+    // driveTorqueCurrentAmps / turnTorqueCurrentAmps are intentionally left at 0 here.
+    // DCMotorSim models total current draw, not the torque-producing component a FOC
+    // controller commands, so anything written here would be fiction that looks real in
+    // a log. The fields still exist in the shared AutoLog schema, so real and sim match.
+
     // Update odometry inputs (50Hz because high-frequency odometry in sim doesn't
     // matter)
     inputs.odometryTimestamps = new double[] {Timer.getFPGATimestamp()};

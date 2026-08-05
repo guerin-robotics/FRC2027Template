@@ -21,6 +21,8 @@ What it needs to do:
 
 Logged signals needed:
 - Voltage, supply current, stator current, velocity, temperature (standard set)
+- Torque current (REQUIRED if the control mode above is any *TorqueCurrentFOC —
+  it is the control signal, and stator current is not a substitute)
 - [Any additional: position, closed-loop reference/error]
 
 State queries needed (for Triggers or commands):

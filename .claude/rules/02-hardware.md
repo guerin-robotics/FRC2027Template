@@ -105,6 +105,50 @@ BaseStatusSignal.setUpdateFrequencyForAll(250, driveVelocity, steerPosition, ...
 Always call `motor.optimizeBusUtilization()` after setting signal frequencies.
 Unused signals at default 100 Hz waste CAN bandwidth.
 
+**Cache every `StatusSignal` once in the constructor** and refresh them in one batched
+`BaseStatusSignal.refreshAll(...)` per `updateInputs()`. Calling `motor.getStatorCurrent()`
+inside `updateInputs()` allocates a new signal object every loop.
+
+---
+
+## What Every Motor Must Log
+
+At minimum, per motor:
+
+| Signal | Why |
+|---|---|
+| `getMotorVoltage()` | Applied output |
+| `getStatorCurrent()` | Current through the windings — heating and stall |
+| `getSupplyCurrent()` | Current drawn from the battery — brownout analysis |
+| `getVelocity()` | Actual motion |
+| `getDeviceTemp()` | Thermal headroom |
+| `getTorqueCurrent()` | **Required for any motor driven by a `*TorqueCurrentFOC` request** |
+
+### Torque current
+
+If a mechanism uses `TorqueCurrentFOC`, `VelocityTorqueCurrentFOC`, or
+`PositionTorqueCurrentFOC`, then torque current **is the control signal** — it is what the
+closed loop is actually commanding. Stator current is not the same thing.
+
+Without it, a stalled mechanism and a healthy one drawing similar stator current are
+indistinguishable in replay. With it, mechanism load is directly readable from a match log.
+
+Register it at **50 Hz, alongside stator and supply current** — not in a slower diagnostic
+group. It is a control signal, not a diagnostic.
+
+**This costs no extra CAN bandwidth.** Phoenix 6 packs `TorqueCurrent` into the same status
+frame as `StatorCurrent`. If stator current is already registered at 50 Hz — and it should
+be — requesting torque current adds no periodic frame. Still worth confirming against bus
+utilization in Tuner X on the first real deploy.
+
+The swerve drive and steer motors already do this; see `ModuleIOTalonFX` for the pattern,
+and `template/src/.../ExampleSubsystemIOReal.java` for a copyable version.
+
+**Do not populate torque current in a sim IO.** WPILib's sim classes model total current
+draw, not the torque-producing component, so any value written there is fiction that looks
+real in a log. Leave the field at zero — the schema is shared through the generated
+`*AutoLogged` class, so real and sim still match.
+
 ---
 
 ## Pigeon2 (Gyro)

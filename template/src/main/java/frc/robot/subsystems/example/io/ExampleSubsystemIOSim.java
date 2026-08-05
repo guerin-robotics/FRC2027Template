@@ -39,6 +39,11 @@ public class ExampleSubsystemIOSim implements ExampleSubsystemIO {
     inputs.motorStatorAmps = Amps.of(sim.getCurrentDrawAmps());
     inputs.motorSupplyAmps = Amps.of(sim.getCurrentDrawAmps());
     inputs.motorTemperature = Celsius.of(25.0);
+
+    // Leave motorTorqueCurrentAmps at 0. WPILib sim models total current draw, not the
+    // torque-producing component a FOC controller commands, so anything written here
+    // would be fiction that looks real in a log. Don't "helpfully" populate it. The field
+    // still exists in the shared AutoLog schema, so the real and sim schemas match.
   }
 
   @Override
