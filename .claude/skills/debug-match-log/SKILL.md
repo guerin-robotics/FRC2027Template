@@ -93,6 +93,9 @@ Drive/Module[0-3]/TurnTorqueCurrentAmps         — was a steer motor binding?
 BatteryLogger/BrownoutCount                     — how many brownouts so far
 BatteryLogger/MinVoltage                        — worst sag seen
 BatteryLogger/BrownedOutNow                     — timeline of the event itself
+BatteryLogger/LoopSeconds                       — measured loop interval; energy is integrated
+                                                  against this, and it is a second read on
+                                                  loop overrun independent of LoopTiming/
 [Subsystem]/StatorAmps                          — stall detection per subsystem
 ```
 

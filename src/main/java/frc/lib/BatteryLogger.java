@@ -1,5 +1,6 @@
 package frc.lib;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.RobotController;
@@ -15,6 +16,11 @@ import org.littletonrobotics.junction.Logger;
  * motors. The logger aggregates the data and writes it to AdvantageKit under the {@code
  * BatteryLogger/} namespace so it can be viewed in AdvantageScope.
  *
+ * <p>Current and power are instantaneous. <b>Energy is integrated once per cycle against the
+ * measured interval since the last cycle</b>, not against an assumed 20 ms — so the totals stay
+ * correct when loops overrun, which is the condition under which you most want to trust them. The
+ * measured interval is published as {@code BatteryLogger/LoopSeconds}.
+ *
  * <p>Adapted from <a
  * href="https://github.com/Mechanical-Advantage/RobotCode2026Public">6328&rsquo;s
  * BatteryLogger</a>.
@@ -22,22 +28,28 @@ import org.littletonrobotics.junction.Logger;
 public class BatteryLogger {
 
   /**
-   * Assumed loop period in seconds, used to turn instantaneous power into accumulated energy.
+   * Loop period used for the very first cycle, before two timestamps exist to subtract.
    *
-   * <p><b>KNOWN LIMITATION — energy figures are wrong whenever the loop overruns.</b> This is a
-   * fixed assumption, not a measurement. If the robot is actually running at 30 Hz (33 ms loops,
-   * which is what 2026 did all season), every {@code Energy} value below is understated by roughly
-   * 40%, because each loop covered 33 ms of real time but only 20 ms was accounted for.
-   *
-   * <p>Current and power are instantaneous and are unaffected. Only the accumulating {@code Energy}
-   * channels are wrong, and only in proportion to the overrun.
-   *
-   * <p>The fix is to measure real elapsed time between calls and clamp it against a ceiling so a
-   * pause (disable, breakpoint, replay) does not dump a huge slug of energy in one step. {@code
-   * LoopTimeMonitor} already measures the loop duration this would need. Left as-is deliberately
-   * for now — check {@code LoopTiming/AverageMs} before trusting any energy number.
+   * <p>Every cycle after that measures the real interval. Nothing else in this class assumes a loop
+   * period.
    */
-  private static final double LOOP_PERIOD_SECS = 0.02;
+  private static final double NOMINAL_LOOP_SECONDS = 0.02;
+
+  /**
+   * Ceiling on a single cycle's measured interval, in seconds.
+   *
+   * <p>Without this, any gap in execution — a disable, a breakpoint, the first loop after code
+   * start — is integrated as if the robot had been drawing that instant's current for the whole
+   * gap, and dumps a slug of phantom energy into the totals. Five nominal loops is generous enough
+   * never to clip a real overrun and tight enough that a pause cannot distort the match total.
+   */
+  private static final double MAX_LOOP_SECONDS = 0.1;
+
+  /** Timestamp of the previous {@link #periodicAfterScheduler()}, in microseconds. */
+  private long lastTimestampMicros = 0;
+
+  /** Measured length of the last cycle, in seconds. Logged so the correction is visible. */
+  private double lastLoopSeconds = NOMINAL_LOOP_SECONDS;
 
   // ---- Running totals for the current loop cycle ----
   private double totalCurrent = 0.0;
@@ -87,17 +99,16 @@ public class BatteryLogger {
       driveCurrent += totalAmps;
     }
 
+    // Power only. Energy is integrated once per cycle in periodicAfterScheduler(), against the
+    // measured interval — a subsystem reporting here has no way to know how long this loop took.
     double power = totalAmps * batteryVoltage;
-    double energy = power * LOOP_PERIOD_SECS;
 
     totalCurrent += totalAmps;
     totalPower += power;
-    totalEnergy += energy;
 
     // Store the leaf key
     subsystemCurrents.put(key, totalAmps);
     subsystemPowers.put(key, power);
-    subsystemEnergies.merge(key, energy, Double::sum);
 
     // Aggregate parent keys (split on "/" or "-")
     String[] keys = key.split("/|-");
@@ -113,7 +124,6 @@ public class BatteryLogger {
       }
       subsystemCurrents.merge(subkey, totalAmps, Double::sum);
       subsystemPowers.merge(subkey, power, Double::sum);
-      subsystemEnergies.merge(subkey, energy, Double::sum);
     }
   }
 
@@ -128,6 +138,21 @@ public class BatteryLogger {
     reportCurrentUsage("Controls/Pigeon", false, 0.04);
     reportCurrentUsage("Controls/CANivore", false, 0.03);
     reportCurrentUsage("Controls/Radio", false, 0.5);
+
+    // ---- Energy integration ----
+    //
+    // Done here, once, against the real interval since the last cycle. Integrating inside
+    // reportCurrentUsage() against a fixed 20 ms was wrong by exactly the overrun ratio: at the
+    // ~30 Hz the 2026 robot actually ran, every energy figure was roughly 40% low.
+    //
+    // Must run after the overhead currents above are reported and before the logging loops
+    // below zero the power map.
+    double dtSeconds = measureLoopSeconds();
+    totalEnergy += totalPower * dtSeconds;
+    for (var entry : subsystemPowers.entrySet()) {
+      subsystemEnergies.merge(entry.getKey(), entry.getValue() * dtSeconds, Double::sum);
+    }
+    Logger.recordOutput("BatteryLogger/LoopSeconds", dtSeconds);
 
     // ---- Brownout / voltage tracking ----
     boolean brownedOut = RobotController.isBrownedOut();
@@ -231,5 +256,34 @@ public class BatteryLogger {
 
   private double joulesToWattHours(double joules) {
     return joules / 3600.0;
+  }
+
+  /**
+   * Real seconds since the previous cycle, clamped.
+   *
+   * <p>Uses AdvantageKit's timestamp rather than {@code Timer.getFPGATimestamp()} on purpose.
+   * During replay the AdvantageKit clock follows the log, so energy replays to the same numbers the
+   * robot produced; wall-clock time would make a replay disagree with the match it is replaying,
+   * which defeats the point of having one.
+   */
+  private double measureLoopSeconds() {
+    long now = Logger.getTimestamp();
+
+    if (lastTimestampMicros == 0) {
+      // First cycle — nothing to subtract from yet.
+      lastTimestampMicros = now;
+      lastLoopSeconds = NOMINAL_LOOP_SECONDS;
+      return lastLoopSeconds;
+    }
+
+    double elapsed = (now - lastTimestampMicros) / 1.0e6;
+    lastTimestampMicros = now;
+    lastLoopSeconds = MathUtil.clamp(elapsed, 0.0, MAX_LOOP_SECONDS);
+    return lastLoopSeconds;
+  }
+
+  /** Measured length of the last loop, in seconds. */
+  public double getLastLoopSeconds() {
+    return lastLoopSeconds;
   }
 }
