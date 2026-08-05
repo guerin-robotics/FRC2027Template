@@ -237,11 +237,15 @@ If the gyro drifts or reads incorrectly:
 Follower TalonFX motors must use the `Follower` control request:
 
 ```java
-follower.setControl(new Follower(leader.getDeviceID(), opposeLeaderDirection));
+follower.setControl(new Follower(leader.getDeviceID(), MotorAlignmentValue.Opposed));
 ```
 
-The `opposeLeaderDirection` boolean is `true` when the follower is physically
-mounted in the opposite direction from the leader.
+Use `MotorAlignmentValue.Opposed` when the follower is physically mounted facing the
+opposite direction from the leader, `Aligned` when it faces the same way.
+
+**Phoenix 6 2026 changed this signature.** The old `Follower(int, boolean)` is gone —
+passing a boolean no longer compiles. Older examples, including ones written for the 2025
+API, will show the boolean form.
 
 **Never control a follower directly** while the leader is running. The two requests fight,
 and the mechanism stalls or oscillates while drawing heavy current.

@@ -172,11 +172,14 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   //   follower = new TalonFX(Constants.CanIds.EXAMPLE_FOLLOWER, Constants.CanIds.RIO_BUS);
   //   PhoenixUtil.tryUntilOk(5, () -> follower.getConfigurator().apply(config));
   //
-  //   // opposeLeaderDirection is TRUE when the follower is physically mounted facing the
-  //   // opposite way from the leader. Getting this wrong makes the two motors fight each
-  //   // other — high current, no motion, and it will cook a gearbox. Verify at low output
-  //   // before running closed-loop.
-  //   follower.setControl(new Follower(motor.getDeviceID(), /* opposeLeaderDirection= */ false));
+  //   // MotorAlignmentValue.Opposed when the follower is physically mounted facing the
+  //   // opposite way from the leader, Aligned when it faces the same way. Getting this wrong
+  //   // makes the two motors fight each other — high current, no motion, and it will cook a
+  //   // gearbox. Verify at low output before running closed-loop.
+  //   //
+  //   // NOTE: Phoenix 6 2026 replaced the old Follower(int, boolean) with
+  //   // Follower(int, MotorAlignmentValue). A boolean here will not compile.
+  //   follower.setControl(new Follower(motor.getDeviceID(), MotorAlignmentValue.Opposed));
   //
   // LOG THE FOLLOWER TOO. It is a real motor drawing real current and generating real heat,
   // and it can fail independently of the leader — a follower that has quietly stopped looks
@@ -195,5 +198,5 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   //   BaseStatusSignal.setUpdateFrequencyForAll(50, followerStatorAmps, /* ...and the rest */);
   //   follower.optimizeBusUtilization();
   //
-  // Import: com.ctre.phoenix6.controls.Follower
+  // Imports: com.ctre.phoenix6.controls.Follower, com.ctre.phoenix6.signals.MotorAlignmentValue
 }
