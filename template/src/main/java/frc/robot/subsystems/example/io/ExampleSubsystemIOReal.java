@@ -38,7 +38,10 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   private final VoltageOut voltageRequest = new VoltageOut(0).withEnableFOC(true);
 
   public ExampleSubsystemIOReal() {
-    motor = new TalonFX(Constants.CanIds.EXAMPLE_MOTOR, "rio"); // TODO: add the ID and set the bus
+    // TODO: add the real ID to Constants.CanIds, and pick the bus deliberately — RIO_BUS here,
+    // or TunerConstants.kCANBus for the CANivore. The (int, String) constructor is deprecated
+    // for removal in Phoenix 6; pass a CANBus.
+    motor = new TalonFX(Constants.CanIds.EXAMPLE_MOTOR, Constants.CanIds.RIO_BUS);
 
     // Everything numeric comes from ExampleSubsystemConstants — nothing is inlined here.
     // Gains go through the get* accessors so sim and real each get their own set.
@@ -135,7 +138,7 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   //   private final TalonFX follower;
   //
   //   // ...in the constructor, AFTER configuring the leader:
-  //   follower = new TalonFX(Constants.CanIds.EXAMPLE_FOLLOWER, "rio");
+  //   follower = new TalonFX(Constants.CanIds.EXAMPLE_FOLLOWER, Constants.CanIds.RIO_BUS);
   //   PhoenixUtil.tryUntilOk(5, () -> follower.getConfigurator().apply(config));
   //
   //   // opposeLeaderDirection is TRUE when the follower is physically mounted facing the

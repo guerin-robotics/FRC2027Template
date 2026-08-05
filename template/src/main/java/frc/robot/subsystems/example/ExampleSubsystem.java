@@ -27,6 +27,9 @@ public class ExampleSubsystem extends SubsystemBase {
   private final ExampleSubsystemIO io;
   private final ExampleSubsystemIOInputsAutoLogged inputs;
 
+  /** Last commanded velocity, so {@link #isAtVelocity()} has something to compare against. */
+  private AngularVelocity goalVelocity = RotationsPerSecond.of(0);
+
   public ExampleSubsystem(ExampleSubsystemIO io) {
     this.io = io;
     this.inputs = new ExampleSubsystemIOInputsAutoLogged();
@@ -51,6 +54,7 @@ public class ExampleSubsystem extends SubsystemBase {
   }
 
   public void setVelocity(AngularVelocity velocity) {
+    goalVelocity = velocity;
     io.setVelocity(velocity);
   }
 
@@ -60,5 +64,23 @@ public class ExampleSubsystem extends SubsystemBase {
 
   // --- State queries (used by Triggers or commands) ---
 
-  // Example: public boolean isAtVelocity() { return ... }
+  /**
+   * True when the mechanism is within tolerance of the requested velocity.
+   *
+   * <p>Every mechanism a command waits on needs a query like this, and it needs an explicit
+   * tolerance rather than an equality check — a real mechanism never sits exactly on its setpoint.
+   * The tolerance lives in the constants file so it can be adjusted between matches without
+   * touching logic.
+   *
+   * <p><b>Log it.</b> A readiness condition you cannot see flipping in a match log is one you
+   * cannot debug afterward, and "the robot just never fired" is almost always this returning false
+   * for a reason nobody recorded.
+   */
+  public boolean isAtVelocity() {
+    boolean atVelocity =
+        Math.abs(inputs.motorVelocity.in(RotationsPerSecond) - goalVelocity.in(RotationsPerSecond))
+            < ExampleSubsystemConstants.VELOCITY_TOLERANCE_ROTATIONS_PER_SEC;
+    Logger.recordOutput("ExampleSubsystem/AtVelocity", atVelocity);
+    return atVelocity;
+  }
 }

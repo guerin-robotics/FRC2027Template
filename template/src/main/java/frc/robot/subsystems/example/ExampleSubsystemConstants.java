@@ -93,6 +93,15 @@ public class ExampleSubsystemConstants {
   /** True if the motor is mounted so positive output produces negative mechanism motion. */
   public static final boolean INVERTED = false;
 
+  /**
+   * How close to the commanded velocity counts as "at velocity", in mechanism rotations/sec.
+   *
+   * <p>Too tight and the mechanism never reports ready, so every sequence runs to its timeout
+   * instead of proceeding. Too loose and it fires early and misses. This is the kind of value that
+   * gets adjusted between matches — consider wrapping it in a {@code LoggedTunableNumber}.
+   */
+  public static final double VELOCITY_TOLERANCE_ROTATIONS_PER_SEC = 2.0;
+
   // ==========================================================================================
   // MOTION PROFILE (MotionMagic)
   // ==========================================================================================

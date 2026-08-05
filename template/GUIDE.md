@@ -179,9 +179,23 @@ frc/lib/                      ← ALL shared utilities: field/alliance, hardware
 ## Note on This Directory
 
 `template/` is **not** part of the Gradle build — the source set is `src/main/java` only, so
-nothing here is compiled or deployed. The example files intentionally reference classes that
-don't exist yet (`Constants.CanIds.EXAMPLE_MOTOR`, `Constants.Waits.*`) and call methods
-you're expected to add (`isAtVelocity()`). They are a reading reference and a copy source,
-not working code.
+nothing here is compiled or deployed. Spotless *does* format these files, so keep them valid
+Java.
 
-Spotless *does* format files here, so keep them syntactically valid Java.
+**They do compile, though.** The scaffold resolves against the real `Constants` and `frc.lib`,
+and was verified by temporarily adding `template/src/main/java` to the source set and building.
+Do that yourself if you change anything here:
+
+```groovy
+// build.gradle, temporarily
+sourceSets { main { java { srcDir 'template/src/main/java' } } }
+```
+
+Worth doing, because nothing else catches rot in this directory. That check is what found the
+scaffold still using the `TalonFX(int, String)` constructor, which Phoenix 6 deprecated for
+removal — a scaffold is the worst place for a deprecated call, since its whole job is to be
+copied.
+
+The placeholders in `Constants` (`CanIds.EXAMPLE_*`, `Waits.MECHANISM_READY_SECONDS`,
+`Waits.TOTAL_TIMEOUT_SECONDS`) exist so this directory resolves. Delete them once real
+mechanisms replace the example.

@@ -7,6 +7,7 @@
 
 package frc.robot;
 
+import com.ctre.phoenix6.CANBus;
 import edu.wpi.first.wpilibj.RobotBase;
 
 /**
@@ -123,10 +124,25 @@ public final class Constants {
 
     private CanIds() {}
 
-    // ---- Example, delete when the first real mechanism lands ----
-    // public static final int MECHANISM_LEADER = 20;    // RIO CAN
-    // public static final int MECHANISM_FOLLOWER = 21;  // RIO CAN
-    // public static final int MECHANISM_ENCODER = 22;   // RIO CAN
+    /**
+     * The roboRIO's onboard CAN bus.
+     *
+     * <p>Use this rather than the string form: {@code new TalonFX(id, "rio")} is deprecated for
+     * removal in Phoenix 6, and constructing a {@code CANBus} per device wastes work at startup.
+     *
+     * <p>The CANivore bus is {@code TunerConstants.kCANBus} — swerve owns it, and anything else
+     * placed there needs a documented reason (see {@code .claude/rules/02-hardware.md}).
+     */
+    public static final CANBus RIO_BUS = new CANBus("rio");
+
+    // ---- PLACEHOLDERS — delete these three once the first real mechanism lands ----
+    //
+    // These exist so template/src/ resolves and can be copied without editing two files at
+    // once. They are not wired to anything. IDs 0-12 are taken by swerve (see TunerConstants),
+    // so mechanism IDs start at 20 by convention.
+    public static final int EXAMPLE_MOTOR = 20; // RIO CAN
+    public static final int EXAMPLE_FOLLOWER = 21; // RIO CAN
+    public static final int EXAMPLE_ENCODER = 22; // RIO CAN
   }
 
   // ============================================================================================
@@ -174,8 +190,19 @@ public final class Constants {
 
     private Waits() {}
 
-    // public static final double MECHANISM_READY_SECONDS = 1.0;
-    // public static final double TOTAL_TIMEOUT_SECONDS = 1.5;
+    // ---- PLACEHOLDERS — replace with measured values ----
+    //
+    // Referenced by template/src/.../ExampleCommands.java. Keep them until that scaffold is
+    // replaced by real mechanism commands, then rename them for what they actually gate.
+
+    /** How long to wait for a mechanism to reach its setpoint before giving up. */
+    public static final double MECHANISM_READY_SECONDS = 1.0;
+
+    /**
+     * Total budget for a ready-then-align-then-act sequence. Must exceed {@link
+     * #MECHANISM_READY_SECONDS}, since phase two is given the difference.
+     */
+    public static final double TOTAL_TIMEOUT_SECONDS = 1.5;
   }
 
   // ============================================================================================
