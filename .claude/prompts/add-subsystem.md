@@ -3,6 +3,10 @@
 Use this prompt when scaffolding a new mechanism subsystem from scratch.
 Copy and fill in the bracketed values before sending.
 
+> **There is also a `/add-subsystem` skill**, which runs the same process without the
+> copy-paste and asks for anything you leave out. Use this form when you would rather
+> state everything up front, or when you want to review the request before sending it.
+
 ---
 
 ```

@@ -20,6 +20,7 @@ Process and workflow docs. Nothing in them depends on a particular robot or game
 | [change-classification.md](change-classification.md) | The five risk levels, with worked examples |
 | [pre-match-checklist.md](pre-match-checklist.md) | Event-day checklist. Structure is ready; fill in the 2027 mechanism checks and device count, then print it |
 | [characterization-and-tuning.md](characterization-and-tuning.md) | Running the FF/wheel-radius/SysId routines and turning their output into gains. Covers the TorqueCurrentFOC units trap, drive and steer specifically, then a general recipe split by velocity vs position control |
+| [tunables.md](tunables.md) | Changing values live instead of redeploying. RAM-side vs TalonFX Slot0 gains, where Phoenix Tuner X fits, and why gains typed into Tuner X get silently overwritten at the next boot |
 
 ## Procedure kept, data needs filling in
 
@@ -34,8 +35,8 @@ Process and workflow docs. Nothing in them depends on a particular robot or game
 | Doc | Status |
 |---|---|
 | [robot-spec.md](robot-spec.md) | Section structure kept; §2–§6, §9, §11, §14–§17 describe shipped code. The rest is TODO |
-| [driver-controls-card.md](driver-controls-card.md) | Blank template. Fill in once bindings exist, then print it for the pit |
-| [drive-controller-mode.md](drive-controller-mode.md) | Design record for a 2026 feature that was not carried over. Read before rebuilding it |
+| [driver-controls-card.md](driver-controls-card.md) | Drive controls are real (flight stick); operator section is blank. Fill it in as mechanisms land, then print it for the pit |
+| [drive-controller-mode.md](drive-controller-mode.md) | Design record for the dashboard controller swap. Not wired up, but `Triggers` already routes every axis read through suppliers so it can be added in one file |
 
 ---
 

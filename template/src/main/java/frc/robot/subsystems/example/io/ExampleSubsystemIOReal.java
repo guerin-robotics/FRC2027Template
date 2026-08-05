@@ -4,6 +4,7 @@ import static edu.wpi.first.units.Units.*;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.MotionMagicVelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
@@ -11,6 +12,7 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Voltage;
+import frc.lib.LoggedTunableNumber;
 import frc.lib.PhoenixUtil;
 import frc.robot.Constants;
 import frc.robot.subsystems.example.ExampleSubsystemConstants;
@@ -103,6 +105,57 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     inputs.motorVelocity = motorVelocity.getValue();
     inputs.motorPosition = motorPosition.getValue();
     inputs.motorTemperature = motorTemperature.getValue();
+
+    updateTunedGains();
+  }
+
+  /**
+   * Pushes dashboard-edited gains to the Talon, but only when one actually moved.
+   *
+   * <p>Slot0 gains live in flash on the motor controller, not in RAM on the roboRIO — that is why
+   * the Talon can close its loop at 1 kHz instead of at our 50 Hz. The cost is that changing one is
+   * a blocking CAN transaction rather than a field write, so this cannot be done unconditionally
+   * every loop the way a WPILib {@code PIDController} gain can.
+   *
+   * <p>Three things here are deliberate:
+   *
+   * <ul>
+   *   <li><b>Gated on {@code tuningMode}.</b> In competition this returns immediately and does zero
+   *       CAN work. The robot runs the compiled-in defaults, applied once in the constructor.
+   *   <li><b>{@code apply(Slot0Configs)}, not {@code apply(TalonFXConfiguration)}.</b> The Slot0
+   *       overload writes only the gain block. A full config apply would also rewrite current
+   *       limits, soft limits, inversion and feedback ratios every time you nudged a gain.
+   *   <li><b>{@code ifChanged}, not every loop.</b> Expect the one loop it fires on to overrun the
+   *       20 ms budget. That is acceptable in a tuning session, which is the only time it can
+   *       happen.
+   * </ul>
+   *
+   * <p>Note that {@code hasChanged} reports true on its first call, so this fires once on the first
+   * loop after enabling and re-applies values the constructor already wrote. Harmless, but it means
+   * the first change you see in a log is not a change.
+   *
+   * <p>See docs/tunables.md.
+   */
+  private void updateTunedGains() {
+    if (!Constants.tuningMode) {
+      return;
+    }
+
+    LoggedTunableNumber.ifChanged(
+        hashCode(),
+        () -> {
+          Slot0Configs gains =
+              new Slot0Configs()
+                  .withKS(ExampleSubsystemConstants.getKS())
+                  .withKV(ExampleSubsystemConstants.getKV())
+                  .withKA(ExampleSubsystemConstants.getKA())
+                  .withKG(ExampleSubsystemConstants.getKG())
+                  .withKP(ExampleSubsystemConstants.getKP())
+                  .withKI(ExampleSubsystemConstants.getKI())
+                  .withKD(ExampleSubsystemConstants.getKD());
+          PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(gains));
+        },
+        ExampleSubsystemConstants.TUNABLE_GAINS);
   }
 
   @Override

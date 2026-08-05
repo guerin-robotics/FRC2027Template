@@ -10,6 +10,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Time;
+import frc.lib.LoggedTunableNumber;
 import frc.robot.Constants;
 
 /**
@@ -221,27 +222,42 @@ public class ExampleSubsystemConstants {
   //
   // Placeholders. Measure them: kS -> kV -> kA -> kP for velocity, kG -> kS -> kP -> kD for
   // position. Never start with kP. See docs/characterization-and-tuning.md Part 3.
+  //
+  // These are LoggedTunableNumbers so a tuning session does not need a redeploy per iteration.
+  // With Constants.tuningMode off they return the defaults below and cost nothing — no
+  // dashboard entry is even created.
+  //
+  // The default in each constructor is what the robot runs in competition. The dashboard value
+  // lives only in NetworkTables and is gone at the next reboot, so a session that ends without
+  // writing the numbers back into this file and committing them accomplished nothing.
+  //
+  // These are the gains the TALON runs, on the device. Changing one means a CAN write, which is
+  // why ExampleSubsystemIOReal re-applies Slot0 only when a value actually moves rather than
+  // every loop. See docs/tunables.md.
 
   /** Static friction feedforward — output needed to break the mechanism loose. */
-  public static final double KS = 0.0;
+  public static final LoggedTunableNumber KS = new LoggedTunableNumber("Example/kS", 0.0);
 
   /** Velocity feedforward — output per unit of steady-state velocity. */
-  public static final double KV = 0.0;
+  public static final LoggedTunableNumber KV = new LoggedTunableNumber("Example/kV", 0.0);
 
   /** Acceleration feedforward — output per unit of acceleration. */
-  public static final double KA = 0.0;
+  public static final LoggedTunableNumber KA = new LoggedTunableNumber("Example/kA", 0.0);
 
   /** Gravity feedforward. Arms and elevators only; set the matching {@link GravityTypeValue}. */
-  public static final double KG = 0.0;
+  public static final LoggedTunableNumber KG = new LoggedTunableNumber("Example/kG", 0.0);
 
   /** Proportional gain. Corrects what feedforward misses — it should not be doing the work. */
-  public static final double KP = 0.0;
+  public static final LoggedTunableNumber KP = new LoggedTunableNumber("Example/kP", 0.0);
 
   /** Integral gain. Leave at zero unless you can explain its behavior during a stall. */
-  public static final double KI = 0.0;
+  public static final LoggedTunableNumber KI = new LoggedTunableNumber("Example/kI", 0.0);
 
   /** Derivative gain. Damps overshoot on position loops; amplifies noise on velocity loops. */
-  public static final double KD = 0.0;
+  public static final LoggedTunableNumber KD = new LoggedTunableNumber("Example/kD", 0.0);
+
+  /** Every real-robot gain, for the {@code ifChanged} watch list in the IO layer. */
+  public static final LoggedTunableNumber[] TUNABLE_GAINS = {KS, KV, KA, KG, KP, KI, KD};
 
   // ==========================================================================================
   // SIMULATION
@@ -257,6 +273,11 @@ public class ExampleSubsystemConstants {
    *
    * <p>Nested rather than flattened so {@code Sim.KP} beside {@code KP} in a diff makes it obvious
    * which one is being edited.
+   *
+   * <p><b>Sim gains are plain doubles, not tunables, on purpose.</b> Tunables exist to avoid the
+   * two-minute edit-build-deploy-enable cycle. Sim has no deploy step — restarting it is seconds —
+   * so a dashboard knob buys nothing and only adds a second set of numbers that can disagree with
+   * the file. Edit these here and re-run.
    */
   public static class Sim {
 
@@ -302,31 +323,31 @@ public class ExampleSubsystemConstants {
   }
 
   public static double getKS() {
-    return isSim() ? Sim.KS : KS;
+    return isSim() ? Sim.KS : KS.get();
   }
 
   public static double getKV() {
-    return isSim() ? Sim.KV : KV;
+    return isSim() ? Sim.KV : KV.get();
   }
 
   public static double getKA() {
-    return isSim() ? Sim.KA : KA;
+    return isSim() ? Sim.KA : KA.get();
   }
 
   public static double getKG() {
-    return isSim() ? Sim.KG : KG;
+    return isSim() ? Sim.KG : KG.get();
   }
 
   public static double getKP() {
-    return isSim() ? Sim.KP : KP;
+    return isSim() ? Sim.KP : KP.get();
   }
 
   public static double getKI() {
-    return isSim() ? Sim.KI : KI;
+    return isSim() ? Sim.KI : KI.get();
   }
 
   public static double getKD() {
-    return isSim() ? Sim.KD : KD;
+    return isSim() ? Sim.KD : KD.get();
   }
 
   // ==========================================================================================

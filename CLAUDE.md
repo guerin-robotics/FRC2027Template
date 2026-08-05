@@ -192,6 +192,7 @@ Common task templates are in `.claude/prompts/`:
 
 Team skills (slash commands) are in `.claude/skills/`:
 
+- `/add-subsystem` — scaffold a new mechanism: six files, constants, wiring, triggers
 - `/debug-match-log` — root-cause a field problem from an AdvantageKit log
 - `/pid-tune` — sim-based PID/FF tuning loop; proposes gains, user confirms
 

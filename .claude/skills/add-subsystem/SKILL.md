@@ -1,0 +1,161 @@
+---
+name: add-subsystem
+description: Scaffold a new mechanism subsystem end to end — the six files, CAN IDs, setpoints, RobotContainer wiring in all three modes, and operator triggers. Use when adding any new mechanism (intake, elevator, arm, shooter, climber, hood, feeder). Produces code that compiles and runs in sim, with everything unmeasured clearly marked.
+---
+
+# Add a Subsystem
+
+Scaffold a mechanism from the template's six-file pattern, wired into the robot and
+building, with every value that has to be measured on hardware marked as unmeasured
+rather than quietly guessed.
+
+**The goal is to get the boring, error-prone structure right in one pass so the team can
+spend its time on logic.** Nothing here invents robot behavior.
+
+---
+
+## Step 1 — Gather the hardware facts
+
+Ask for anything not supplied. Do not guess these; every one changes the generated code,
+and a wrong guess produces code that compiles and misbehaves.
+
+| Need | Why it matters |
+|---|---|
+| Mechanism name | Package name, log key, command names |
+| Motor count, and which is the leader | Determines whether a `Follower` is generated |
+| CAN IDs and bus for each device | A wrong ID silently commands the wrong motor |
+| Follower orientation — same way or opposite | Wrong means the motors fight; it cooks a gearbox |
+| Gear ratio, motor rotations per mechanism rotation | Everything downstream is in the wrong units without it |
+| External CANcoder? On what shaft? | Decides `RotorToSensorRatio` vs `SensorToMechanismRatio` and whether `FusedCANcoder` is used |
+| Control mode — velocity or position | Picks `getVelocityFXConfig()` or `getPositionFXConfig()` and the request type |
+| Gravity-affected? Arm or elevator? | Decides `kG` and `GravityTypeValue` |
+| Travel limits, if position-controlled | Soft limits. Without them a position goal can drive a mechanism into itself |
+| Setpoints it gets commanded to | These go in `Constants.Setpoints` |
+| Operator controls | Which Xbox buttons, and what each does |
+
+If the user gives a mechanism type but not the details ("add an elevator"), ask once with
+the specifics batched, rather than asking one at a time or inventing answers.
+
+---
+
+## Step 2 — Generate the six files
+
+Copy the structure from `template/src/main/java/frc/robot/subsystems/example/`. Read those
+files first — they carry the current conventions, and they are kept up to date.
+
+```
+subsystems/<name>/
+├── io/<Name>IO.java          interface + @AutoLog inputs
+├── io/<Name>IOReal.java      every Phoenix call, and only here
+├── io/<Name>IOSim.java       physics sim against the same interface
+├── <Name>.java               logic; zero hardware imports
+└── <Name>Constants.java      gains, ratios, limits, getFXConfig()
+
+commands/<Name>Commands.java  static factories, all .withName()'d
+```
+
+Non-negotiables, each of which has burned this team or is load-bearing for replay:
+
+- `Logger.processInputs()` in `periodic()`. Removing it breaks log replay.
+- Hardware imports appear in `<Name>IOReal` only. A `TalonFX` import in the subsystem
+  class ends replay.
+- `PhoenixUtil.tryUntilOk(5, ...)` around every config apply. CTRE silently ignores config
+  when the bus is busy at startup, and the motor then boots with no current limits.
+- Log **both** motors of a follower pair. A follower that has quietly died looks exactly
+  like a leader that is underpowered.
+- Register status signals for both motors at 50 Hz **before** `optimizeBusUtilization()`,
+  or the unregistered ones drop to 4 Hz and read stale.
+- Torque current is logged whenever the control mode is any `*TorqueCurrentFOC` — it is the
+  control signal, and stator current is not a substitute.
+- `Follower(int, MotorAlignmentValue)`. The old boolean overload does not exist in Phoenix 6
+  2026.
+- Supply current, not stator, goes to `BatteryLogger.reportCurrentUsage()`.
+
+---
+
+## Step 3 — Constants go in the right file
+
+This split is the one most often gotten wrong. See `.claude/rules/03-commands.md`.
+
+| Value | Goes in |
+|---|---|
+| Gains, gear ratios, current limits, soft limits, tolerances, sim model | `<Name>Constants.java` |
+| CAN IDs | `Constants.CanIds`, with `// RIO CAN` or `// CANivore` on each line |
+| Setpoints — what it is commanded to | `Constants.Setpoints` |
+| Command timeouts | `Constants.Waits` |
+
+Real-robot gains are `LoggedTunableNumber`s so they can be tuned without a redeploy; sim
+gains stay plain doubles. If the mechanism is closed-loop, include the `updateTunedGains()`
+block from the scaffold's `ExampleSubsystemIOReal`. See `docs/tunables.md`.
+
+**`RobotContainer` must end up with no bare numbers in it.** If a unit import is still
+needed there, a setpoint was left behind.
+
+---
+
+## Step 4 — Wire it up
+
+**`RobotContainer`** — construct in all three branches of the mode switch. The replay
+branch needs an anonymous `<Name>IO() {}`; without it the logged inputs are not replayed
+and the whole point of AdvantageKit is lost for that mechanism.
+
+**`Triggers.java`** — every controller button accessor. `RobotContainer` never touches a
+controller object, and never constructs a `Trigger`. Name accessors for the action, not the
+button: `intake()`, not `leftBumper()`. Analog triggers use
+`Constants.Controllers.TRIGGER_THRESHOLD`.
+
+**Default command** — every subsystem needs one, and it must not end. A safe idle: stopped,
+stowed, or holding position.
+
+**`FaultMonitor`** — register a disconnect condition per motor. A mechanism that silently
+stops working mid-match is worth an alert.
+
+---
+
+## Step 5 — Verify, then report honestly
+
+```bash
+./gradlew compileJava     # must pass
+./gradlew spotlessCheck   # or spotlessApply
+./gradlew simulateJava    # must reach "Robot program startup complete" and stay up
+```
+
+`@AutoLog` generates `<Name>IOInputsAutoLogged` at build time. If the compiler says it is
+missing a field you just added, run `./gradlew clean generateSources`.
+
+Then state plainly:
+
+1. **What was measured versus what was guessed.** Every placeholder gain, every estimated
+   moment of inertia, every soft limit picked from nothing. Do not bury these — a guessed
+   drum diameter or gear ratio silently scales every conversion downstream.
+2. **What still has to happen on hardware.** Inversion checked at low output, follower
+   orientation confirmed, soft limits found by driving to the stops, characterization run.
+3. **Anything that looked wrong in the existing code** while wiring it in.
+
+A scaffold that compiles is not a working mechanism, and reporting it as one is the failure
+mode of this skill.
+
+---
+
+## Scope
+
+Do not, without being asked:
+
+- Change existing subsystem code
+- Add the mechanism to an auto routine or a PathPlanner named command
+- Change CAN IDs of existing devices
+- Invent setpoints for game actions nobody described
+
+If the request needs one of those, say so and ask.
+
+---
+
+## Related
+
+- `template/GUIDE.md` — the six-file pattern and what goes where
+- `.claude/prompts/add-subsystem.md` — the fill-in-the-blanks request form
+- `.claude/rules/01-architecture.md` — IO layer, `RobotState`, `Triggers`
+- `.claude/rules/02-hardware.md` — CAN, config, inversion, signal frequency
+- `.claude/rules/03-commands.md` — factories, timeouts, where setpoints live
+- `docs/tunables.md` — tunable gains and the Phoenix Tuner X ownership trap
+- `docs/characterization-and-tuning.md` — measuring what the scaffold left as placeholders
