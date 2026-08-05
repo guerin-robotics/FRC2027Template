@@ -159,6 +159,20 @@ public final class Constants {
    * <p>These change constantly during drive practice, which is exactly why they are here rather
    * than scattered across subsystem files. Name them for what they accomplish, not what they are:
    * {@code SCORE_VELOCITY} rather than {@code VELOCITY_1}.
+   *
+   * <p><b>Every setpoint lands here as part of building the subsystem</b> — not afterwards. The two
+   * places they tend to get stranded instead:
+   *
+   * <ul>
+   *   <li>Inline at the binding, as {@code RotationsPerSecond.of(30)}
+   *   <li>As a {@code private static final} field in {@code RobotContainer}, which looks tidy and
+   *       is still scattered — nobody hunting for a number in the pit thinks to open the wiring
+   *       layer
+   * </ul>
+   *
+   * <p>Command factories take setpoints as parameters and {@code RobotContainer} passes them in
+   * from here. A finished {@code RobotContainer} has no bare numbers in it at all; if it still
+   * needs a unit import like {@code RotationsPerSecond}, something was left behind.
    */
   public static final class Setpoints {
 

@@ -28,6 +28,12 @@ Logged signals needed:
 State queries needed (for Triggers or commands):
 - [e.g.: isAtVelocity() — true when within 200 RPM of target]
 
+Setpoints (what it gets commanded to):
+- [e.g.: intake velocity 30 rot/s, unjam velocity -20 rot/s]
+- [e.g.: stow height 0 in, score height 24 in]
+- Put these in Constants.Setpoints, not in the subsystem constants file and not
+  in RobotContainer. Guess reasonable starting values and mark them as unmeasured.
+
 Follow the AdvantageKit IO pattern used by the vision subsystem
 (subsystems/vision/Vision.java + io/VisionIO.java + io/VisionIOPhotonVision.java).
 Create:
@@ -35,11 +41,13 @@ Create:
 2. subsystems/[name]/io/[Name]IOReal.java
 3. subsystems/[name]/io/[Name]IOSim.java
 4. subsystems/[name]/[Name].java
-5. commands/[Name]Commands.java
+5. subsystems/[name]/[Name]Constants.java
+6. commands/[Name]Commands.java
 
 Wire the real and sim implementations in RobotContainer under the existing
-real/sim/replay switch — all three branches. Add the CAN ID constant to the CAN
-CAN ID to Constants.CanIds, with a // CANivore or // RIO CAN comment on the line.
+real/sim/replay switch — all three branches. Add the CAN IDs to Constants.CanIds,
+with a // CANivore or // RIO CAN comment on each line, and the setpoints above to
+Constants.Setpoints. RobotContainer should end up with no bare numbers in it.
 Run ./gradlew compileJava before reporting complete.
 ```
 
@@ -48,9 +56,11 @@ Run ./gradlew compileJava before reporting complete.
 ## What Claude Will Do
 
 1. Create the six files using the IO pattern from the vision subsystem
-2. Add the CAN ID to the CAN ID constants class
-3. Add real/sim/replay wiring to `RobotContainer`
-4. Provide a compile check
+2. Add the CAN IDs to `Constants.CanIds`, with the bus in a comment on each line
+3. Add the setpoints to `Constants.Setpoints` — never inline in `RobotContainer`,
+   never as a private field there, never in the subsystem's own constants file
+4. Add real/sim/replay wiring to `RobotContainer`
+5. Provide a compile check
 
 ## What Claude Will Not Do Without Asking
 

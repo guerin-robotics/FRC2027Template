@@ -27,6 +27,19 @@ import java.util.function.BooleanSupplier;
  * <p>The alignment timeout is intentional — act anyway if alignment never comes. A robot that hangs
  * mid-sequence scores zero points. See the "Ready → Align → Act" section of
  * .claude/rules/03-commands.md.
+ *
+ * <p>SETPOINTS ARE PARAMETERS. Note that every factory below takes the value it commands as an
+ * argument. None of them reads a setpoint, and none hardcodes one. The caller — almost always
+ * RobotContainer — supplies it from Constants.Setpoints:
+ *
+ * <pre>
+ * controller.rightBumper()
+ *     .whileTrue(ExampleCommands.runAtVelocity(subsystem, Constants.Setpoints.INTAKE_VELOCITY));
+ * </pre>
+ *
+ * <p>Keeping factories parameterized is what lets the same command serve several setpoints, and
+ * what keeps every tunable number in one file for the pit. A private constant in RobotContainer is
+ * not a substitute — it is still scattered, just less visibly.
  */
 public class ExampleCommands {
 

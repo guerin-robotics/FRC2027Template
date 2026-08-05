@@ -70,6 +70,50 @@ All timeout constants must live in a constants class — not inline.
 
 ---
 
+## Where Command Values Live
+
+Command factories take setpoints as **parameters**. They never read a setpoint
+themselves, and they never hardcode one.
+
+The caller — almost always `RobotContainer` — supplies the value from
+`Constants.Setpoints`:
+
+```java
+// CORRECT
+controller.rightBumper()
+    .whileTrue(IntakeCommands.runAtVelocity(intake, Constants.Setpoints.INTAKE_VELOCITY));
+
+// WRONG — inline magic number, invisible in the pit
+controller.rightBumper()
+    .whileTrue(IntakeCommands.runAtVelocity(intake, RotationsPerSecond.of(30)));
+
+// ALSO WRONG — a private constant in RobotContainer is still scattered
+private static final AngularVelocity INTAKE_VELOCITY = RotationsPerSecond.of(30);
+```
+
+**When you build a new subsystem, every value you bind to a button or use in a
+sequence goes into `Constants.Setpoints` as part of that same task.** Not into the
+subsystem's own constants file, and not into `RobotContainer` as a private field.
+
+The split, restated:
+
+| Value | Where |
+|---|---|
+| What the mechanism is commanded to — velocities, positions, voltages | `Constants.Setpoints` |
+| How the mechanism is built or characterized — gains, ratios, current limits, soft limits, sim model | `MyMechanismConstants.java` |
+| How long a command waits | `Constants.Waits` |
+| How close counts as "there" | `MyMechanismConstants.java` (it is a property of the mechanism) |
+
+The test: **if you would change it in the pit between matches, it belongs in
+`Constants`.** A driver asking for "a bit more intake speed" should send you to one
+file, not to a hunt across three.
+
+`RobotContainer` is the wiring layer. When it is finished it should contain no bare
+numbers at all — if a unit import like `RotationsPerSecond` is still needed there, a
+setpoint has been left behind.
+
+---
+
 ## Default Commands
 
 Default commands run when nothing else requires the subsystem. Rules:

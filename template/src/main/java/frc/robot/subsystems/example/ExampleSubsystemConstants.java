@@ -28,6 +28,21 @@ import frc.robot.Constants;
  * <p>Everything that already has a value has a defensible default. Those are safe starting points,
  * not measurements.
  *
+ * <h2>What does NOT go in this file</h2>
+ *
+ * <p><b>Setpoints.</b> This file describes how the mechanism is <i>built</i> — gains, gear ratios,
+ * current limits, soft limits, tolerances, the sim model. What it is <i>commanded to</i> — target
+ * velocities, heights, angles, voltages — belongs in {@code Constants.Setpoints}, together with
+ * every other mechanism's.
+ *
+ * <p>The test is whether a driver might ask you to change it between matches. "Run the intake a
+ * little faster" should send you to one file, not on a hunt across every subsystem package. Note
+ * that a <i>tolerance</i> stays here — how close counts as "there" is a property of the mechanism,
+ * not a knob the drive team turns.
+ *
+ * <p>Command factories take setpoints as parameters, and {@code RobotContainer} supplies them from
+ * {@code Constants.Setpoints}. See {@code .claude/rules/03-commands.md}.
+ *
  * <p>TEMPLATE INSTRUCTIONS: 1. Rename "ExampleSubsystem" → your subsystem name 2. Keep either
  * {@link #getVelocityFXConfig()} or {@link #getPositionFXConfig()} and rename it {@code
  * getFXConfig()} — delete the other 3. Supply the commented-out values 4. Delete the constants this

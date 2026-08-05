@@ -22,10 +22,20 @@ subsystems/myMechanism/
 │   ├── MyMechanismIOReal.java      ← TalonFX code lives HERE and only here
 │   └── MyMechanismIOSim.java       ← physics sim (or stubs), same interface
 ├── MyMechanism.java                ← logic only, zero hardware imports
-└── MyMechanismConstants.java       ← every number, nothing inlined elsewhere
+└── MyMechanismConstants.java       ← gains, ratios, limits — how it is built
 
 commands/MyMechanismCommands.java   ← static factories, all .withName()'d
 ```
+
+**Setpoints are the exception — they do not live here.** `MyMechanismConstants.java` describes
+how the mechanism is *built*: gains, gear ratios, current limits, soft limits, tolerances, the
+sim model. What the mechanism is *commanded to* — velocities, heights, angles, voltages — goes
+in `Constants.Setpoints`, alongside every other mechanism's. The test is whether a driver might
+ask you to change it between matches. When they do, you open one file, not seven.
+
+Command factories take setpoints as parameters and `RobotContainer` supplies them from
+`Constants.Setpoints`. A finished `RobotContainer` contains no bare numbers at all — if a unit
+import is still needed in it, a setpoint got left behind. See `.claude/rules/03-commands.md`.
 
 The constants file is flat except for a nested `Sim` block, because sim needs its own gains —
 the model has no backlash, no belt stretch and a guessed inertia, so gains that behave against
