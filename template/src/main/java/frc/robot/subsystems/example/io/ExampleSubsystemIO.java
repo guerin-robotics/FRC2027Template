@@ -2,6 +2,7 @@ package frc.robot.subsystems.example.io;
 
 import static edu.wpi.first.units.Units.*;
 
+import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Temperature;
@@ -38,6 +39,9 @@ public interface ExampleSubsystemIO {
 
     public AngularVelocity motorVelocity = RotationsPerSecond.of(0);
 
+    /** Mechanism position. Only meaningful for position-controlled mechanisms. */
+    public Angle motorPosition = Rotations.of(0);
+
     // GOTCHA: AdvantageKit logs Measure-typed fields in SI base units, so a
     // Temperature logs in KELVIN regardless of the unit you construct it with.
     // If you want to read Celsius in AdvantageScope, log a primitive instead
@@ -65,9 +69,12 @@ public interface ExampleSubsystemIO {
 
   default void setVoltage(Voltage volts) {}
 
+  /** Velocity control — rollers, flywheels, feeders. Delete if this mechanism is positional. */
   default void setVelocity(AngularVelocity velocity) {}
 
-  // Add more as needed:
-  // default void setPosition(Angle angle) {}
-  // default void stop() {}
+  /** Position control — hoods, pivots, arms. Delete if this mechanism is velocity-controlled. */
+  default void setPosition(Angle position) {}
+
+  /** Always provide a stop. A command that ends without stopping leaves the mechanism running. */
+  default void stop() {}
 }

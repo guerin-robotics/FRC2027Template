@@ -2,6 +2,7 @@ package frc.robot.subsystems.example;
 
 import static edu.wpi.first.units.Units.*;
 
+import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -29,6 +30,9 @@ public class ExampleSubsystem extends SubsystemBase {
 
   /** Last commanded velocity, so {@link #isAtVelocity()} has something to compare against. */
   private AngularVelocity goalVelocity = RotationsPerSecond.of(0);
+
+  /** Last commanded position, so {@link #isAtPosition()} has something to compare against. */
+  private Angle goalPosition = Rotations.of(0);
 
   public ExampleSubsystem(ExampleSubsystemIO io) {
     this.io = io;
@@ -58,8 +62,13 @@ public class ExampleSubsystem extends SubsystemBase {
     io.setVelocity(velocity);
   }
 
+  public void setPosition(Angle position) {
+    goalPosition = position;
+    io.setPosition(position);
+  }
+
   public void stop() {
-    io.setVoltage(Volts.of(0));
+    io.stop();
   }
 
   // --- State queries (used by Triggers or commands) ---
@@ -82,5 +91,20 @@ public class ExampleSubsystem extends SubsystemBase {
             < ExampleSubsystemConstants.VELOCITY_TOLERANCE_ROTATIONS_PER_SEC;
     Logger.recordOutput("ExampleSubsystem/AtVelocity", atVelocity);
     return atVelocity;
+  }
+
+  /**
+   * True when the mechanism is within tolerance of the requested position.
+   *
+   * <p>The position-control counterpart to {@link #isAtVelocity()}. Delete whichever one this
+   * mechanism does not use — a readiness query that is never true, because nothing ever sets its
+   * goal, is worse than no query at all.
+   */
+  public boolean isAtPosition() {
+    boolean atPosition =
+        Math.abs(inputs.motorPosition.in(Rotations) - goalPosition.in(Rotations))
+            < ExampleSubsystemConstants.POSITION_TOLERANCE_ROTATIONS;
+    Logger.recordOutput("ExampleSubsystem/AtPosition", atPosition);
+    return atPosition;
   }
 }

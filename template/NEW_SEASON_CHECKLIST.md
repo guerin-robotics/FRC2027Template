@@ -29,6 +29,11 @@ they're listed so you know they're handled, not so you redo them.
 - [ ] Add 2027 field geometry to `frc/lib/FieldConstants.java` (scoring elements, zones, lines)
 - [ ] Add scoring targets and any zone classification to `RobotState`
 - [ ] Fill in `Constants.CanIds` as devices are assigned — one constants file, no `HardwareConstants`
+- [ ] **Delete `CanIds.EXAMPLE_MOTOR` / `EXAMPLE_FOLLOWER` / `EXAMPLE_ENCODER`** once the first
+      real mechanism exists. They are scaffold placeholders and will otherwise ship to a
+      competition robot as fictional hardware IDs
+- [ ] Replace `Waits.MECHANISM_READY_SECONDS` / `TOTAL_TIMEOUT_SECONDS` with measured values and
+      rename them for what they gate
 - [ ] Sketch the mechanism list and assign each a subsystem name before writing any code
 
 ## Robot Build — Hardware Setup

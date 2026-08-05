@@ -135,11 +135,13 @@ public final class Constants {
      */
     public static final CANBus RIO_BUS = new CANBus("rio");
 
-    // ---- PLACEHOLDERS — delete these three once the first real mechanism lands ----
-    //
-    // These exist so template/src/ resolves and can be copied without editing two files at
-    // once. They are not wired to anything. IDs 0-12 are taken by swerve (see TunerConstants),
-    // so mechanism IDs start at 20 by convention.
+    // ============================================================================
+    // TODO: DELETE THESE THREE once the first real mechanism lands.
+    // ============================================================================
+    // They exist only so template/src/ resolves and can be copied without editing two files at
+    // once. Nothing on the robot uses them. Leaving them in ships fictional hardware IDs to a
+    // competition robot, where the next person to add a mechanism may reuse 20 and get a silent
+    // conflict. IDs 0-12 belong to swerve (see TunerConstants), so mechanisms start at 20.
     public static final int EXAMPLE_MOTOR = 20; // RIO CAN
     public static final int EXAMPLE_FOLLOWER = 21; // RIO CAN
     public static final int EXAMPLE_ENCODER = 22; // RIO CAN
@@ -190,10 +192,13 @@ public final class Constants {
 
     private Waits() {}
 
-    // ---- PLACEHOLDERS — replace with measured values ----
-    //
-    // Referenced by template/src/.../ExampleCommands.java. Keep them until that scaffold is
-    // replaced by real mechanism commands, then rename them for what they actually gate.
+    // ============================================================================
+    // TODO: REPLACE with measured values, and rename for what they actually gate.
+    // ============================================================================
+    // Referenced by template/src/.../ExampleCommands.java. Unlike the CAN ID placeholders these
+    // are harmless to ship — a timeout of 1.0 s is a real, if arbitrary, timeout. They are still
+    // guesses, and a sequence budget nobody measured is a sequence that times out at the worst
+    // possible moment.
 
     /** How long to wait for a mechanism to reach its setpoint before giving up. */
     public static final double MECHANISM_READY_SECONDS = 1.0;

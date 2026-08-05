@@ -46,6 +46,9 @@ public class ExampleSubsystemIOSim implements ExampleSubsystemIO {
 
     inputs.motorVoltage = Volts.of(appliedVolts);
     inputs.motorVelocity = RotationsPerSecond.of(sim.getAngularVelocityRPM() / 60.0);
+    // FlywheelSim has no position. Swap to SingleJointedArmSim or ElevatorSim for a position
+    // mechanism, and report its angle here.
+    inputs.motorPosition = Rotations.of(0);
     inputs.motorStatorAmps = Amps.of(sim.getCurrentDrawAmps());
     inputs.motorSupplyAmps = Amps.of(sim.getCurrentDrawAmps());
     inputs.motorTemperature = Celsius.of(25.0);

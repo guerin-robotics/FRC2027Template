@@ -81,14 +81,58 @@ public class ExampleSubsystemConstants {
   // ==========================================================================================
 
   /**
-   * Motor rotations per mechanism rotation.
+   * Motor rotations per mechanism rotation. <b>Velocity control only.</b>
    *
    * <p>Set this as {@code FeedbackConfigs.SensorToMechanismRatio} in the IO so the encoder reports
    * in mechanism units. Then every setpoint, gain and logged velocity in this file is in terms of
    * the thing that actually moves, rather than the motor shaft — which is the difference between
    * numbers a human can sanity-check and numbers nobody can.
+   *
+   * <p>Position mechanisms with an absolute encoder split this into two ratios instead — see {@link
+   * #ROTOR_TO_SENSOR_RATIO} and {@link #SENSOR_TO_MECHANISM_RATIO}.
    */
   public static final double GEAR_RATIO = 24.0 / 11.0;
+
+  // ---- Position control with a fused CANcoder -------------------------------------------------
+  //
+  // When an absolute encoder sits partway down the gear train, the ratio has to be split at the
+  // encoder. Phoenix needs both halves: one to fuse rotor counts with the CANcoder, one to report
+  // position in mechanism units.
+  //
+  // Worked example from the 2026 hood, whose chain was
+  //   motor → 30T belt → 20T shaft → CANcoder → 12T lantern → 122T hood
+  //   ROTOR_TO_SENSOR_RATIO    = 30/20  = 1.5     (motor turns per CANcoder turn)
+  //   SENSOR_TO_MECHANISM_RATIO = 122/12 ≈ 10.17  (CANcoder turns per hood turn)
+
+  /** Motor rotations per absolute-encoder rotation. Used for rotor/CANcoder fusion. */
+  public static final double ROTOR_TO_SENSOR_RATIO = 1.5;
+
+  /** Absolute-encoder rotations per mechanism rotation. Makes position read in mechanism units. */
+  public static final double SENSOR_TO_MECHANISM_RATIO = 122.0 / 12.0;
+
+  /**
+   * CANcoder magnet offset, in rotations.
+   *
+   * <p>Calibration data, like the swerve encoder offsets — found by physically moving the mechanism
+   * to a known position and reading the raw sensor. Not guessable, and it changes if the encoder or
+   * magnet is ever removed.
+   */
+  public static final double MAGNET_OFFSET_ROTATIONS = 0.0;
+
+  /**
+   * Where the absolute sensor wraps, in rotations.
+   *
+   * <p>1.0 gives a [0, 1) range; 0.5 gives [-0.5, 0.5). Choose so the discontinuity sits somewhere
+   * the mechanism never travels — a wrap in the middle of the range makes position jump a full
+   * rotation mid-motion.
+   */
+  public static final double SENSOR_DISCONTINUITY_POINT = 1.0;
+
+  /** Upper travel limit, in mechanism rotations. Enforced by the motor controller. */
+  public static final double FORWARD_SOFT_LIMIT_ROTATIONS = 0.25;
+
+  /** Lower travel limit, in mechanism rotations. */
+  public static final double REVERSE_SOFT_LIMIT_ROTATIONS = 0.0;
 
   /** True if the motor is mounted so positive output produces negative mechanism motion. */
   public static final boolean INVERTED = false;
@@ -101,6 +145,15 @@ public class ExampleSubsystemConstants {
    * gets adjusted between matches — consider wrapping it in a {@code LoggedTunableNumber}.
    */
   public static final double VELOCITY_TOLERANCE_ROTATIONS_PER_SEC = 2.0;
+
+  /**
+   * How close to the commanded position counts as "at position", in mechanism rotations.
+   *
+   * <p>Same trade as the velocity tolerance: too tight and the mechanism never reports ready so
+   * every sequence runs to its timeout, too loose and it acts before it has arrived. For an angular
+   * mechanism it is usually easier to reason about in degrees — 1° is 1/360 rotation.
+   */
+  public static final double POSITION_TOLERANCE_ROTATIONS = 1.0 / 360.0;
 
   // ==========================================================================================
   // MOTION PROFILE (MotionMagic)
