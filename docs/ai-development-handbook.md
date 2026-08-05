@@ -470,7 +470,7 @@ commands/
 └── MyMechanismCommands.java   ← static command factories, all .withName()'d
 ```
 
-A working example of all five files lives in `template/src/` — copy it and
+A working example of all six files lives in `template/src/` — copy it and
 rename. `subsystems/vision/` in `src/` is the same pattern in production form.
 
 **The one rule that matters:** hardware objects (`TalonFX`, `CANcoder`,
@@ -492,7 +492,7 @@ public void periodic() {
 1. Get the hardware facts from whoever wired it: motor type, CAN ID, bus,
    follower (and opposition), encoder, control mode.
 2. Fill in `.claude/prompts/add-subsystem.md` and paste. Claude generates all
-   five files from `template/src/`, adds the CAN ID to
+   six files from `template/src/`, adds the CAN ID to
    `HardwareConstants.CanIds`, wires real/sim/replay in `RobotContainer`,
    compiles, and writes the unit tests.
 3. Review: CAN ID matches the wiring sheet; correct bus; config via

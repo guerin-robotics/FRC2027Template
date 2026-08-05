@@ -22,6 +22,16 @@ import edu.wpi.first.wpilibj.simulation.FlywheelSim;
 public class ExampleSubsystemIOSim implements ExampleSubsystemIO {
 
   // TODO: choose appropriate sim class and configure motor + gear ratio
+  // TODO: choose the sim class that matches the mechanism, and pull the model parameters from
+  // ExampleSubsystemConstants.Sim rather than inlining them. The MOI in particular sets how fast
+  // the simulated mechanism accelerates, so gains tuned against a guessed value are meaningless.
+  //
+  //   new FlywheelSim(
+  //       LinearSystemId.createFlywheelSystem(
+  //           ExampleSubsystemConstants.Sim.MOTOR,
+  //           ExampleSubsystemConstants.Sim.MOI,
+  //           ExampleSubsystemConstants.GEAR_RATIO),
+  //       ExampleSubsystemConstants.Sim.MOTOR);
   private final FlywheelSim sim =
       new FlywheelSim(
           LinearSystemId.createFlywheelSystem(DCMotor.getKrakenX60(1), 0.001, 1.0),

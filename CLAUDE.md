@@ -224,11 +224,11 @@ behavior after you changed it is worse than no doc — update it in the same com
 
 ## Style Reference
 
-`template/` holds a working example of the team's subsystem pattern — the five files every
+`template/` holds a working example of the team's subsystem pattern — the six files every
 mechanism must have. It is **not** part of the Gradle build, so it is never compiled or
 deployed; the examples deliberately reference classes that don't exist yet.
 
-- [template/GUIDE.md](template/GUIDE.md) — the five-file pattern, what carried over, what debt is still open
+- [template/GUIDE.md](template/GUIDE.md) — the six-file pattern, what carried over, what debt is still open
 - [template/NEW_SEASON_CHECKLIST.md](template/NEW_SEASON_CHECKLIST.md) — season startup sequence
 - `template/src/` — copy these when scaffolding a mechanism
 

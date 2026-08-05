@@ -2,7 +2,7 @@
 
 *Guerin Robotics — how this codebase is structured and why.*
 
-This directory holds a working example of the team's subsystem style: five files that show
+This directory holds a working example of the team's subsystem style: six files that show
 the exact shape every mechanism should take. Copy them, rename `Example` to your mechanism,
 fill in the TODOs.
 
@@ -11,20 +11,26 @@ each season, and what the 2026 season taught us.
 
 ---
 
-## The Five Files
+## The Six Files
 
-Every mechanism is the same five files. No exceptions, no shortcuts.
+Every mechanism is the same six files. No exceptions, no shortcuts.
 
 ```
 subsystems/myMechanism/
 ├── io/
-│   ├── MyMechanismIO.java       ← interface + @AutoLog inputs class
-│   ├── MyMechanismIOReal.java   ← TalonFX code lives HERE and only here
-│   └── MyMechanismIOSim.java    ← physics sim (or stubs), same interface
-└── MyMechanism.java             ← logic only, zero hardware imports
+│   ├── MyMechanismIO.java          ← interface + @AutoLog inputs class
+│   ├── MyMechanismIOReal.java      ← TalonFX code lives HERE and only here
+│   └── MyMechanismIOSim.java       ← physics sim (or stubs), same interface
+├── MyMechanism.java                ← logic only, zero hardware imports
+└── MyMechanismConstants.java       ← every number, nothing inlined elsewhere
 
-commands/MyMechanismCommands.java ← static factories, all .withName()'d
+commands/MyMechanismCommands.java   ← static factories, all .withName()'d
 ```
+
+The constants file is flat except for a nested `Sim` block, because sim needs its own gains —
+the model has no backlash, no belt stretch and a guessed inertia, so gains that behave against
+it are routinely wrong on hardware. Mode-aware `getKP()`-style accessors pick the right set so
+no caller has to know which mode it is in.
 
 The one rule that makes it work: **`MyMechanism.java` must behave identically whether the
 IO is real, sim, or replay.** That is the entire point of the abstraction. The moment a
@@ -158,7 +164,7 @@ src/main/java/frc/robot/
 ├── subsystems/
 │   ├── drive/                ← carried over; update constants only
 │   ├── vision/               ← carried over; update camera config
-│   └── [new mechanisms]/     ← the five-file pattern above
+│   └── [new mechanisms]/     ← the six-file pattern above
 ├── commands/
 │   ├── DriveCommands.java    ← carried over; add game alignment commands here
 │   └── [new commands]/       ← static factories, one file per subsystem

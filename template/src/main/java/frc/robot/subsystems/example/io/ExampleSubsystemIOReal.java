@@ -40,11 +40,37 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   public ExampleSubsystemIOReal() {
     motor = new TalonFX(HardwareConstants.CanIds.EXAMPLE_MOTOR, "rio"); // TODO: update CAN bus
 
+    // Everything numeric comes from ExampleSubsystemConstants — nothing is inlined here.
+    // Gains go through the get* accessors so sim and real each get their own set.
     TalonFXConfiguration config = new TalonFXConfiguration();
-    // TODO: configure current limits, neutral mode, PID gains
-    // config.CurrentLimits.SupplyCurrentLimit = 40;
+
+    // config.CurrentLimits.SupplyCurrentLimit =
+    // ExampleSubsystemConstants.SUPPLY_CURRENT_LIMIT_AMPS;
+    // config.CurrentLimits.SupplyCurrentLowerLimit =
+    //     ExampleSubsystemConstants.SUPPLY_CURRENT_TRIGGER_AMPS;
+    // config.CurrentLimits.SupplyCurrentLowerTime =
+    //     ExampleSubsystemConstants.SUPPLY_CURRENT_TRIGGER_TIME.in(Seconds);
     // config.CurrentLimits.SupplyCurrentLimitEnable = true;
+    // config.CurrentLimits.StatorCurrentLimit =
+    // ExampleSubsystemConstants.STATOR_CURRENT_LIMIT_AMPS;
+    // config.CurrentLimits.StatorCurrentLimitEnable = true;
+    //
     // config.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+    // config.MotorOutput.Inverted =
+    //     ExampleSubsystemConstants.INVERTED
+    //         ? InvertedValue.Clockwise_Positive
+    //         : InvertedValue.CounterClockwise_Positive;
+    //
+    // Report in mechanism units, not motor rotations, so every setpoint and gain below is in
+    // terms of the thing that actually moves.
+    // config.Feedback.SensorToMechanismRatio = ExampleSubsystemConstants.GEAR_RATIO;
+    //
+    // config.Slot0.kS = ExampleSubsystemConstants.getKS();
+    // config.Slot0.kV = ExampleSubsystemConstants.getKV();
+    // config.Slot0.kA = ExampleSubsystemConstants.getKA();
+    // config.Slot0.kP = ExampleSubsystemConstants.getKP();
+    // config.Slot0.kI = ExampleSubsystemConstants.getKI();
+    // config.Slot0.kD = ExampleSubsystemConstants.getKD();
 
     PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config));
 

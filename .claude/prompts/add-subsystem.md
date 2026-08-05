@@ -47,7 +47,7 @@ Run ./gradlew compileJava before reporting complete.
 
 ## What Claude Will Do
 
-1. Create the five files using the IO pattern from the vision subsystem
+1. Create the six files using the IO pattern from the vision subsystem
 2. Add the CAN ID to the CAN ID constants class
 3. Add real/sim/replay wiring to `RobotContainer`
 4. Provide a compile check
