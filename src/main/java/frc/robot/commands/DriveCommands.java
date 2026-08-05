@@ -58,7 +58,15 @@ public class DriveCommands {
   private static final double ANGLE_MAX_ACCELERATION = 20.0;
 
   private static final double FF_START_DELAY = 2.0; // Secs
-  private static final double FF_RAMP_RATE = 0.1; // Volts/Sec
+
+  // UNITS: this is the ramp rate of the value handed to Module.runCharacterization(), which
+  // ModuleIOTalonFX.setDriveOpenLoop() forwards according to the configured
+  // ClosedLoopOutputType. TunerConstants selects TorqueCurrentFOC, so this is AMPS/sec and
+  // the kS/kV printed by feedforwardCharacterization come out in amps — exactly what
+  // driveGains needs. It is only Volts/sec if you switch the drive output type to Voltage.
+  // See docs/characterization-and-tuning.md.
+  private static final double FF_RAMP_RATE = 0.1; // Amps/Sec (see note above)
+
   private static final double WHEEL_RADIUS_MAX_VELOCITY = 0.25; // Rad/Sec
   private static final double WHEEL_RADIUS_RAMP_RATE = 0.05; // Rad/Sec^2
 

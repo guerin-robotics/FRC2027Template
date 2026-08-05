@@ -60,6 +60,14 @@ For each mechanism, using `template/src/` as the pattern:
 
 ## Tuning
 
+> Read [docs/characterization-and-tuning.md](../docs/characterization-and-tuning.md) first.
+> Gains here are in **amps**, not volts — the drivetrain runs `TorqueCurrentFOC`.
+
+- [ ] Run wheel radius characterization **before** anything else — every downstream number
+      is scaled by it
+- [ ] Run drive FF characterization; put measured `kS`/`kV` in `TunerConstants.driveGains`
+- [ ] Measure drive `kA` separately if you rely on path following (the FF routine does not
+      produce it)
 - [ ] Tune swerve steer and drive gains in `TunerConstants`
 - [ ] Tune PathPlanner translation/rotation PID in `Drive.java`'s `AutoBuilder.configure()`
 - [ ] Re-tune `ANGLE_KP` / `ANGLE_KD` in `DriveCommands` for the new chassis

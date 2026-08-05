@@ -27,6 +27,11 @@ Rules:
 
 ## Safety Notes for Tuning Changes
 
+**Units come first.** Check the mechanism's `ClosedLoopOutputType`. Under
+`TorqueCurrentFOC` (both drive and steer here) gains are in **amps**; under `Voltage`
+they are volts. A value that looks wrong is usually a value being read in the wrong
+unit. See [characterization-and-tuning.md](../../docs/characterization-and-tuning.md).
+
 **PID gains (Kp, Ki, Kd):** State the expected behavior change.
 A higher Kp increases stiffness but risks oscillation. Test at low speed first.
 

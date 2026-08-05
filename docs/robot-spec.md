@@ -173,6 +173,9 @@ current alone cannot distinguish a module fighting a stall from one spinning fre
 Registered at 50 Hz in the same frame as stator current, so it adds no CAN traffic.
 `ModuleIOSim` leaves both torque channels at zero rather than inventing a value.
 
+**Gains.** Both drive and steer use `ClosedLoopOutputType.TorqueCurrentFOC`, so every
+Slot0 gain is in amps. See `docs/characterization-and-tuning.md` for how to measure them.
+
 **2026 performance notes.** Voltage-saturated near 3.8 m/s rather than current-limited.
 Drive supply limit went 40 A → 60 A mid-season: ~12% more peak acceleration, 4× the
 brownouts, no change in top speed.

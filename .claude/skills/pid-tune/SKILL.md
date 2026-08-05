@@ -25,8 +25,10 @@ Get from the user (ask if missing):
 3. **Test motion** — what input to drive: step to a setpoint, a specific
    trajectory, a sweep of setpoints
 4. **Current gains and where they live** — find them yourself if not given
-   (`[Subsystem]Constants`, IO implementation, or `COMP_TunerConstants` for
-   swerve — the last is generated and must not be edited here)
+   (`[Subsystem]Constants`, the IO implementation, `DriveCommands` for the
+   heading-hold controller, `Drive.AutoBuilder.configure()` for path following,
+   or `generated/TunerConstants` for swerve — the last is Tuner X output and
+   must not be hand-edited outside a deliberate tuning session)
 
 If no numeric criteria are given, propose reasonable ones and get agreement
 before tuning — "looks smooth" is not a criterion.
@@ -34,9 +36,10 @@ before tuning — "looks smooth" is not a criterion.
 ## Step 2 — Build the harness
 
 Prefer a **JUnit simulation sweep test** over interactive sim — it's
-repeatable, automatic, and becomes a permanent asset.
-`src/test/java/.../PathFollowingGainSweepTest` is the house example: it swept
-PathPlanner gains and found the retune values without touching the robot.
+repeatable, automatic, and becomes a permanent asset. The 2026 season had a
+`PathFollowingGainSweepTest` that swept PathPlanner gains and found the retune
+values without touching the robot; `src/test/java` is empty in this template, so
+the first mechanism to be tuned should establish that harness for the rest.
 
 The harness must:
 - Drive the mechanism's `IOSim` (or the physics sim) through the test motion
@@ -49,6 +52,13 @@ stubs is meaningless. Offer to add a simple physics model (e.g., WPILib
 `FlywheelSim` / `SingleJointedArmSim`) as a separate reviewed change first.
 
 ## Step 3 — Iterate
+
+**Know your units before proposing a single number.** Check the mechanism's
+`ClosedLoopOutputType`. Under `TorqueCurrentFOC` — which both drive and steer
+use in this repo — every gain is in **amps**, not volts, and values that look
+absurd as volts are correct as amps (steer `kP = 3750` A/rotation). Under
+`Voltage` they are volts. `docs/characterization-and-tuning.md` has the full
+units table and the per-mode procedures; read it before this step.
 
 Run the loop. For each iteration, log: gains tried → metrics observed → what
 you changed and why. Standard search order:

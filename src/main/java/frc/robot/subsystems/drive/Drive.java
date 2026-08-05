@@ -150,6 +150,14 @@ public class Drive extends SubsystemBase {
         });
 
     // Configure SysId
+    //
+    // UNITS WARNING: SysId's Measure<Voltage> is forwarded to runCharacterization(), which
+    // ModuleIOTalonFX sends as a TORQUE CURRENT request because TunerConstants selects
+    // ClosedLoopOutputType.TorqueCurrentFOC. So SysId's "volts" are amps here, and the
+    // null config below means WPILib's defaults (1 V/s ramp, 7 V step) land as 1 A/s and
+    // 7 A — far gentler than intended. Pass an explicit SysIdRoutine.Config with
+    // amp-appropriate values before relying on these routines.
+    // See docs/characterization-and-tuning.md.
     sysId =
         new SysIdRoutine(
             new SysIdRoutine.Config(
