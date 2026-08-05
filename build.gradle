@@ -30,6 +30,11 @@ deploy {
                 // getTargetTypeClass is a shortcut to get the class type using a string
 
                 frcJava(getArtifactTypeClass('FRCJavaArtifact')) {
+                    // GCTimeRatio and MaxGCPauseMillis are adaptive-sizing / pause-goal
+                    // inputs for ParallelGC and G1. SerialGC has no pause-goal mechanism,
+                    // so both are INERT here. Inherited from the WPILib template and left
+                    // alone; do not read them as a pause guarantee.
+                    // See .claude/rules/04-build.md.
                     jvmArgs.add("-XX:+UnlockExperimentalVMOptions")
                     jvmArgs.add("-XX:GCTimeRatio=5")
                     jvmArgs.add("-XX:+UseSerialGC")

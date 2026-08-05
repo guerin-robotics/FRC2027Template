@@ -122,9 +122,29 @@ The full event-day version of this lives in
 ## Build Flags and JVM Options
 
 The robot's `build.gradle` sets:
-- Heap: 100 MB max
-- GC: SerialGC with 50 ms max pause target
-- Log output: `/U/logs` on USB drive
 
-Do not change JVM flags without understanding the tradeoff. The current settings
-were tuned to prevent GC pauses during match play.
+| Flag | What it actually does |
+|---|---|
+| `-Xmx100M` / `-Xms100M` | Fixes the heap at 100 MB. Equal min and max means the JVM never resizes it mid-match |
+| `-XX:+AlwaysPreTouch` | Commits every heap page at startup, so the first touch of a page during a match is not a page fault |
+| `-XX:+UseSerialGC` | Single-threaded stop-the-world collector |
+| `-XX:GCTimeRatio=5` | **No effect under SerialGC** — adaptive-sizing input for ParallelGC |
+| `-XX:MaxGCPauseMillis=50` | **No effect under SerialGC** — pause goal for ParallelGC's adaptive sizing and G1's pause predictor |
+
+**There is no pause-time guarantee.** SerialGC has no pause-goal mechanism; it collects
+when it needs to and takes as long as it takes. The last two flags above are inherited
+from the WPILib template and are inert with the collector we select — they are left in
+place only because removing them is a build change with no upside, not because they do
+anything. An earlier version of this document claimed a "50 ms max pause target," which
+was never true.
+
+SerialGC is still the right choice here. On a 100 MB heap the concurrent collectors cost
+more in overhead and footprint than they save, and a single-threaded collector on a
+two-core RIO leaves the other core alone.
+
+**Pause behaviour comes from not allocating, not from a flag.** The lever that actually
+works is keeping garbage out of the 20 ms loop: build control requests and collections
+once and reuse them, do not allocate per-loop inside `periodic()`, and watch
+`LoopTiming/` and `BatteryLogger/LoopSeconds` for the pauses you do get.
+
+Do not change JVM flags without understanding the tradeoff.
