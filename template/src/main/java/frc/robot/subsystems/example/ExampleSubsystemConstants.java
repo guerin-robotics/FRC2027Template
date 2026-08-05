@@ -165,17 +165,33 @@ public class ExampleSubsystemConstants {
 
   // TODO: supply the gearing, then uncomment.
   //
-  // VELOCITY mechanisms need only SENSOR_TO_MECHANISM_RATIO — motor rotations per mechanism
-  // rotation, so setpoints and gains read in terms of the thing that actually spins.
+  // GEAR_RATIO is the TOTAL reduction: motor rotations per mechanism rotation, end to end.
+  // It is the number that sets top speed, and the one to state when someone asks "what's the
+  // ratio". Everything else is derived from it.
   //
-  // POSITION mechanisms with an absolute encoder need BOTH, split at the encoder:
+  // public static final double GEAR_RATIO = ;
+  //
+  // Phoenix then needs that total SPLIT AT THE ENCODER. The two must multiply back to
+  // GEAR_RATIO — if they do not, either the top speed or the reported position is wrong, and
+  // nothing will tell you which.
+  //
   //   ROTOR_TO_SENSOR_RATIO      motor rotations per encoder rotation  (rotor/CANcoder fusion)
   //   SENSOR_TO_MECHANISM_RATIO  encoder rotations per mechanism rotation
   //
-  // Worked example — the 2026 hood chain was
-  //   motor → 30T belt → 20T shaft → CANcoder → 12T lantern → 122T hood
+  // NO EXTERNAL ENCODER — the rotor is the sensor, so the whole reduction is on the far side:
+  //   ROTOR_TO_SENSOR_RATIO     = 1.0
+  //   SENSOR_TO_MECHANISM_RATIO = GEAR_RATIO
+  //
+  // CANCODER ON THE MECHANISM'S OWN SHAFT — the encoder already turns with the mechanism, so
+  // the whole reduction is on the motor side:
+  //   ROTOR_TO_SENSOR_RATIO     = GEAR_RATIO
+  //   SENSOR_TO_MECHANISM_RATIO = 1.0
+  //
+  // CANCODER PARTWAY DOWN THE CHAIN — split it where the encoder physically sits. The 2026
+  // hood was motor → 30T belt → 20T shaft → CANcoder → 12T lantern → 122T hood:
   //   ROTOR_TO_SENSOR_RATIO     = 30.0 / 20.0  = 1.5
   //   SENSOR_TO_MECHANISM_RATIO = 122.0 / 12.0 ≈ 10.17
+  //   GEAR_RATIO                = 1.5 * 10.17  ≈ 15.25
   //
   // public static final double ROTOR_TO_SENSOR_RATIO = ;
   // public static final double SENSOR_TO_MECHANISM_RATIO = ;
@@ -289,8 +305,12 @@ public class ExampleSubsystemConstants {
    * <p>It is also the sanity check on the gear ratio. If this number is nowhere near what the
    * mechanism has to do, the ratio is wrong, and catching that here beats catching it on the
    * practice field.
+   *
+   * <p>Uses {@link #GEAR_RATIO}, the total reduction — <b>not</b> {@code
+   * SENSOR_TO_MECHANISM_RATIO}. On a mechanism with a fused CANcoder those are different numbers,
+   * and using the split half would overstate top speed by exactly the other half.
    */
-  public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(SENSOR_TO_MECHANISM_RATIO);
+  public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(GEAR_RATIO);
 
   // ==========================================================================================
   // MOTION PROFILE

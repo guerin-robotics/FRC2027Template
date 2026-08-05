@@ -66,8 +66,21 @@ Compute the top speed rather than guessing it:
 
 ```java
 public static final MotorSpecs MOTOR = MotorSpecs.KRAKEN_X60_FOC;
-public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(SENSOR_TO_MECHANISM_RATIO);
+public static final double GEAR_RATIO = 15.0;                 // TOTAL, motor -> mechanism
+public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(GEAR_RATIO);
 ```
+
+`GEAR_RATIO` is the total reduction. Phoenix needs it split at the encoder, and the two halves
+must multiply back to it:
+
+| Encoder | `ROTOR_TO_SENSOR_RATIO` | `SENSOR_TO_MECHANISM_RATIO` |
+|---|---|---|
+| None — rotor is the sensor | `1.0` | `GEAR_RATIO` |
+| CANcoder on the mechanism shaft | `GEAR_RATIO` | `1.0` |
+| CANcoder partway down the chain | ratio above it | ratio below it |
+
+Always compute `MAX_SPEED_RPM` from `GEAR_RATIO`, never from the split half — on a fused
+mechanism that overstates top speed by exactly the other half.
 
 Motion Magic defaults, which are tunable once set:
 

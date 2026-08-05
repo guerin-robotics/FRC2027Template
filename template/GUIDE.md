@@ -48,8 +48,15 @@ Top speed is computed, never typed:
 
 ```java
 public static final MotorSpecs MOTOR = MotorSpecs.KRAKEN_X60_FOC;
-public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(SENSOR_TO_MECHANISM_RATIO);
+public static final double GEAR_RATIO = 15.0;                 // TOTAL, motor -> mechanism
+public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(GEAR_RATIO);
 ```
+
+`GEAR_RATIO` is the total reduction and the only ratio anyone quotes. Phoenix needs it split at
+the encoder, and `ROTOR_TO_SENSOR_RATIO * SENSOR_TO_MECHANISM_RATIO` must multiply back to it.
+With no external encoder the split is `1.0` and `GEAR_RATIO`; with a CANcoder on the mechanism's
+own shaft it is `GEAR_RATIO` and `1.0`. Computing top speed from the split half instead of the
+total overstates it by exactly the other half.
 
 `MotorSpecs` reads free speeds from WPILib's `DCMotor`, so the number driving the speed math and
 the number driving the sim model are the same one. It also builds the sim gearbox, so those
