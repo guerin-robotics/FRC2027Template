@@ -114,38 +114,43 @@ class GainSweepTest {
 
   private Result simulate(double kP) {
     FlywheelSim sim = createSim();
-    PIDController controller = new PIDController(kP, 0.0, 0.0);
 
-    double peak = 0.0;
-    double riseTime = Double.POSITIVE_INFINITY;
-    double velocity = 0.0;
+    // try-with-resources: PIDController is AutoCloseable because it registers itself with
+    // SendableRegistry. The sweep builds one per iteration, so without closing them the
+    // registry accumulates a controller per gain tried and holds them for the life of the
+    // JVM. Harmless in a short test, a genuine leak in a long-running sweep or on the robot.
+    try (PIDController controller = new PIDController(kP, 0.0, 0.0)) {
+      double peak = 0.0;
+      double riseTime = Double.POSITIVE_INFINITY;
+      double velocity = 0.0;
 
-    int steps = (int) (SIM_DURATION_SECONDS / DT);
-    for (int i = 0; i < steps; i++) {
-      velocity = sim.getAngularVelocityRadPerSec();
+      int steps = (int) (SIM_DURATION_SECONDS / DT);
+      for (int i = 0; i < steps; i++) {
+        velocity = sim.getAngularVelocityRadPerSec();
 
-      // Feedforward carries the steady state; PID only corrects what it misses. This ordering
-      // is the whole doctrine — see docs/characterization-and-tuning.md Part 3. Sweeping kP
-      // with no feedforward cannot meet a tight steady-state criterion at any gain, because
-      // a pure proportional controller needs standing error to produce standing output.
-      double feedforward = KV_VOLTS_PER_RAD_PER_SEC * SETPOINT_RAD_PER_SEC;
-      double output = feedforward + controller.calculate(velocity, SETPOINT_RAD_PER_SEC);
-      sim.setInputVoltage(clamp(output, -12.0, 12.0));
-      sim.update(DT);
+        // Feedforward carries the steady state; PID only corrects what it misses. This ordering
+        // is the whole doctrine — see docs/characterization-and-tuning.md Part 3. Sweeping kP
+        // with no feedforward cannot meet a tight steady-state criterion at any gain, because
+        // a pure proportional controller needs standing error to produce standing output.
+        double feedforward = KV_VOLTS_PER_RAD_PER_SEC * SETPOINT_RAD_PER_SEC;
+        double output = feedforward + controller.calculate(velocity, SETPOINT_RAD_PER_SEC);
+        sim.setInputVoltage(clamp(output, -12.0, 12.0));
+        sim.update(DT);
 
-      if (velocity > peak) {
-        peak = velocity;
+        if (velocity > peak) {
+          peak = velocity;
+        }
+        // Rise time: first reach of 95% of setpoint.
+        if (riseTime == Double.POSITIVE_INFINITY && velocity >= 0.95 * SETPOINT_RAD_PER_SEC) {
+          riseTime = i * DT;
+        }
       }
-      // Rise time: first reach of 95% of setpoint.
-      if (riseTime == Double.POSITIVE_INFINITY && velocity >= 0.95 * SETPOINT_RAD_PER_SEC) {
-        riseTime = i * DT;
-      }
+
+      double steadyStateError = Math.abs(SETPOINT_RAD_PER_SEC - velocity);
+      double overshoot = Math.max(0.0, (peak - SETPOINT_RAD_PER_SEC) / SETPOINT_RAD_PER_SEC);
+
+      return new Result(kP, riseTime, overshoot, steadyStateError);
     }
-
-    double steadyStateError = Math.abs(SETPOINT_RAD_PER_SEC - velocity);
-    double overshoot = Math.max(0.0, (peak - SETPOINT_RAD_PER_SEC) / SETPOINT_RAD_PER_SEC);
-
-    return new Result(kP, riseTime, overshoot, steadyStateError);
   }
 
   private static double clamp(double value, double min, double max) {
