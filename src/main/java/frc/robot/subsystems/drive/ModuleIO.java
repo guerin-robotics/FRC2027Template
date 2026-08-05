@@ -51,4 +51,12 @@ public interface ModuleIO {
 
   /** Run the turn motor to the specified rotation. */
   public default void setTurnPosition(Rotation2d rotation) {}
+
+  /**
+   * Sets the drive motor neutral mode. Steer stays in brake always — a coasting azimuth flops
+   * around and makes the modules hard to align by hand.
+   *
+   * @param brake true for brake, false for coast
+   */
+  public default void setDriveBrakeMode(boolean brake) {}
 }

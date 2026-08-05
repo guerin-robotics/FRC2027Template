@@ -84,6 +84,21 @@ public class Vision extends SubsystemBase {
     return inputs[cameraIndex].latestTargetObservation.tx();
   }
 
+  /** Number of cameras wired into this subsystem. */
+  public int getCameraCount() {
+    return io.length;
+  }
+
+  /**
+   * True when the given camera is connected. Register these with {@code FaultMonitor} so a camera
+   * dying mid-event is visible in the pit — in 2026 one died after q13 and nobody noticed.
+   *
+   * @param cameraIndex The index of the camera to check.
+   */
+  public boolean isCameraConnected(int cameraIndex) {
+    return inputs[cameraIndex].connected;
+  }
+
   @Override
   public void periodic() {
     for (int i = 0; i < io.length; i++) {

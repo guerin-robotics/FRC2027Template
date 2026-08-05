@@ -41,6 +41,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.lib.FieldConstants;
 import frc.robot.Constants;
 import frc.robot.Constants.Mode;
 import frc.robot.Robot;
@@ -56,6 +57,27 @@ public class Drive extends SubsystemBase {
 
   /** True while the modules are held in the X pattern by {@code DriveCommands.stopWithX}. */
   public boolean areWheelsXed = false;
+
+  // ---- Pose sanity detection ----
+  //
+  // This DETECTS a diverged pose estimate. It deliberately does not reject or correct one.
+  //
+  // The 2026 codebase had a maxPoseJumpMeters rejection filter that was written and then left
+  // disabled because it was never tuned against real logs — an untuned rejection filter that
+  // throws away good vision is worse than no filter at all. So: surface it loudly, gather real
+  // data, and turn it into rejection later with numbers behind it.
+  //
+  // How far outside the field boundary the estimate must land before it is considered bad.
+  private static final double OFF_FIELD_MARGIN_METERS = 1.0;
+
+  // A single vision update moving the estimate further than this is worth knowing about.
+  private static final double POSE_JUMP_THRESHOLD_METERS = 1.0;
+
+  private final Alert offFieldAlert =
+      new Alert("Pose estimate is off the field — odometry or vision is wrong.", AlertType.kError);
+
+  private double largestJumpThisLoop = 0.0;
+  private int poseJumpCount = 0;
 
   // TunerConstants doesn't include these constants, so they are declared locally
   static final double ODOMETRY_FREQUENCY = TunerConstants.kCANBus.isNetworkFD() ? 250.0 : 100.0;
@@ -239,6 +261,20 @@ public class Drive extends SubsystemBase {
           "Drive/Module" + i + "-Turn", true, modules[i].getTurnCurrentAmps());
     }
 
+    // ---- Pose sanity ----
+    Pose2d estimate = getPose();
+    boolean offField =
+        estimate.getX() < -OFF_FIELD_MARGIN_METERS
+            || estimate.getX() > FieldConstants.fieldLength + OFF_FIELD_MARGIN_METERS
+            || estimate.getY() < -OFF_FIELD_MARGIN_METERS
+            || estimate.getY() > FieldConstants.fieldWidth + OFF_FIELD_MARGIN_METERS;
+
+    Logger.recordOutput("Odometry/OffField", offField);
+    Logger.recordOutput("Odometry/LargestVisionJumpMeters", largestJumpThisLoop);
+    Logger.recordOutput("Odometry/PoseJumpCount", poseJumpCount);
+    offFieldAlert.set(offField);
+    largestJumpThisLoop = 0.0;
+
     // Update gyro alert
     gyroDisconnectedAlert.set(!gyroInputs.connected && Constants.currentMode != Mode.SIM);
   }
@@ -272,6 +308,21 @@ public class Drive extends SubsystemBase {
     for (int i = 0; i < 4; i++) {
       modules[i].runCharacterization(output);
     }
+  }
+
+  /**
+   * Sets the drive motors to brake or coast.
+   *
+   * <p>Coast while disabled makes the robot pushable in the pit; brake while enabled keeps it where
+   * the driver put it. {@code Robot} handles the transitions — see the coast delay there.
+   *
+   * @param brake true for brake, false for coast
+   */
+  public void setDriveBrakeMode(boolean brake) {
+    for (var module : modules) {
+      module.setDriveBrakeMode(brake);
+    }
+    Logger.recordOutput("Drive/BrakeMode", brake);
   }
 
   /** Stops the drive. */
@@ -378,6 +429,18 @@ public class Drive extends SubsystemBase {
     return getPose().getRotation();
   }
 
+  /** True when the gyro is reporting. Registered with {@code FaultMonitor}. */
+  public boolean isGyroConnected() {
+    return gyroInputs.connected;
+  }
+
+  /**
+   * True when the pose estimate has left the field boundary. Registered with {@code FaultMonitor}.
+   */
+  public boolean isPoseOffField() {
+    return offFieldAlert.get();
+  }
+
   /** Resets the current odometry pose. */
   public void setPose(Pose2d pose) {
     poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
@@ -388,8 +451,20 @@ public class Drive extends SubsystemBase {
       Pose2d visionRobotPoseMeters,
       double timestampSeconds,
       Matrix<N3, N1> visionMeasurementStdDevs) {
+    Pose2d before = poseEstimator.getEstimatedPosition();
     poseEstimator.addVisionMeasurement(
         visionRobotPoseMeters, timestampSeconds, visionMeasurementStdDevs);
+    Pose2d after = poseEstimator.getEstimatedPosition();
+
+    // Vision can be applied several times per loop (one per camera per observation), so keep
+    // the largest displacement and report it once in periodic().
+    double jump = after.getTranslation().getDistance(before.getTranslation());
+    if (jump > largestJumpThisLoop) {
+      largestJumpThisLoop = jump;
+    }
+    if (jump > POSE_JUMP_THRESHOLD_METERS) {
+      poseJumpCount++;
+    }
   }
 
   /** Returns the maximum linear speed in meters per sec. */

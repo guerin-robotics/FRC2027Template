@@ -61,6 +61,9 @@ Odometry/Robot                     — where the robot actually was
 
 **Vision caused pose jump**
 ```
+Odometry/OffField                  — did the estimate leave the field entirely?
+Odometry/LargestVisionJumpMeters   — biggest single correction that loop
+Odometry/PoseJumpCount             — running count of implausible jumps
 Vision/Camera[N]/RobotPosesAccepted — which camera sent a pose?
 Vision/Camera[N]/RobotPosesRejected — what was rejected?
 Vision/Camera[N]/RejectionReason    — why was it rejected?
@@ -82,6 +85,9 @@ Drive/Module[0-3]-Drive                         — per-module drive current
 Drive/Module[0-3]-Turn                          — per-module steer current
 Drive/Module[0-3]/DriveTorqueCurrentAmps        — was a module fighting a stall?
 Drive/Module[0-3]/TurnTorqueCurrentAmps         — was a steer motor binding?
+BatteryLogger/BrownoutCount                     — how many brownouts so far
+BatteryLogger/MinVoltage                        — worst sag seen
+BatteryLogger/BrownedOutNow                     — timeline of the event itself
 [Subsystem]/StatorAmps                          — stall detection per subsystem
 ```
 
@@ -91,12 +97,37 @@ module accelerating hard look similar in supply current alone.
 
 **Loop overrun**
 ```
-LoggedRobot/FullCycleMS            — total loop time vs the 20 ms budget
-Drive/...                          — Drive and Vision dominated in 2026
+LoopTiming/AverageMs               — rolling average vs the 20 ms budget
+LoopTiming/PeakMs                  — worst single loop
+LoopTiming/OverrunCount            — how many loops went over
+LoopTiming/OverrunFraction         — what share of the match was over budget
+CANBus/Canivore/Utilization        — a saturated bus stalls signal reads
+```
+
+Drive and Vision dominated in 2026. If loop time is high, check bus utilization
+before assuming it is CPU — blocked signal reads look identical to slow code.
+
+**Robot health / something stopped working mid-match**
+```
+RobotHealth/OK                     — was anything faulted?
+RobotHealth/ActiveFaults           — what, by name
+RobotHealth/Faults/<name>          — per-fault timeline; find when it started
+Match/EventName, Match/MatchNumber — confirm you are in the right log
+```
+
+**Auto came up short**
+```
+Auto/DurationSeconds               — how long the routine actually took
+Auto/Overran                       — true if still running when auto ended
+Auto/Name                          — which routine was selected
+Odometry/Trajectory                — the path being followed
 ```
 
 Also always check `Commands/Active` around the event time — a missing or
 unexpectedly-interrupted command explains most "it just didn't do it" reports.
+`Commands/All/<name>` gives one boolean per command, which graphs cleanly against
+the mechanism's own signals on the same timeline. Commands appear here under the
+name given to `.withName()`, so an unnamed command shows up as its class name.
 
 ## Step 3 — Report
 

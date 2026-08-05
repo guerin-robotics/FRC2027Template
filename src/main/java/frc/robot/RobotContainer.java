@@ -27,6 +27,7 @@ import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.io.VisionIO;
 import frc.robot.subsystems.vision.io.VisionIOPhotonVision;
 import frc.robot.subsystems.vision.io.VisionIOPhotonVisionSim;
+import frc.robot.util.FaultMonitor;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -147,6 +148,20 @@ public class RobotContainer {
     autoChooser.addOption(
         "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
+    // Register fault conditions. These roll up into a single "Robot OK" dashboard boolean
+    // plus a named fault list, so the pit does not have to check a dozen indicators
+    // individually — see FaultMonitor for the 2026 failure that motivated this.
+    // Register any new mechanism's health conditions here too.
+    FaultMonitor.getInstance().register("Gyro disconnected", () -> !drive.isGyroConnected());
+    FaultMonitor.getInstance().register("Pose off field", drive::isPoseOffField);
+    for (int i = 0; i < vision.getCameraCount(); i++) {
+      final int cameraIndex = i;
+      FaultMonitor.getInstance()
+          .register(
+              "Camera " + cameraIndex + " disconnected",
+              () -> !vision.isCameraConnected(cameraIndex));
+    }
+
     // Configure the button bindings
     configureButtonBindings();
   }
@@ -197,5 +212,10 @@ public class RobotContainer {
    */
   public Command getAutonomousCommand() {
     return autoChooser.get();
+  }
+
+  /** Brake/coast passthrough for {@link Robot}'s disabled-coast handling. */
+  public void setDriveBrakeMode(boolean brake) {
+    drive.setDriveBrakeMode(brake);
   }
 }

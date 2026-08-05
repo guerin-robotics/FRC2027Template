@@ -8,11 +8,18 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.lib.AllianceFlipUtil;
+import frc.robot.generated.TunerConstants;
 import frc.robot.util.BatteryLogger;
+import frc.robot.util.CANBusMonitor;
+import frc.robot.util.CommandLogger;
+import frc.robot.util.FaultMonitor;
+import frc.robot.util.LoopTimeMonitor;
+import frc.robot.util.MatchMetadataLogger;
 import org.littletonrobotics.junction.AutoLogOutputManager;
 import org.littletonrobotics.junction.LogFileUtil;
 import org.littletonrobotics.junction.LoggedRobot;
@@ -33,6 +40,30 @@ public class Robot extends LoggedRobot {
 
   /** Shared battery/energy logger — subsystems call {@code reportCurrentUsage()} each loop. */
   public static final BatteryLogger batteryLogger = new BatteryLogger();
+
+  /** Loop-time watchdog. 2026 ran ~30 Hz all season without anyone noticing. */
+  private final LoopTimeMonitor loopMonitor = new LoopTimeMonitor();
+
+  /** CAN health for the swerve bus — bandwidth problems look like sensor faults without this. */
+  private final CANBusMonitor canBusMonitor = new CANBusMonitor(TunerConstants.kCANBus, "Canivore");
+
+  /** Writes event and match identity into the log so a pile of logs can be triaged. */
+  private final MatchMetadataLogger matchMetadataLogger = new MatchMetadataLogger();
+
+  /** Times the autonomous routine so overruns are visible immediately, not post-season. */
+  private final Timer autoTimer = new Timer();
+
+  private boolean autoDurationLogged = false;
+
+  // ---- Disabled coast ----
+  //
+  // Brake while enabled so the robot holds position; coast a few seconds after disable so it
+  // can be pushed off the field and around the pit. The delay matters: coasting the instant
+  // the robot is disabled means it keeps rolling after an emergency stop, which is exactly
+  // when you want it to stop.
+  private static final double COAST_DELAY_SECONDS = 3.0;
+  private final Timer disabledTimer = new Timer();
+  private boolean hasCoasted = false;
 
   public Robot() {
     // Record metadata
@@ -80,6 +111,10 @@ public class Robot extends LoggedRobot {
     // logged every loop cycle. Any other singleton you add needs the same treatment.
     AutoLogOutputManager.addObject(RobotState.getInstance());
 
+    // Log which commands are running. Registers scheduler hooks; must happen before any
+    // command is scheduled or the first few will be missed.
+    CommandLogger.start();
+
     // Instantiate our RobotContainer. This will perform all our button bindings,
     // and put our autonomous chooser on the dashboard.
     robotContainer = new RobotContainer();
@@ -110,6 +145,9 @@ public class Robot extends LoggedRobot {
     // timing (see the template project documentation for details)
     // Threads.setCurrentThreadPriority(true, 99);
 
+    // Start the loop-time measurement first so it covers everything below.
+    loopMonitor.begin();
+
     // Refresh the cached alliance color once per loop so that AllianceFlipUtil.shouldFlip()
     // doesn't call DriverStation.getAlliance() (which allocates an Optional) dozens of times
     // per cycle. This must run BEFORE the scheduler, since commands read the cached value.
@@ -122,27 +160,62 @@ public class Robot extends LoggedRobot {
     // the Command-based framework to work.
     CommandScheduler.getInstance().run();
 
+    // Publish the set of commands that ran this cycle (hooks registered in the constructor)
+    CommandLogger.periodic();
+
     // Update battery logger with voltage and RIO current, then log after scheduler
     batteryLogger.setBatteryVoltage(RobotController.getBatteryVoltage());
     batteryLogger.setRioCurrent(RobotController.getInputCurrent());
     batteryLogger.periodicAfterScheduler();
 
+    // Health and diagnostics. All of these self-throttle or short-circuit, so they are cheap
+    // to call every loop.
+    canBusMonitor.periodic();
+    matchMetadataLogger.periodic();
+    FaultMonitor.getInstance().periodic();
+
     // Return to non-RT thread priority (do not modify the first argument)
     // Threads.setCurrentThreadPriority(false, 10);
+
+    // Must be last — this is what closes the loop-time measurement.
+    loopMonitor.end();
   }
 
   /** This function is called once when the robot is disabled. */
   @Override
-  public void disabledInit() {}
+  public void disabledInit() {
+    disabledTimer.restart();
+    hasCoasted = false;
+  }
 
   /** This function is called periodically when disabled. */
   @Override
-  public void disabledPeriodic() {}
+  public void disabledPeriodic() {
+    // Coast only after the robot has had time to actually stop moving.
+    if (!hasCoasted && disabledTimer.hasElapsed(COAST_DELAY_SECONDS)) {
+      robotContainer.setDriveBrakeMode(false);
+      hasCoasted = true;
+    }
+  }
+
+  /** Brake on every enable, whichever mode we are entering. */
+  private void enableBrakeMode() {
+    robotContainer.setDriveBrakeMode(true);
+    hasCoasted = false;
+    disabledTimer.stop();
+  }
 
   /** This autonomous runs the autonomous command selected by your {@link RobotContainer} class. */
   @Override
   public void autonomousInit() {
     autonomousCommand = robotContainer.getAutonomousCommand();
+
+    enableBrakeMode();
+
+    // Time the auto. The 2026 routines overran the auto period and the final path was
+    // truncated in every single match — nobody measured it until the season was over.
+    autoTimer.restart();
+    autoDurationLogged = false;
 
     // schedule the autonomous command
     if (autonomousCommand != null) {
@@ -152,11 +225,42 @@ public class Robot extends LoggedRobot {
 
   /** This function is called periodically during autonomous. */
   @Override
-  public void autonomousPeriodic() {}
+  public void autonomousPeriodic() {
+    // Log the duration the moment the auto command reports finished, so a routine that ends
+    // early is distinguishable from one that ran until the period expired.
+    if (!autoDurationLogged && autonomousCommand != null && !autonomousCommand.isScheduled()) {
+      logAutoDuration(false);
+    }
+  }
+
+  /** Called when leaving autonomous, whether the routine finished or the period expired. */
+  @Override
+  public void autonomousExit() {
+    if (!autoDurationLogged) {
+      // Still running when auto ended — this is the overrun case.
+      logAutoDuration(true);
+    }
+  }
+
+  private void logAutoDuration(boolean overran) {
+    autoDurationLogged = true;
+    double seconds = autoTimer.get();
+    Logger.recordOutput("Auto/DurationSeconds", seconds);
+    Logger.recordOutput("Auto/Overran", overran);
+    Logger.recordOutput(
+        "Auto/Name", autonomousCommand == null ? "None" : autonomousCommand.getName());
+    System.out.println(
+        "Auto finished in "
+            + String.format("%.2f", seconds)
+            + " s"
+            + (overran ? " — STILL RUNNING when auto ended (overran)" : ""));
+  }
 
   /** This function is called once when teleop is enabled. */
   @Override
   public void teleopInit() {
+    enableBrakeMode();
+
     // This makes sure that the autonomous stops running when
     // teleop starts running. If you want the autonomous to
     // continue until interrupted by another command, remove

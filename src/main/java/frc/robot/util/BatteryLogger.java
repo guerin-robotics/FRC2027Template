@@ -1,5 +1,8 @@
 package frc.robot.util;
 
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
+import edu.wpi.first.wpilibj.RobotController;
 import java.util.HashMap;
 import java.util.Map;
 import org.littletonrobotics.junction.Logger;
@@ -32,6 +35,19 @@ public class BatteryLogger {
 
   // RoboRIO current, set from Robot.java each loop
   private double rioCurrent = 0.0;
+
+  // ---- Brownout tracking ----
+  //
+  // The 2026 robot logged 491 brownouts across 23 matches and it was never noticed at an
+  // event — the data was in the logs, but nothing counted it or said so out loud. A brownout
+  // cuts motor output without restarting code, so from the driver's seat it just feels like
+  // the robot got weak. These counters make it a number instead of a feeling.
+  private boolean wasBrownedOut = false;
+  private int brownoutCount = 0;
+  private double minVoltage = Double.POSITIVE_INFINITY;
+
+  private final Alert brownoutAlert =
+      new Alert("Brownout detected — check battery and drive current limits.", AlertType.kWarning);
 
   // ---- Per-subsystem maps ----
   private final Map<String, Double> subsystemCurrents = new HashMap<>();
@@ -98,6 +114,23 @@ public class BatteryLogger {
     reportCurrentUsage("Controls/CANivore", false, 0.03);
     reportCurrentUsage("Controls/Radio", false, 0.5);
 
+    // ---- Brownout / voltage tracking ----
+    boolean brownedOut = RobotController.isBrownedOut();
+    if (brownedOut && !wasBrownedOut) {
+      brownoutCount++; // count edges, not loops spent browned out
+    }
+    wasBrownedOut = brownedOut;
+
+    if (batteryVoltage < minVoltage) {
+      minVoltage = batteryVoltage;
+    }
+
+    Logger.recordOutput("BatteryLogger/Voltage", batteryVoltage);
+    Logger.recordOutput("BatteryLogger/MinVoltage", minVoltage);
+    Logger.recordOutput("BatteryLogger/BrownedOutNow", brownedOut);
+    Logger.recordOutput("BatteryLogger/BrownoutCount", brownoutCount);
+    brownoutAlert.set(brownoutCount > 0);
+
     // Log totals
     Logger.recordOutput("BatteryLogger/Current", totalCurrent);
     Logger.recordOutput("BatteryLogger/DriveCurrent", driveCurrent);
@@ -148,6 +181,29 @@ public class BatteryLogger {
 
   public double getTotalEnergy() {
     return totalEnergy;
+  }
+
+  /** Number of brownout events since code start. */
+  public int getBrownoutCount() {
+    return brownoutCount;
+  }
+
+  /** Lowest battery voltage seen since code start, or since {@link #resetBrownoutTracking()}. */
+  public double getMinVoltage() {
+    return minVoltage == Double.POSITIVE_INFINITY ? 0.0 : minVoltage;
+  }
+
+  /**
+   * Clears the brownout count and minimum voltage.
+   *
+   * <p>Call at the start of an enable if you want per-match numbers rather than per-power-cycle.
+   * Leave it alone to accumulate across a whole session.
+   */
+  public void resetBrownoutTracking() {
+    brownoutCount = 0;
+    minVoltage = Double.POSITIVE_INFINITY;
+    wasBrownedOut = false;
+    brownoutAlert.set(false);
   }
 
   // ---- Helpers ----

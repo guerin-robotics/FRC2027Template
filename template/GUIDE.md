@@ -101,23 +101,31 @@ already resolved in this template:
 These were **not** fixed, because they need the 2027 robot to exist first. Decide on them
 deliberately early in the season rather than discovering them at competition.
 
-### 1. No pose-estimator divergence guard
+### 1. Pose-estimator divergence is detected, not guarded
 
-If the pose estimate goes bad, nothing pulls it back except good vision observations. The
-`maxPoseJumpMeters` filter was written in 2026 and left disabled because it was never tuned
-against real logs. Either tune and enable it, or add an explicit sanity check that rejects
-estimates outside the field.
+`Drive` now logs `Odometry/OffField`, `Odometry/LargestVisionJumpMeters` and
+`Odometry/PoseJumpCount`, and raises an Alert when the estimate leaves the field. That is
+**detection only** — nothing rejects or corrects a bad estimate.
 
-### 2. Loop timing
+That is deliberate. The 2026 codebase had a `maxPoseJumpMeters` rejection filter that was
+written and then left disabled because it was never tuned, and an untuned rejection filter
+that discards good vision is worse than none. Collect real numbers from
+`LargestVisionJumpMeters` across practice matches first, then turn it into rejection with
+evidence behind the threshold.
 
-The 2026 robot ran nearer 30 Hz than the 20 ms budget, with Drive and Vision dominating.
-This template is lighter simply because there is less code — that will not stay true. Watch
-`robotPeriodic` timing from the first day the robot drives.
+### 2. Loop timing is now measured — watch it
+
+`LoopTimeMonitor` logs `LoopTiming/*` and raises an Alert when the rolling average goes over
+budget, so the 2026 failure (nearly 30 Hz all season, discovered post-season) cannot repeat
+silently. The template is lighter simply because there is less code, and that will not stay
+true as mechanisms are added. Check the number the first day the robot drives, and again
+after each subsystem lands.
 
 ### 3. No jam or stall detection pattern
 
 2026 ran open-loop rollers and belts with no feedback, so jams were silent. Whatever the
-2027 intake is, build supply-current monitoring into its `periodic()` from the start.
+2027 intake is, build supply-current monitoring into its `periodic()` from the start — and
+register the fault with `FaultMonitor` so it reaches the pit rather than only the log.
 
 ### 4. Implicit readiness instead of a state machine
 

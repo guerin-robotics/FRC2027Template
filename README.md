@@ -32,11 +32,30 @@ estimation, PathPlanner autos, and full AdvantageKit logging and replay. Nothing
 **Core** — `Main`, `Robot`, `RobotContainer`, `Constants` in AdvantageKit template shape.
 `RobotState` as a game-agnostic singleton (pose, velocity, distance/bearing helpers).
 
+**Instrumentation** — things 2026 did not have, each one closing a failure that went
+unnoticed for a whole season:
+
+| What | Channels | The 2026 failure it closes |
+|---|---|---|
+| Active command logging | `Commands/Active`, `Commands/All/<name>` | No way to tell "never scheduled" from "scheduled and interrupted" |
+| Loop-time watchdog | `LoopTiming/*` + Alert | Ran ~30 Hz against a 20 ms budget all season, found post-season |
+| CAN bus health | `CANBus/Canivore/*` + Alerts | Signal frequency decisions had no visible consequence |
+| Match metadata | `Match/*` | Logs identified only by timestamp filename |
+| Consolidated health | `RobotHealth/OK`, `RobotHealth/ActiveFaults` | A camera died after q13 and nobody noticed |
+| Brownout counting | `BatteryLogger/BrownoutCount`, `MinVoltage` | 491 brownouts across 23 matches, never surfaced in-event |
+| Pose divergence detection | `Odometry/OffField`, `PoseJumpCount` | Nothing caught a bad pose estimate |
+| Auto duration | `Auto/DurationSeconds`, `Auto/Overran` | Autos overran and truncated the last path every match |
+
 **Utilities**
 
 | File | Purpose |
 |---|---|
-| `util/BatteryLogger` | Per-subsystem current accounting for brownout analysis |
+| `util/BatteryLogger` | Per-subsystem current accounting, brownout counting, min voltage |
+| `util/CommandLogger` | Publishes which commands are running |
+| `util/LoopTimeMonitor` | Loop duration, peak, overrun count, over-budget alert |
+| `util/CANBusMonitor` | Bus utilization and error counts |
+| `util/FaultMonitor` | Rolls all fault conditions into one "Robot OK" indicator |
+| `util/MatchMetadataLogger` | Event and match identity, for triaging logs |
 | `util/PhoenixUtil` | `tryUntilOk` — retries CTRE config until it sticks |
 | `util/CANUpdateThread` | Async CAN device configuration with retry |
 | `util/LocalADStarAK` | Replay-safe PathPlanner pathfinder |

@@ -274,6 +274,13 @@ public class ModuleIOTalonFX implements ModuleIO {
   }
 
   @Override
+  public void setDriveBrakeMode(boolean brake) {
+    // setNeutralMode() is the fast path — it does not re-apply the whole configuration, so it
+    // is safe to call on a mode transition without risking a slow CAN operation mid-match.
+    driveTalon.setNeutralMode(brake ? NeutralModeValue.Brake : NeutralModeValue.Coast);
+  }
+
+  @Override
   public void setTurnPosition(Rotation2d rotation) {
     turnTalon.setControl(
         switch (constants.SteerMotorClosedLoopOutput) {

@@ -88,6 +88,11 @@ public class Module {
     io.setTurnPosition(Rotation2d.kZero);
   }
 
+  /** Sets the drive motor neutral mode. */
+  public void setDriveBrakeMode(boolean brake) {
+    io.setDriveBrakeMode(brake);
+  }
+
   /** Disables all outputs to motors. */
   public void stop() {
     io.setDriveOpenLoop(0.0);
