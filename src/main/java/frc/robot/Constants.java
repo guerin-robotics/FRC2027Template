@@ -135,16 +135,18 @@ public final class Constants {
      */
     public static final CANBus RIO_BUS = new CANBus("rio");
 
-    // ============================================================================
-    // TODO: DELETE THESE THREE once the first real mechanism lands.
-    // ============================================================================
-    // They exist only so template/src/ resolves and can be copied without editing two files at
-    // once. Nothing on the robot uses them. Leaving them in ships fictional hardware IDs to a
-    // competition robot, where the next person to add a mechanism may reuse 20 and get a silent
-    // conflict. IDs 0-12 belong to swerve (see TunerConstants), so mechanisms start at 20.
-    public static final int EXAMPLE_MOTOR = 20; // RIO CAN
-    public static final int EXAMPLE_FOLLOWER = 21; // RIO CAN
-    public static final int EXAMPLE_ENCODER = 22; // RIO CAN
+    // ---- No IDs yet ----
+    //
+    // Deliberately empty. The example scaffold in template/src/ references
+    // Constants.CanIds.EXAMPLE_MOTOR and friends, and those are NOT defined here on purpose:
+    // copying the scaffold should fail to compile until you supply a real ID, rather than
+    // building against a fictional one that could ship to a competition robot.
+    //
+    // Add one line per device, with the bus in a comment — the bus is not visible from the
+    // number, and a device on the wrong bus is simply not found at startup. IDs 0-12 belong to
+    // swerve (see TunerConstants), so mechanisms start at 20.
+    //
+    //   public static final int INTAKE_ROLLER_LEADER = 20;   // RIO CAN
   }
 
   // ============================================================================================

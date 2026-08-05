@@ -182,20 +182,34 @@ frc/lib/                      ← ALL shared utilities: field/alliance, hardware
 nothing here is compiled or deployed. Spotless *does* format these files, so keep them valid
 Java.
 
-**They do compile, though.** The scaffold resolves against the real `Constants` and `frc.lib`,
-and was verified by temporarily adding `template/src/main/java` to the source set and building.
-Do that yourself if you change anything here:
+**It deliberately does not compile.** Six values cannot be guessed, so their declarations are
+commented out while the config still assigns them. Copy the scaffold and the compiler names
+exactly what you owe it, one error per value:
+
+```
+EXAMPLE_MOTOR                 CAN ID
+EXAMPLE_ENCODER               CAN ID (position mechanisms only)
+ROTOR_TO_SENSOR_RATIO         motor rotations per encoder rotation
+SENSOR_TO_MECHANISM_RATIO     encoder rotations per mechanism rotation
+FORWARD_SOFT_LIMIT_ROTATIONS  travel bound
+REVERSE_SOFT_LIMIT_ROTATIONS  travel bound
+```
+
+Commenting out the *assignments* instead would compile, and would be worse. Phoenix defaults
+`SensorToMechanismRatio` to 1.0, so a config that quietly skips it reports motor rotations while
+every setpoint and gain assumes mechanism rotations — a confidently wrong robot, which is far
+harder to notice than one that refuses to build.
+
+Everything else has a defensible default: 40 A supply, 80 A stator, ±80 A torque clamp, ±12 V.
+
+**To check the rest of the scaffold**, temporarily put it in the source set:
 
 ```groovy
 // build.gradle, temporarily
 sourceSets { main { java { srcDir 'template/src/main/java' } } }
 ```
 
-Worth doing, because nothing else catches rot in this directory. That check is what found the
-scaffold still using the `TalonFX(int, String)` constructor, which Phoenix 6 deprecated for
-removal — a scaffold is the worst place for a deprecated call, since its whole job is to be
-copied.
-
-The placeholders in `Constants` (`CanIds.EXAMPLE_*`, `Waits.MECHANISM_READY_SECONDS`,
-`Waits.TOTAL_TIMEOUT_SECONDS`) exist so this directory resolves. Delete them once real
-mechanisms replace the example.
+Expect exactly those six errors and no others. Anything else is rot. That check is what found
+the scaffold still using the `TalonFX(int, String)` constructor, which Phoenix 6 deprecated for
+removal — a scaffold is the worst place for a deprecated call, since being copied is its whole
+purpose.
