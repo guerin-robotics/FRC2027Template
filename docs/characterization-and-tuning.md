@@ -71,7 +71,7 @@ iterations — most of a tuning session is spent waiting rather than tuning.
 tunables appear on the dashboard under **Tuning/** where they can be adjusted while enabled.
 
 ```java
-private static final LoggedTunableNumber kP = new LoggedTunableNumber("Drive/HeadingKp", 8.5);
+private static final LoggedTunableNumber kP = new LoggedTunableNumber("Elevator/kP", 4.0);
 
 // Cheap reads: just call get()
 controller.setP(kP.get());

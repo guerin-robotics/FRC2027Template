@@ -57,20 +57,19 @@ bus.
 Read directly. No ceremony needed.
 
 ```java
-private static final LoggedTunableNumber angleKp = new LoggedTunableNumber("Drive/HeadingKp", 8.5);
-private static final LoggedTunableNumber angleKd = new LoggedTunableNumber("Drive/HeadingKd", 0.3);
+private static final LoggedTunableNumber kP = new LoggedTunableNumber("Arm/kP", 4.0);
+private static final LoggedTunableNumber kD = new LoggedTunableNumber("Arm/kD", 0.1);
 
 // Inside the command, per loop:
 LoggedTunableNumber.ifChanged(
-    hashCode(), () -> controller.setPID(angleKp.get(), 0.0, angleKd.get()), angleKp, angleKd);
+    hashCode(), () -> controller.setPID(kP.get(), 0.0, kD.get()), kP, kD);
 ```
-
-`DriveCommands` heading-hold is wired this way as the worked example — read it before writing
-your own.
 
 `ifChanged` is used here not because `setPID` is expensive but because a `ProfiledPIDController`
 rebuild resets internal state. For a plain `setP()` on a controller you own, calling it
 unconditionally is fine.
+
+For a *profiled* controller, do not hand-roll this — use `LoggedTunableProfiledPID` below.
 
 ### `LoggedTunableProfiledPID`
 
@@ -89,6 +88,11 @@ double omega = heading.calculate(currentHeading, targetHeading);
 
 Gains and constraints are checked separately inside it, because `setConstraints` rebuilds the
 motion profile and doing that on every kP nudge would discard profile state mid-motion.
+
+`DriveCommands` heading-hold is wired this way as the worked example — read it before writing
+your own. Note it declares the controller `static`: two instances would publish duplicate
+dashboard keys for the same gain, and sharing is safe because every command using it requires
+the drive subsystem, so only one can run at a time.
 
 This is a RAM-side helper. It has nothing to do with TalonFX gains.
 
@@ -243,7 +247,7 @@ The dashboard key is what someone reads at 11 pm with the robot on blocks. Use
 `Mechanism/Gain`:
 
 ```
-Elevator/kP          Elevator/kG          Drive/HeadingKp
+Elevator/kP          Elevator/kG          Drive/Heading/kP
 ```
 
 Everything lands under a `Tuning/` table automatically. Do not repeat "Tuning" in the key, and

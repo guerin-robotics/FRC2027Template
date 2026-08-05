@@ -23,7 +23,7 @@ import org.littletonrobotics.junction.networktables.LoggedNetworkNumber;
  * <p><b>Usage:</b>
  *
  * <pre>
- * private static final LoggedTunableNumber kP = new LoggedTunableNumber("Drive/HeadingKp", 8.5);
+ * private static final LoggedTunableNumber kP = new LoggedTunableNumber("Elevator/kP", 4.0);
  *
  * // Read it wherever you need the value:
  * controller.setP(kP.get());

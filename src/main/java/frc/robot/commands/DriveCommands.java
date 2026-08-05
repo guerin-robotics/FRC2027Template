@@ -8,21 +8,19 @@
 package frc.robot.commands;
 
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import frc.lib.LoggedTunableNumber;
+import frc.lib.LoggedTunableProfiledPID;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConstants;
 import java.text.DecimalFormat;
@@ -51,21 +49,25 @@ import org.littletonrobotics.junction.Logger;
 public class DriveCommands {
   private static final double DEADBAND = 0.1;
 
-  // Heading-hold gains, tuned on the 2026 competition robot. Re-tune for 2027 —
-  // these depend on robot mass and moment of inertia, not on the game.
+  // Heading-hold controller. Gains were tuned on the 2026 competition robot — re-tune for
+  // 2027, since they depend on robot mass and moment of inertia, not on the game.
   //
-  // These are the worked example of LoggedTunableNumber. With Constants.tuningMode on they
-  // appear under "Tuning/Drive/..." on the dashboard and can be adjusted while the robot is
-  // enabled; with it off they are exactly these numbers and cost nothing. Whatever you land
-  // on during a session, write it back here and commit it — dashboard values are not saved.
-  private static final LoggedTunableNumber angleKp =
-      new LoggedTunableNumber("Drive/HeadingKp", 8.5);
-  private static final LoggedTunableNumber angleKd =
-      new LoggedTunableNumber("Drive/HeadingKd", 0.3);
-  private static final LoggedTunableNumber angleMaxVelocity =
-      new LoggedTunableNumber("Drive/HeadingMaxVelocity", 12.0);
-  private static final LoggedTunableNumber angleMaxAcceleration =
-      new LoggedTunableNumber("Drive/HeadingMaxAccel", 20.0);
+  // This is the worked example of LoggedTunableProfiledPID. With Constants.tuningMode on, kP,
+  // kI, kD, maxVelocity and maxAcceleration appear under "Tuning/Drive/Heading/..." and can be
+  // adjusted while the robot is enabled; with it off they are exactly these numbers and cost
+  // nothing. Whatever you land on during a session, write it back here and commit it —
+  // dashboard values live only in NetworkTables and are gone at the next reboot.
+  //
+  // Static, so every command built by this class shares one controller and one set of
+  // dashboard keys. Two instances would publish duplicate keys for the same gain. Sharing is
+  // safe because every command that uses it requires the drive subsystem, so only one can run
+  // at a time.
+  private static final LoggedTunableProfiledPID angleController =
+      new LoggedTunableProfiledPID("Drive/Heading", 8.5, 0.0, 0.3, 12.0, 20.0);
+
+  static {
+    angleController.enableContinuousInput(-Math.PI, Math.PI);
+  }
 
   private static final double FF_START_DELAY = 2.0; // Secs
 
@@ -196,18 +198,6 @@ public class DriveCommands {
       DoubleSupplier ySupplier,
       Supplier<Rotation2d> rotationSupplier) {
 
-    // Create PID controller
-    ProfiledPIDController angleController =
-        new ProfiledPIDController(
-            angleKp.get(),
-            0.0,
-            angleKd.get(),
-            new TrapezoidProfile.Constraints(angleMaxVelocity.get(), angleMaxAcceleration.get()));
-    angleController.enableContinuousInput(-Math.PI, Math.PI);
-
-    // Stable id for change detection, so gains can be adjusted while this command runs.
-    int tuningId = angleController.hashCode();
-
     // Construct command
     return Commands.run(
             () -> {
@@ -215,18 +205,7 @@ public class DriveCommands {
 
               // Pick up live gain edits while tuning. No-op when tuningMode is off, and even
               // when on this only rebuilds when a value actually changed rather than every loop.
-              LoggedTunableNumber.ifChanged(
-                  tuningId,
-                  () -> {
-                    angleController.setPID(angleKp.get(), 0.0, angleKd.get());
-                    angleController.setConstraints(
-                        new TrapezoidProfile.Constraints(
-                            angleMaxVelocity.get(), angleMaxAcceleration.get()));
-                  },
-                  angleKp,
-                  angleKd,
-                  angleMaxVelocity,
-                  angleMaxAcceleration);
+              angleController.updateGains();
 
               // Get linear velocity
               Translation2d linearVelocity =
