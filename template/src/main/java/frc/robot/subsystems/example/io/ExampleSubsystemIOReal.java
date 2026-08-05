@@ -122,9 +122,15 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
    * <ul>
    *   <li><b>Gated on {@code tuningMode}.</b> In competition this returns immediately and does zero
    *       CAN work. The robot runs the compiled-in defaults, applied once in the constructor.
-   *   <li><b>{@code apply(Slot0Configs)}, not {@code apply(TalonFXConfiguration)}.</b> The Slot0
-   *       overload writes only the gain block. A full config apply would also rewrite current
-   *       limits, soft limits, inversion and feedback ratios every time you nudged a gain.
+   *   <li><b>{@code apply(config.Slot0)}, not {@code apply(config)}.</b> The Slot0 overload writes
+   *       only the gain block. A full config apply would also rewrite current limits, soft limits,
+   *       inversion and feedback ratios every time you nudged a gain.
+   *   <li><b>The Slot0 block comes from {@code getFXConfig()}, not hand-built here.</b> A {@code
+   *       new Slot0Configs()} carrying only kS..kD would leave {@code GravityType} and {@code
+   *       StaticFeedforwardSign} at their defaults — so tuning kP on an arm would silently switch
+   *       its gravity compensation from {@code Arm_Cosine} to {@code Elevator_Static}. Taking the
+   *       whole block from the canonical config means the gains and their modifiers can never
+   *       disagree.
    *   <li><b>{@code ifChanged}, not every loop.</b> Expect the one loop it fires on to overrun the
    *       20 ms budget. That is acceptable in a tuning session, which is the only time it can
    *       happen.
@@ -144,15 +150,8 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     LoggedTunableNumber.ifChanged(
         hashCode(),
         () -> {
-          Slot0Configs gains =
-              new Slot0Configs()
-                  .withKS(ExampleSubsystemConstants.getKS())
-                  .withKV(ExampleSubsystemConstants.getKV())
-                  .withKA(ExampleSubsystemConstants.getKA())
-                  .withKG(ExampleSubsystemConstants.getKG())
-                  .withKP(ExampleSubsystemConstants.getKP())
-                  .withKI(ExampleSubsystemConstants.getKI())
-                  .withKD(ExampleSubsystemConstants.getKD());
+          // Rebuilding the config re-reads every gain accessor, which reads the tunables.
+          Slot0Configs gains = ExampleSubsystemConstants.getVelocityFXConfig().Slot0;
           PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(gains));
         },
         ExampleSubsystemConstants.TUNABLE_GAINS);

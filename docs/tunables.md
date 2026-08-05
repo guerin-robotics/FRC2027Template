@@ -72,6 +72,26 @@ your own.
 rebuild resets internal state. For a plain `setP()` on a controller you own, calling it
 unconditionally is fine.
 
+### `LoggedTunableProfiledPID`
+
+For a profiled controller, `frc.lib.LoggedTunableProfiledPID` bundles the five tunables — kP, kI,
+kD, max velocity, max acceleration — so the declarations and the `ifChanged` wiring are not
+rewritten per mechanism:
+
+```java
+private final LoggedTunableProfiledPID heading =
+    new LoggedTunableProfiledPID("Drive/Heading", 8.5, 0.0, 0.3, 12.0, 20.0);
+
+// Every loop, before calculate():
+heading.updateGains();
+double omega = heading.calculate(currentHeading, targetHeading);
+```
+
+Gains and constraints are checked separately inside it, because `setConstraints` rebuilds the
+motion profile and doing that on every kP nudge would discard profile state mid-motion.
+
+This is a RAM-side helper. It has nothing to do with TalonFX gains.
+
 ---
 
 ## Pattern B — Device-side (TalonFX Slot0)
@@ -81,9 +101,14 @@ implementation** push them when they move.
 
 ```java
 // MyMechanismConstants.java
-public static final LoggedTunableNumber kP = new LoggedTunableNumber("MyMechanism/kP", 0.0);
-public static final LoggedTunableNumber kS = new LoggedTunableNumber("MyMechanism/kS", 0.0);
-public static final LoggedTunableNumber kV = new LoggedTunableNumber("MyMechanism/kV", 0.0);
+public static final LoggedTunableNumber KP = new LoggedTunableNumber("MyMechanism/kP", 0.0);
+public static final LoggedTunableNumber KS = new LoggedTunableNumber("MyMechanism/kS", 0.0);
+public static final LoggedTunableNumber KV = new LoggedTunableNumber("MyMechanism/kV", 0.0);
+
+/** The watch list for ifChanged. Keep it next to the declarations — a gain missing from
+ *  here still tunes on the dashboard but never reaches the motor, which looks like a dead
+ *  gain rather than a missing array entry. */
+public static final LoggedTunableNumber[] TUNABLE_GAINS = {KS, KV, KP};
 ```
 
 ```java
@@ -95,23 +120,28 @@ private void updateTunedGains() {
   LoggedTunableNumber.ifChanged(
       hashCode(),
       () -> {
-        Slot0Configs gains =
-            new Slot0Configs()
-                .withKP(MyMechanismConstants.kP.get())
-                .withKS(MyMechanismConstants.kS.get())
-                .withKV(MyMechanismConstants.kV.get());
+        // Rebuilding the config re-reads the gain accessors, which read the tunables.
+        Slot0Configs gains = MyMechanismConstants.getFXConfig().Slot0;
         PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(gains));
       },
-      MyMechanismConstants.kP, MyMechanismConstants.kS, MyMechanismConstants.kV);
+      MyMechanismConstants.TUNABLE_GAINS);
 }
 ```
 
-Four things in that block are deliberate.
+Five things in that block are deliberate.
 
-**`apply(Slot0Configs)`, not `apply(TalonFXConfiguration)`.** The Slot0 overload writes only the
-gain block. Applying a whole `TalonFXConfiguration` would also rewrite current limits, soft
-limits, inversion and feedback ratios — so a full apply in a tuning loop silently reverts any
-other change made on the device, including anything typed into Tuner X.
+**`apply(config.Slot0)`, not `apply(config)`.** The Slot0 overload writes only the gain block.
+Applying a whole `TalonFXConfiguration` would also rewrite current limits, soft limits, inversion
+and feedback ratios — so a full apply in a tuning loop silently reverts any other change made on
+the device, including anything typed into Tuner X.
+
+**The Slot0 block comes from `getFXConfig()`, not hand-built.** This one is easy to get wrong and
+the failure is silent. A hand-built `new Slot0Configs().withKS(...).withKP(...)` carries only the
+gains you list, leaving `GravityType` and `StaticFeedforwardSign` at their defaults. Tuning kP on
+an arm would then quietly switch its gravity compensation from `Arm_Cosine` to `Elevator_Static`,
+and the arm would start sagging at angles where it used to hold — while the log shows only that
+you changed kP. Taking the whole block from the canonical config means the gains and their
+modifiers cannot disagree.
 
 **Gated on `tuningMode`.** In competition the block returns immediately and does zero CAN work.
 The gains the robot runs are the compiled-in defaults, applied once at construction.
