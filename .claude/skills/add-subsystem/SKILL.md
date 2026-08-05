@@ -22,12 +22,16 @@ and a wrong guess produces code that compiles and misbehaves.
 | Need | Why it matters |
 |---|---|
 | Mechanism name | Package name, log key, command names |
-| Motor count, and which is the leader | Determines whether a `Follower` is generated |
+| **Motor model — Kraken X60 or X44** | Sets free speed and the sim model, via `MotorSpecs` |
+| Motor count, and which is the leader | Determines whether a `Follower` is generated. Torque scales with count; free speed does not |
 | CAN IDs and bus for each device | A wrong ID silently commands the wrong motor |
 | Follower orientation — same way or opposite | Wrong means the motors fight; it cooks a gearbox |
-| Gear ratio, motor rotations per mechanism rotation | Everything downstream is in the wrong units without it |
+| **Gear ratio**, motor rotations per mechanism rotation | Everything downstream is in the wrong units without it, and it sets the computed top speed |
 | External CANcoder? On what shaft? | Decides `RotorToSensorRatio` vs `SensorToMechanismRatio` and whether `FusedCANcoder` is used |
 | Control mode — velocity or position | Picks `getVelocityFXConfig()` or `getPositionFXConfig()` and the request type |
+| **Rotating or linear?** | Decides whether positions are degrees or inches, and which profile defaults apply |
+| **Linear only: drum/sprocket PITCH diameter** | The only way to turn rotations into inches. Pitch diameter, not the outer diameter of the flange |
+| **Linear only: rigging stage count** | A 2-stage cascade travels twice per rotation. Miss it and every height is off by an exact integer factor |
 | Gravity-affected? Arm or elevator? | Decides `kG` and `GravityTypeValue` |
 | Travel limits, if position-controlled | Soft limits. Without them a position goal can drive a mechanism into itself |
 | Setpoints it gets commanded to | These go in `Constants.Setpoints` |
@@ -35,6 +39,47 @@ and a wrong guess produces code that compiles and misbehaves.
 
 If the user gives a mechanism type but not the details ("add an elevator"), ask once with
 the specifics batched, rather than asking one at a time or inventing answers.
+
+**Never guess the drum diameter or the stage count.** Both silently scale every height the
+mechanism reports, so wrong values produce a subsystem that compiles, runs, logs plausible
+numbers, and is wrong everywhere. Ask.
+
+---
+
+## Step 1b — Units, and the profile defaults
+
+These are fixed conventions. Do not invent alternatives per mechanism.
+
+| Quantity | Unit |
+|---|---|
+| Velocity | **RPM** |
+| Acceleration | **RPM per second** |
+| Rotating mechanism position | **degrees** |
+| Linear mechanism position | **inches** |
+| Gains | amps (every closed loop is `TorqueCurrentFOC`) |
+
+Phoenix works in rotations and rotations per second. Convert **once**, at the config
+boundary, using the helpers in the constants file — never with a bare `/ 60.0` sprinkled
+through the IO.
+
+Compute the top speed rather than guessing it:
+
+```java
+public static final MotorSpecs MOTOR = MotorSpecs.KRAKEN_X60_FOC;
+public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(SENSOR_TO_MECHANISM_RATIO);
+```
+
+Motion Magic defaults, which are tunable once set:
+
+| Mechanism | Cruise velocity | Acceleration |
+|---|---|---|
+| Linear position | `MAX_SPEED_RPM / 2` | 9000 RPM/s |
+| Rotation position | 60 RPM | 300 RPM/s |
+| Velocity | n/a — the setpoint is the cruise | 9000 RPM/s |
+
+A cruise velocity above `MAX_SPEED_RPM` does not fail loudly. The motor saturates and the
+profile stops being followed, which looks like bad tuning rather than an impossible request
+— so state the computed top speed in your report.
 
 ---
 
@@ -84,9 +129,15 @@ This split is the one most often gotten wrong. See `.claude/rules/03-commands.md
 | Setpoints — what it is commanded to | `Constants.Setpoints` |
 | Command timeouts | `Constants.Waits` |
 
-Real-robot gains are `LoggedTunableNumber`s so they can be tuned without a redeploy; sim
-gains stay plain doubles. If the mechanism is closed-loop, include the `updateTunedGains()`
-block from the scaffold's `ExampleSubsystemIOReal`. See `docs/tunables.md`.
+Real-robot gains and the Motion Magic profile are `LoggedTunableNumber`s so they can be tuned
+without a redeploy; sim gains stay plain doubles. Gear ratio and `MAX_SPEED_RPM` are static —
+they describe the machine, not a knob.
+
+If the mechanism is closed-loop, include the `updateTunedConfig()` block from the scaffold's
+`ExampleSubsystemIOReal`. It must apply **both** `config.Slot0` and `config.MotionMagic`:
+the gains are in the first, cruise and acceleration in the second, and applying only Slot0
+leaves the profile knobs moving on the dashboard while the mechanism ignores them. See
+`docs/tunables.md`.
 
 **`RobotContainer` must end up with no bare numbers in it.** If a unit import is still
 needed there, a setpoint was left behind.

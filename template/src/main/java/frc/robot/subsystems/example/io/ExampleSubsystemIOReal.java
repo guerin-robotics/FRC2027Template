@@ -4,7 +4,7 @@ import static edu.wpi.first.units.Units.*;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
-import com.ctre.phoenix6.configs.Slot0Configs;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.MotionMagicVelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
@@ -16,6 +16,8 @@ import frc.lib.LoggedTunableNumber;
 import frc.lib.PhoenixUtil;
 import frc.robot.Constants;
 import frc.robot.subsystems.example.ExampleSubsystemConstants;
+import java.util.Arrays;
+import java.util.stream.Stream;
 
 /**
  * Real hardware implementation of ExampleSubsystemIO.
@@ -28,6 +30,17 @@ import frc.robot.subsystems.example.ExampleSubsystemConstants;
  * updateInputs()
  */
 public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
+
+  /**
+   * Every dashboard value that gets pushed to the Talon: the Slot0 gains plus the Motion Magic
+   * profile. Built once so a value cannot be tunable but unwatched — a tunable missing from this
+   * list still moves on the dashboard and never reaches the motor.
+   */
+  private static final LoggedTunableNumber[] LIVE_TUNABLES =
+      Stream.concat(
+              Arrays.stream(ExampleSubsystemConstants.TUNABLE_GAINS),
+              Arrays.stream(ExampleSubsystemConstants.TUNABLE_PROFILE))
+          .toArray(LoggedTunableNumber[]::new);
 
   private final TalonFX motor;
 
@@ -106,18 +119,18 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     inputs.motorPosition = motorPosition.getValue();
     inputs.motorTemperature = motorTemperature.getValue();
 
-    updateTunedGains();
+    updateTunedConfig();
   }
 
   /**
-   * Pushes dashboard-edited gains to the Talon, but only when one actually moved.
+   * Pushes dashboard-edited gains and profile values to the Talon, but only when one moved.
    *
-   * <p>Slot0 gains live in flash on the motor controller, not in RAM on the roboRIO — that is why
-   * the Talon can close its loop at 1 kHz instead of at our 50 Hz. The cost is that changing one is
-   * a blocking CAN transaction rather than a field write, so this cannot be done unconditionally
+   * <p>Both live in flash on the motor controller, not in RAM on the roboRIO — that is why the
+   * Talon can close its loop at 1 kHz instead of at our 50 Hz. The cost is that changing one is a
+   * blocking CAN transaction rather than a field write, so this cannot be done unconditionally
    * every loop the way a WPILib {@code PIDController} gain can.
    *
-   * <p>Three things here are deliberate:
+   * <p>Five things here are deliberate:
    *
    * <ul>
    *   <li><b>Gated on {@code tuningMode}.</b> In competition this returns immediately and does zero
@@ -131,6 +144,9 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
    *       its gravity compensation from {@code Arm_Cosine} to {@code Elevator_Static}. Taking the
    *       whole block from the canonical config means the gains and their modifiers can never
    *       disagree.
+   *   <li><b>Slot0 <i>and</i> MotionMagic.</b> The gains are in Slot0, but cruise velocity and
+   *       acceleration are in MotionMagic. Applying only Slot0 leaves the profile knobs moving on
+   *       the dashboard while the mechanism ignores them, which reads as a broken tunable.
    *   <li><b>{@code ifChanged}, not every loop.</b> Expect the one loop it fires on to overrun the
    *       20 ms budget. That is acceptable in a tuning session, which is the only time it can
    *       happen.
@@ -142,7 +158,7 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
    *
    * <p>See docs/tunables.md.
    */
-  private void updateTunedGains() {
+  private void updateTunedConfig() {
     if (!Constants.tuningMode) {
       return;
     }
@@ -150,11 +166,16 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     LoggedTunableNumber.ifChanged(
         hashCode(),
         () -> {
-          // Rebuilding the config re-reads every gain accessor, which reads the tunables.
-          Slot0Configs gains = ExampleSubsystemConstants.getVelocityFXConfig().Slot0;
-          PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(gains));
+          // Rebuilding the config re-reads every accessor, which reads the tunables.
+          TalonFXConfiguration config = ExampleSubsystemConstants.getVelocityFXConfig();
+
+          // BOTH blocks. The gains are in Slot0, but cruise velocity and acceleration are in
+          // MotionMagic — apply only Slot0 and the profile knobs move on the dashboard while
+          // the mechanism ignores them, which reads as "the tunable is broken".
+          PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.Slot0));
+          PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.MotionMagic));
         },
-        ExampleSubsystemConstants.TUNABLE_GAINS);
+        LIVE_TUNABLES);
   }
 
   @Override

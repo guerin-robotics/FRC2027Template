@@ -13,8 +13,12 @@ Copy and fill in the bracketed values before sending.
 Add a new subsystem for [MECHANISM NAME].
 
 Hardware:
+- Motor model: [Kraken X60 / Kraken X44], count: [N]
 - Motor: [TalonFX / other] CAN ID [XX] on ["rio" / "Canivore"] bus
 - [Additional motor if follower: TalonFX CAN ID XX, opposes leader: yes/no]
+- Gear ratio: [XX]:1 (motor rotations per mechanism rotation)
+- Mechanism type: [rotating / linear]
+- [Linear only: drum or sprocket PITCH diameter XX in, rigging stage count N]
 - [Encoder if position-controlled: CANcoder CAN ID XX on [bus]]
 - Control mode: [VoltageOut / VelocityTorqueCurrentFOC / MotionMagicTorqueCurrentFOC]
 
@@ -32,9 +36,11 @@ Logged signals needed:
 State queries needed (for Triggers or commands):
 - [e.g.: isAtVelocity() — true when within 200 RPM of target]
 
-Setpoints (what it gets commanded to):
-- [e.g.: intake velocity 30 rot/s, unjam velocity -20 rot/s]
+Setpoints (what it gets commanded to) — velocities in RPM, rotating positions in
+degrees, linear positions in inches:
+- [e.g.: intake velocity 1800 RPM, unjam velocity -1200 RPM]
 - [e.g.: stow height 0 in, score height 24 in]
+- [e.g.: stow angle 0 deg, deployed angle 95 deg]
 - Put these in Constants.Setpoints, not in the subsystem constants file and not
   in RobotContainer. Guess reasonable starting values and mark them as unmeasured.
 

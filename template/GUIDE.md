@@ -27,6 +27,47 @@ subsystems/myMechanism/
 commands/MyMechanismCommands.java   ← static factories, all .withName()'d
 ```
 
+### Units
+
+Fixed across every mechanism, so nobody has to check which one a given file uses:
+
+| Quantity | Unit |
+|---|---|
+| Velocity | RPM |
+| Acceleration | RPM per second |
+| Rotating position | degrees |
+| Linear position | inches |
+| Gains | amps — every closed loop is `TorqueCurrentFOC` |
+
+Phoenix works in rotations and rotations per second. The conversion happens **once**, in
+`getFXConfig()`, through the helpers at the top of the constants file. A bare `/ 60.0` in an IO
+class is how a factor-of-sixty error gets in — it compiles, deploys, and moves the mechanism,
+just not the way anyone expected.
+
+Top speed is computed, never typed:
+
+```java
+public static final MotorSpecs MOTOR = MotorSpecs.KRAKEN_X60_FOC;
+public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(SENSOR_TO_MECHANISM_RATIO);
+```
+
+`MotorSpecs` reads free speeds from WPILib's `DCMotor`, so the number driving the speed math and
+the number driving the sim model are the same one. It also builds the sim gearbox, so those
+cannot drift apart either.
+
+Motion Magic defaults — tunable once set, because a profile is what you most want to adjust with
+the mechanism in front of you, and it is far safer to change than a gain:
+
+| Mechanism | Cruise velocity | Acceleration |
+|---|---|---|
+| Linear position | `MAX_SPEED_RPM / 2` | 9000 RPM/s |
+| Rotation position | 60 RPM | 300 RPM/s |
+| Velocity | n/a — the setpoint is the cruise | 9000 RPM/s |
+
+Gear ratio and `MAX_SPEED_RPM` stay static. They describe how the machine is built.
+
+---
+
 **Setpoints are the exception — they do not live here.** `MyMechanismConstants.java` describes
 how the mechanism is *built*: gains, gear ratios, current limits, soft limits, tolerances, the
 sim model. What the mechanism is *commanded to* — velocities, heights, angles, voltages — goes
@@ -84,7 +125,7 @@ competition seasons. Don't rewrite them; extend them.
 |---|---|
 | All mechanism subsystems | New mechanisms every year |
 | `Constants.CanIds` / `.Setpoints` / `.Waits` / `.Thresholds` | New IDs, setpoints and timeouts every year — sections exist, fill them in |
-| `Triggers.java` | Button and state triggers — doesn't exist yet, create it once bindings outgrow `RobotContainer` |
+| `Triggers.java` | Button and state triggers. Exists with the drive bindings; add an accessor per robot function |
 | Game geometry in `FieldConstants` | Field elements change completely |
 | Scoring targets and zone logic in `RobotState` | Field coordinates change |
 | A sequences file (2026 had `ShootSequences` / `SpitSequences`) | The scoring pipeline is the game |

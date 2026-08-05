@@ -86,10 +86,13 @@ public class ExampleSubsystem extends SubsystemBase {
    * for a reason nobody recorded.
    */
   public boolean isAtVelocity() {
+    // Compared in RPM, because that is the unit the tolerance is written in and the unit
+    // anyone reading the log will be thinking in.
     boolean atVelocity =
-        Math.abs(inputs.motorVelocity.in(RotationsPerSecond) - goalVelocity.in(RotationsPerSecond))
-            < ExampleSubsystemConstants.VELOCITY_TOLERANCE_ROTATIONS_PER_SEC;
+        Math.abs(inputs.motorVelocity.in(RPM) - goalVelocity.in(RPM))
+            < ExampleSubsystemConstants.VELOCITY_TOLERANCE_RPM;
     Logger.recordOutput("ExampleSubsystem/AtVelocity", atVelocity);
+    Logger.recordOutput("ExampleSubsystem/VelocityRpm", inputs.motorVelocity.in(RPM));
     return atVelocity;
   }
 
@@ -101,10 +104,14 @@ public class ExampleSubsystem extends SubsystemBase {
    * goal, is worse than no query at all.
    */
   public boolean isAtPosition() {
+    // Degrees for a rotating mechanism. For a linear one, convert both sides to inches with
+    // ExampleSubsystemConstants.rotationsToInches() and compare against
+    // POSITION_TOLERANCE_INCHES instead — a tolerance in degrees means nothing on a lift.
     boolean atPosition =
-        Math.abs(inputs.motorPosition.in(Rotations) - goalPosition.in(Rotations))
-            < ExampleSubsystemConstants.POSITION_TOLERANCE_ROTATIONS;
+        Math.abs(inputs.motorPosition.in(Degrees) - goalPosition.in(Degrees))
+            < ExampleSubsystemConstants.POSITION_TOLERANCE_DEGREES;
     Logger.recordOutput("ExampleSubsystem/AtPosition", atPosition);
+    Logger.recordOutput("ExampleSubsystem/PositionDegrees", inputs.motorPosition.in(Degrees));
     return atPosition;
   }
 }

@@ -1,5 +1,11 @@
 package frc.robot.subsystems.example;
 
+import static edu.wpi.first.units.Units.Degrees;
+import static edu.wpi.first.units.Units.RPM;
+import static edu.wpi.first.units.Units.Rotations;
+import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
+import static edu.wpi.first.units.Units.Second;
 import static edu.wpi.first.units.Units.Seconds;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
@@ -11,6 +17,7 @@ import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Time;
 import frc.lib.LoggedTunableNumber;
+import frc.lib.MotorSpecs;
 import frc.robot.Constants;
 
 /**
@@ -187,34 +194,169 @@ public class ExampleSubsystemConstants {
   // public static final double SENSOR_DISCONTINUITY_POINT = ;
 
   // ==========================================================================================
-  // MOTION PROFILE
+  // LINEAR GEOMETRY — delete this block entirely for a rotating mechanism
   // ==========================================================================================
+  //
+  // Phoenix only ever knows about rotations. Turning those into inches of carriage travel needs
+  // two numbers that cannot be derived from the gear ratio, so both have to be measured or read
+  // off the CAD.
+  //
+  // TODO: supply the drum geometry, then uncomment.
+  //
+  // DRUM_PITCH_DIAMETER is the diameter at which the rope, belt or chain actually rides — the
+  // PITCH diameter, not the outer diameter of the spool flange. On a sprocket it is the chain
+  // pitch circle; on a pulley it is the belt pitch line. Using the outer diameter makes every
+  // height read high by a few percent, which looks like a tuning problem for a long time.
+  //
+  // STAGE_COUNT is the rigging multiplier, and it is the one that gets missed. A single-stage
+  // lift moves one circumference per drum rotation. A 2-stage cascade moves TWICE that, because
+  // the stages travel together. Get this wrong and every height is off by an exact integer
+  // factor — which is the tell, if you ever see it.
+  //
+  // public static final Distance DRUM_PITCH_DIAMETER = Inches.of();
+  // public static final int STAGE_COUNT = ;
+  //
+  // Travel per mechanism rotation, once both are known:
+  //
+  //   public static final Distance TRAVEL_PER_ROTATION =
+  //       DRUM_PITCH_DIAMETER.times(Math.PI * STAGE_COUNT);
+  //
+  //   public static double inchesToRotations(double inches) {
+  //     return inches / TRAVEL_PER_ROTATION.in(Inches);
+  //   }
+  //
+  //   public static double rotationsToInches(double rotations) {
+  //     return rotations * TRAVEL_PER_ROTATION.in(Inches);
+  //   }
 
-  /** Profile acceleration, in mechanism rotations per second squared. */
-  public static final double MOTION_MAGIC_ACCELERATION = 100.0;
+  // ==========================================================================================
+  // UNIT CONVERSION — the boundary between team units and Phoenix units
+  // ==========================================================================================
+  //
+  // We declare in RPM, RPM/sec, degrees and inches because those are the units a person can
+  // reason about with the robot in front of them. Phoenix works in rotations and rotations per
+  // second, always.
+  //
+  // Every conversion lives here so there is exactly one place to check, and each is written with
+  // WPILib units rather than a bare /60.0 or /360.0. An inverted magic number is a factor-of-60
+  // error that compiles, deploys, and moves the mechanism — just not the way anyone expected.
+
+  /** Mechanism RPM to the rotations/sec Phoenix wants. */
+  public static double rpmToRotationsPerSec(double rpm) {
+    return RPM.of(rpm).in(RotationsPerSecond);
+  }
 
   /**
-   * Profile cruise velocity, in mechanism rotations per second.
+   * Mechanism RPM/sec to the rotations/sec² Phoenix wants.
+   *
+   * <p>Typed as an angular <i>acceleration</i>, not an angular velocity. The numeric factor is the
+   * same 60 either way, so writing this with {@code RPM.of(...)} would give the right answer today
+   * — and would quietly stop being right the moment someone reuses the helper for something that is
+   * not a per-second rate.
+   */
+  public static double rpmPerSecToRotationsPerSecSquared(double rpmPerSec) {
+    return RPM.per(Second).of(rpmPerSec).in(RotationsPerSecondPerSecond);
+  }
+
+  /** Mechanism degrees to the rotations Phoenix wants. */
+  public static double degreesToRotations(double degrees) {
+    return Degrees.of(degrees).in(Rotations);
+  }
+
+  /** Phoenix rotations back to degrees, for logging and tolerance checks. */
+  public static double rotationsToDegrees(double rotations) {
+    return Rotations.of(rotations).in(Degrees);
+  }
+
+  // ==========================================================================================
+  // THEORETICAL TOP SPEED
+  // ==========================================================================================
+
+  /** Which motor drives this mechanism. Picks the free speed and the sim model together. */
+  public static final MotorSpecs MOTOR = MotorSpecs.KRAKEN_X60_FOC;
+
+  /** How many motors, leader and followers together. Torque scales with this; speed does not. */
+  public static final int MOTOR_COUNT = 1;
+
+  /**
+   * Theoretical top speed at the mechanism, in RPM. Computed, never typed in.
+   *
+   * <p>This is a ceiling, not a target. Free speed is the motor with nothing attached; load,
+   * friction and the current limit all take a share. A cruise velocity above this does not fail
+   * loudly — the motor simply saturates and the profile stops being followed, which looks like
+   * sloppy tuning rather than an impossible request.
+   *
+   * <p>It is also the sanity check on the gear ratio. If this number is nowhere near what the
+   * mechanism has to do, the ratio is wrong, and catching that here beats catching it on the
+   * practice field.
+   */
+  public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(SENSOR_TO_MECHANISM_RATIO);
+
+  // ==========================================================================================
+  // MOTION PROFILE
+  // ==========================================================================================
+  //
+  // UNITS: RPM and RPM per second, throughout. Phoenix works in rotations and rotations per
+  // second, so getFXConfig() converts at the boundary — that division by 60 lives in exactly
+  // one place, and it is written with WPILib units rather than a bare /60.0 so it cannot be
+  // inverted by accident.
+  //
+  // Both are tunable. A profile is the thing you most want to adjust with the mechanism in
+  // front of you, and it is much safer to change than a gain: too slow just wastes time,
+  // whereas too much kP oscillates. See docs/tunables.md.
+
+  /**
+   * Profile acceleration, in mechanism RPM per second.
+   *
+   * <p>Defaults: <b>9000</b> for linear position and for velocity mechanisms, <b>300</b> for
+   * rotation position.
+   *
+   * <p>9000 RPM/s is deliberately close to unlimited — most mechanisms reach cruise in a few tens
+   * of milliseconds, so motion ends up bounded by cruise velocity and the current limit rather than
+   * by this number. That is the intent for rollers and lifts. Rotation mechanisms get 300 because a
+   * fast-accelerating arm hits its hard stop hard, and because gravity torque changes with angle in
+   * a way an aggressive profile will not respect.
+   */
+  public static final LoggedTunableNumber ACCELERATION_RPM_PER_SEC =
+      new LoggedTunableNumber("Example/AccelRpmPerSec", 9000.0);
+
+  /**
+   * Profile cruise velocity, in mechanism RPM.
    *
    * <p>Position control only — meaningless for a velocity profile, where the setpoint is the
    * cruise.
+   *
+   * <p>Defaults: <b>half of {@link #MAX_SPEED_RPM}</b> for linear mechanisms, <b>60 RPM</b> for
+   * rotation. Half of theoretical leaves headroom for load, which a lift needs because it fights
+   * gravity the whole way up. The flat 60 for rotation is a deliberately slow starting point: arms
+   * are where an over-fast profile does mechanical damage, so it is raised on purpose rather than
+   * lowered after something breaks.
    */
-  public static final double MOTION_MAGIC_CRUISE_VELOCITY = 10.0;
+  public static final LoggedTunableNumber CRUISE_VELOCITY_RPM =
+      new LoggedTunableNumber("Example/CruiseVelocityRpm", MAX_SPEED_RPM / 2.0);
+
+  /** Everything re-applied to the Talon when a dashboard value moves. */
+  public static final LoggedTunableNumber[] TUNABLE_PROFILE = {
+    ACCELERATION_RPM_PER_SEC, CRUISE_VELOCITY_RPM
+  };
 
   // ==========================================================================================
   // TOLERANCES
   // ==========================================================================================
 
   /**
-   * How close counts as "at velocity", in mechanism rotations/sec.
+   * How close counts as "at velocity", in mechanism RPM.
    *
    * <p>Too tight and the mechanism never reports ready, so every sequence runs to its timeout
    * instead of proceeding. Too loose and it acts before it has arrived.
    */
-  public static final double VELOCITY_TOLERANCE_ROTATIONS_PER_SEC = 2.0;
+  public static final double VELOCITY_TOLERANCE_RPM = 120.0;
 
-  /** How close counts as "at position", in mechanism rotations. 1° is 1/360. */
-  public static final double POSITION_TOLERANCE_ROTATIONS = 1.0 / 360.0;
+  /** How close counts as "at position", in degrees. */
+  public static final double POSITION_TOLERANCE_DEGREES = 1.0;
+
+  /** How close counts as "at position" for a linear mechanism, in inches. */
+  public static final double POSITION_TOLERANCE_INCHES = 0.25;
 
   // ==========================================================================================
   // GAINS — REAL ROBOT
@@ -284,7 +426,7 @@ public class ExampleSubsystemConstants {
     private Sim() {}
 
     /** The motor(s) driving this mechanism, for the sim model. */
-    public static final DCMotor MOTOR = DCMotor.getKrakenX60Foc(1);
+    public static final DCMotor MOTOR = ExampleSubsystemConstants.MOTOR.gearbox(MOTOR_COUNT);
 
     /** How many motors drive it. Must agree with {@link #MOTOR}. */
     public static final int NUM_MOTORS = 1;
@@ -410,7 +552,10 @@ public class ExampleSubsystemConstants {
 
     // ---- Motion profile ----
     // Acceleration only. For a velocity profile the setpoint IS the cruise.
-    config.MotionMagic.MotionMagicAcceleration = MOTION_MAGIC_ACCELERATION;
+    // RPM/sec in, rotations/sec^2 out. A velocity profile has no cruise velocity — the
+    // commanded velocity IS the cruise.
+    config.MotionMagic.MotionMagicAcceleration =
+        rpmPerSecToRotationsPerSecSquared(ACCELERATION_RPM_PER_SEC.get());
 
     return config;
   }
@@ -489,8 +634,10 @@ public class ExampleSubsystemConstants {
     // ---- Motion profile ----
     // A raw position request commands maximum effort instantly, which on a mechanism with real
     // inertia means slamming into the setpoint and into the hard stops.
-    config.MotionMagic.MotionMagicAcceleration = MOTION_MAGIC_ACCELERATION;
-    config.MotionMagic.MotionMagicCruiseVelocity = MOTION_MAGIC_CRUISE_VELOCITY;
+    // RPM and RPM/sec in, rotations/sec and rotations/sec^2 out.
+    config.MotionMagic.MotionMagicAcceleration =
+        rpmPerSecToRotationsPerSecSquared(ACCELERATION_RPM_PER_SEC.get());
+    config.MotionMagic.MotionMagicCruiseVelocity = rpmToRotationsPerSec(CRUISE_VELOCITY_RPM.get());
 
     return config;
   }
