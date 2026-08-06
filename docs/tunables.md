@@ -221,9 +221,22 @@ saved until it is committed.
 
 ## Discipline
 
-**Write the values back into the code and commit them.** Dashboard values live in NetworkTables
-and are gone at the next reboot. A tuning session that ends without a commit accomplished
-nothing. This is the single most common way teams lose an afternoon.
+**Write the values back into the code and commit them.** This is manual, and deliberately so —
+see below. A tuning session that ends without a commit leaves the robot reverting to its
+compiled-in defaults at the next reboot.
+
+The numbers are not lost, though. `LoggedTunableNumber` wraps AdvantageKit's
+`LoggedNetworkNumber`, which logs its value every loop, so every tunable is recorded in the
+`.wpilog` under:
+
+```
+NetworkInputs/Tuning/Elevator/kP
+NetworkInputs/Tuning/Elevator/CruiseVelocityRpm
+```
+
+If a session ends before anyone writes them down, open the log in AdvantageScope and read them
+off the end of the run. Treat that as a recovery path, not a workflow — a value that exists
+only in a log is not a value the robot will use.
 
 **`tuningMode` must be false for competition.** With it on, every tunable does NetworkTables
 traffic inside the 20 ms loop, and the robot is one stray dashboard edit away from a different
@@ -238,6 +251,43 @@ to make a mechanism feel stronger is how windings get destroyed — see
 **Tunables are for gains and thresholds, not setpoints.** Setpoints live in
 `Constants.Setpoints` where the drive team can find them. A setpoint that only exists on a
 dashboard is a setpoint nobody can review.
+
+---
+
+## What should be tunable
+
+Not everything benefits from a dashboard knob, and some things are actively worse for having
+one.
+
+| Value | Tunable? | Why |
+|---|---|---|
+| kS, kV, kA, kG, kP, kI, kD | **Yes** | The whole point — dozens of iterations per session |
+| Motion Magic cruise velocity and acceleration | **Yes** | What you most want to adjust with the mechanism in front of you, and far safer to change than a gain |
+| Alignment and readiness thresholds | **Yes** | Earned from watching real behaviour |
+| Gear ratio, `MAX_SPEED_RPM` | No | Describes how the machine is built. If it is wrong, the fix is in CAD or the constants, not a knob |
+| Current limits | No | A protection boundary, not a performance knob. A dashboard-adjustable current limit is one someone raises at 11 pm to make a mechanism feel stronger |
+| Soft limits | No | A dashboard-adjustable soft limit is a mechanism you can drive into its own hard stop from a laptop |
+| Magnet offset, drum geometry, inversion | No | Calibration and physical fact. Changing them at runtime makes every logged position mean something different mid-session |
+| Setpoints | No — `Constants.Setpoints` | The drive team asks for these by name; they need to be reviewable in a diff |
+
+The dividing line: **tunable if you would change it while watching the mechanism, static if
+changing it would invalidate what you already measured.**
+
+---
+
+## Why writing back is manual
+
+Nothing in this codebase writes a tuned value into a source file, and nothing persists one to
+the roboRIO. That is a choice, not a gap.
+
+A value persisted on the robot is a value that exists nowhere in version control — the same
+problem described above for Tuner X, arriving by a different route. The guarantee worth having
+is that **any robot, freshly flashed from this repo, behaves the way the repo says it does.**
+A file on the RIO holding last Tuesday's gains breaks that quietly, and the symptom is one
+robot behaving differently from another with no diff to explain it.
+
+So the transcription step stays. It is the moment the value enters version control, and it is
+cheap next to the session that produced it.
 
 ---
 

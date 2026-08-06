@@ -256,5 +256,7 @@ If the request needs one of those, say so and ask.
 - `.claude/rules/01-architecture.md` — IO layer, `RobotState`, `Triggers`
 - `.claude/rules/02-hardware.md` — CAN, config, inversion, signal frequency
 - `.claude/rules/03-commands.md` — factories, timeouts, where setpoints live
+- `docs/new-mechanism-bringup.md` — **what the user does next**: the ordered path from a
+  compiling subsystem to a tuned one. Point them at it in your report
 - `docs/tunables.md` — tunable gains and the Phoenix Tuner X ownership trap
 - `docs/characterization-and-tuning.md` — measuring what the scaffold left as placeholders

@@ -20,7 +20,8 @@ Process and workflow docs. Nothing in them depends on a particular robot or game
 | [change-classification.md](change-classification.md) | The five risk levels, with worked examples |
 | [pre-match-checklist.md](pre-match-checklist.md) | Event-day checklist. Structure is ready; fill in the 2027 mechanism checks and device count, then print it |
 | [characterization-and-tuning.md](characterization-and-tuning.md) | Running the FF/wheel-radius/SysId routines and turning their output into gains. Covers the TorqueCurrentFOC units trap, drive and steer specifically, then a general recipe split by velocity vs position control |
-| [tunables.md](tunables.md) | Changing values live instead of redeploying. RAM-side vs TalonFX Slot0 gains, where Phoenix Tuner X fits, and why gains typed into Tuner X get silently overwritten at the next boot |
+| [tunables.md](tunables.md) | Changing values live instead of redeploying. RAM-side vs TalonFX Slot0 gains, what should and should not be tunable, where Phoenix Tuner X fits, and why gains typed into Tuner X get silently overwritten at the next boot |
+| [new-mechanism-bringup.md](new-mechanism-bringup.md) | The ordered path from "the subsystem compiles" to "the mechanism is trusted": what to set before it moves, first open-loop motion, gains, motion profile, tolerances, and writing it all back |
 
 ## Procedure kept, data needs filling in
 

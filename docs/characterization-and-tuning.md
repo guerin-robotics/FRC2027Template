@@ -88,7 +88,9 @@ The heading-hold gains in `DriveCommands` are wired this way as the worked examp
 Two rules, both learned the hard way by teams every year:
 
 1. **Write the values back into the code and commit them.** Dashboard values live in
-   NetworkTables and are gone at the next reboot. A tuning session that ends without a commit
+   NetworkTables, so the robot reverts to its compiled-in defaults at the next reboot. They are
+   recoverable from the log under `NetworkInputs/Tuning/...` if nobody wrote them down, but that
+   is a recovery path, not a workflow — see `docs/tunables.md`. A session that ends without a commit
    accomplished nothing.
 2. **`tuningMode` must be false for competition.** With it on, every tunable does NT traffic
    inside the 20 ms loop, and the robot is one stray dashboard edit away from a different gain
@@ -546,6 +548,11 @@ Plot `Drive/Module0/TurnTorqueCurrentAmps` against `SwerveStates/Measured` angle
 ---
 
 ## Part 3 — Generalized: Any New Mechanism
+
+> Gains are step 2 of 5. `docs/new-mechanism-bringup.md` has the full order — the gearing,
+> inversion, soft limits and encoder calibration that must be right first, and the motion
+> profile and tolerances that come after. A gain measured against a wrong gear ratio is a
+> number you will throw away.
 
 Everything above is drive-specific. Here is the general procedure for a 2027 mechanism.
 
