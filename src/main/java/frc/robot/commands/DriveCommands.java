@@ -45,6 +45,12 @@ import org.littletonrobotics.junction.Logger;
  *       () -&gt; RobotState.getInstance().getAngleToTarget(SOME_TARGET));
  * }
  * </pre>
+ *
+ * <p>{@link #driveToPose} is the same idea one level up: instead of holding a heading while the
+ * driver steers, it drives translation AND heading to a fixed field pose via PID, with no
+ * pathfinding. Reach for it for pick/place-style games where the destination is a specific spot (a
+ * station, a fixed scoring position) and the path there never has anything to avoid — {@link
+ * Drive#pathfindToPose} is the pathfinding alternative when that is not true.
  */
 public class DriveCommands {
   private static final double DEADBAND = 0.1;
@@ -68,6 +74,20 @@ public class DriveCommands {
   static {
     angleController.enableContinuousInput(-Math.PI, Math.PI);
   }
+
+  // Translation controller for driveToPose. UNTUNED PLACEHOLDER — this is a new capability with
+  // no tuning data behind it yet, unlike angleController above. Run a /pid-tune (or sim) session
+  // and commit the result before binding this to a button. driveToPose reuses angleController
+  // for heading rather than declaring a second one, for the same reason angleController is
+  // shared and static: every command in this class requires the drive subsystem, so only one
+  // can run at a time, and sharing means one set of dashboard keys instead of two.
+  private static final LoggedTunableProfiledPID driveController =
+      new LoggedTunableProfiledPID("Drive/ToPose", 3.0, 0.0, 0.0, 3.0, 3.0);
+
+  // How close counts as "there" for driveToPose. Tight enough that DistanceErrorMeters settles
+  // near zero at rest; loose enough that direction-vector noise right at the goal (the atan2 of
+  // a near-zero vector) doesn't turn into commanded chatter.
+  private static final double DRIVE_TO_POSE_TOLERANCE_METERS = 0.02;
 
   private static final double FF_START_DELAY = 2.0; // Secs
 
@@ -248,6 +268,85 @@ public class DriveCommands {
               Logger.recordOutput("AutoAim/AngleErrorRad", 0.0);
             })
         .withName("Drive_JoystickAtAngle");
+  }
+
+  /**
+   * Drives straight to a fixed field pose using PID control on both translation and heading — no
+   * pathfinding, no obstacle avoidance. See {@link Drive#pathfindToPose} for the pathfinding
+   * alternative when the route there is not always clear.
+   *
+   * <p>Runs until interrupted, the same as {@link #joystickDriveAtAngle} — it does not finish on
+   * its own. To gate a follow-up action on arrival, build an "is aligned" check at the call site
+   * from {@code drive.getPose()} against the same target pose (see the Ready → Align → Act pattern
+   * in {@code .claude/rules/03-commands.md}); {@code AutoAim/DriveToPose/*} is logged every loop to
+   * make that easy to verify against a match log.
+   *
+   * @param drive Drive subsystem
+   * @param targetPoseSupplier Field-relative goal pose, blue-alliance origin. Read every loop, so a
+   *     moving target is fine. Not alliance-flipped here — flip it with {@code AllianceFlipUtil} at
+   *     the call site if the target should mirror by alliance.
+   */
+  public static Command driveToPose(Drive drive, Supplier<Pose2d> targetPoseSupplier) {
+    return Commands.run(
+            () -> {
+              drive.areWheelsXed = false;
+
+              // Pick up live gain edits while tuning, same as joystickDriveAtAngle.
+              angleController.updateGains();
+              driveController.updateGains();
+
+              Pose2d current = drive.getPose();
+              Pose2d target = targetPoseSupplier.get();
+
+              Translation2d toTarget = target.getTranslation().minus(current.getTranslation());
+              double distanceMeters = toTarget.getNorm();
+
+              // Profiled PID drives the scalar distance to zero, so its output is the rate the
+              // distance should be SHRINKING at — negative while far away (measurement=distance
+              // is above goal=0). Pointing that negative scalar along the target-minus-current
+              // vector would aim it away from the target, not at it; pointing it along the
+              // reverse (current-minus-target) vector cancels the sign and aims correctly.
+              double driveVelocity = driveController.calculate(distanceMeters, 0.0);
+              Translation2d velocity =
+                  distanceMeters < DRIVE_TO_POSE_TOLERANCE_METERS
+                      ? Translation2d.kZero
+                      : new Translation2d(
+                          driveVelocity,
+                          current.getTranslation().minus(target.getTranslation()).getAngle());
+
+              double omega =
+                  angleController.calculate(
+                      current.getRotation().getRadians(), target.getRotation().getRadians());
+
+              Logger.recordOutput("AutoAim/DriveToPose/TargetPose", target);
+              Logger.recordOutput("AutoAim/DriveToPose/CurrentPose", current);
+              Logger.recordOutput("AutoAim/DriveToPose/DistanceErrorMeters", distanceMeters);
+              Logger.recordOutput(
+                  "AutoAim/DriveToPose/AngleErrorRad", angleController.getPositionError());
+
+              // toTarget is already expressed in the absolute field frame (blue-alliance
+              // origin), so this only needs the actual robot heading to become robot-relative —
+              // unlike joystickDrive, there is no driver-perspective input here to alliance-flip.
+              drive.runVelocity(
+                  ChassisSpeeds.fromFieldRelativeSpeeds(
+                      velocity.getX(), velocity.getY(), omega, current.getRotation()));
+            },
+            drive)
+        .beforeStarting(
+            () -> {
+              Pose2d current = drive.getPose();
+              Pose2d target = targetPoseSupplier.get();
+              driveController.reset(current.getTranslation().getDistance(target.getTranslation()));
+              angleController.reset(current.getRotation().getRadians());
+            })
+        .finallyDo(
+            () -> {
+              Logger.recordOutput("AutoAim/DriveToPose/TargetPose", Pose2d.kZero);
+              Logger.recordOutput("AutoAim/DriveToPose/CurrentPose", Pose2d.kZero);
+              Logger.recordOutput("AutoAim/DriveToPose/DistanceErrorMeters", 0.0);
+              Logger.recordOutput("AutoAim/DriveToPose/AngleErrorRad", 0.0);
+            })
+        .withName("Drive_ToPose");
   }
 
   /**
