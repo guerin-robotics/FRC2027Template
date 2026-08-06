@@ -350,36 +350,53 @@ public class ExampleSubsystemConstants {
   // Both are tunable. A profile is the thing you most want to adjust with the mechanism in
   // front of you, and it is much safer to change than a gain: too slow just wastes time,
   // whereas too much kP oscillates. See docs/tunables.md.
+  //
+  // TODO: decide which kind of mechanism this is, then uncomment ONE block below.
+  //
+  // These are the only defaults in this file where the WRONG answer would still compile, which
+  // is why they are commented out like the values that cannot be guessed. Left with a fixed
+  // default, an arm copied from this scaffold silently inherits the lift's profile: 30x the
+  // acceleration it should have, aimed at a hard stop.
+  //
+  // ---- LINEAR position: elevator, lift, extension ----
+  // Half of theoretical leaves headroom for load, which a lift needs because it fights gravity
+  // the whole way up. 9000 RPM/s is close to unlimited on purpose — motion ends up bounded by
+  // cruise velocity and the current limit rather than by acceleration.
+  //
+  //   public static final double CRUISE_VELOCITY_RPM_DEFAULT = MAX_SPEED_RPM / 2.0;
+  //   public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 9000.0;
+  //
+  // ---- ROTATION position: arm, pivot, hood, turret ----
+  // A flat 60 RPM regardless of what the gearing could do, and 300 RPM/s. Both are deliberately
+  // slow starting points, meant to be raised on purpose rather than lowered after something
+  // breaks: an arm is where an over-fast profile does mechanical damage, and gravity torque
+  // changes with angle in a way an aggressive profile will not respect.
+  //
+  //   public static final double CRUISE_VELOCITY_RPM_DEFAULT = 60.0;
+  //   public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 300.0;
+  //
+  // ---- VELOCITY: roller, flywheel, feeder ----
+  // No cruise velocity — the commanded velocity IS the cruise. Delete CRUISE_VELOCITY_RPM
+  // below, and drop it from TUNABLE_PROFILE.
+  //
+  //   public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 9000.0;
 
   /**
-   * Profile acceleration, in mechanism RPM per second.
-   *
-   * <p>Defaults: <b>9000</b> for linear position and for velocity mechanisms, <b>300</b> for
-   * rotation position.
-   *
-   * <p>9000 RPM/s is deliberately close to unlimited — most mechanisms reach cruise in a few tens
-   * of milliseconds, so motion ends up bounded by cruise velocity and the current limit rather than
-   * by this number. That is the intent for rollers and lifts. Rotation mechanisms get 300 because a
-   * fast-accelerating arm hits its hard stop hard, and because gravity torque changes with angle in
-   * a way an aggressive profile will not respect.
+   * Profile acceleration, in mechanism RPM per second. Tunable — the value above is only the
+   * compiled-in default.
    */
   public static final LoggedTunableNumber ACCELERATION_RPM_PER_SEC =
-      new LoggedTunableNumber("Example/AccelRpmPerSec", 9000.0);
+      new LoggedTunableNumber("Example/AccelRpmPerSec", ACCELERATION_RPM_PER_SEC_DEFAULT);
 
   /**
-   * Profile cruise velocity, in mechanism RPM.
+   * Profile cruise velocity, in mechanism RPM. Tunable — the value above is only the compiled-in
+   * default.
    *
-   * <p>Position control only — meaningless for a velocity profile, where the setpoint is the
+   * <p>Position control only. Delete this for a velocity mechanism, where the setpoint is the
    * cruise.
-   *
-   * <p>Defaults: <b>half of {@link #MAX_SPEED_RPM}</b> for linear mechanisms, <b>60 RPM</b> for
-   * rotation. Half of theoretical leaves headroom for load, which a lift needs because it fights
-   * gravity the whole way up. The flat 60 for rotation is a deliberately slow starting point: arms
-   * are where an over-fast profile does mechanical damage, so it is raised on purpose rather than
-   * lowered after something breaks.
    */
   public static final LoggedTunableNumber CRUISE_VELOCITY_RPM =
-      new LoggedTunableNumber("Example/CruiseVelocityRpm", MAX_SPEED_RPM / 2.0);
+      new LoggedTunableNumber("Example/CruiseVelocityRpm", CRUISE_VELOCITY_RPM_DEFAULT);
 
   /** Everything re-applied to the Talon when a dashboard value moves. */
   public static final LoggedTunableNumber[] TUNABLE_PROFILE = {

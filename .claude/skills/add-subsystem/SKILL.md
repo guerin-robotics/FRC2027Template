@@ -103,6 +103,14 @@ Motion Magic defaults, which are tunable once set:
 | Rotation position | 60 RPM | 300 RPM/s |
 | Velocity | n/a — the setpoint is the cruise | 9000 RPM/s |
 
+The scaffold will not compile until you pick one — `CRUISE_VELOCITY_RPM_DEFAULT` and
+`ACCELERATION_RPM_PER_SEC_DEFAULT` are commented out for the same reason the gear ratio is.
+These are the only defaults where the wrong answer would still build, and an arm that
+inherits the lift's row gets 30x the acceleration it should have, aimed at a hard stop.
+
+Both end up as `LoggedTunableNumber`s, so the chosen value is only the compiled-in default
+and the starting dashboard value — the profile stays adjustable at runtime.
+
 A cruise velocity above `MAX_SPEED_RPM` does not fail loudly. The motor saturates and the
 profile stops being followed, which looks like bad tuning rather than an impossible request
 — so state the computed top speed in your report.
