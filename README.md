@@ -11,6 +11,127 @@ estimation, PathPlanner autos, and full AdvantageKit logging and replay. Nothing
 
 ---
 
+## Why This Repo Exists
+
+Every January the team rebuilt the same drivetrain, the same vision pipeline and the same
+logging setup, and spent kickoff week doing it instead of working on the game. This repo
+ends that. Four goals:
+
+1. **The robot drives on day one.** Field-relative swerve, AprilTag pose estimation and
+   PathPlanner autos are already here and already work. Kickoff week goes to the game.
+2. **Keep what was earned; drop what expires.** Vision rejection thresholds, current limits
+   and instrumentation came out of real match logs and stay. Mechanisms, game logic and 2026
+   field geometry are gone — they do not transfer and pretending they do is worse than an
+   empty file.
+3. **Instrument the failures that already cost us matches.** Brownouts, loop overruns,
+   truncated autos, a camera that died mid-event, a motor that rebooted — 2026 had all of
+   these and none of them were visible in a log. Each one now has a channel and an alert.
+   See the instrumentation table below.
+4. **The rules travel with the code.** `CLAUDE.md`, `.claude/rules/` and `docs/` encode the
+   architecture decisions, the hard stops and the bring-up order. A new student — or an
+   agent — gets the same guardrails the code was written under.
+
+---
+
+## Starting A 2027 Robot Repo — Use This Template, Do Not Fork
+
+This is a **GitHub template repository**. Every robot repo — competition bot, practice bot,
+offseason bot — is generated as a *new, independent repository* from this one. **Never fork
+it.**
+
+### Creating a robot repo
+
+In the browser, from
+[guerin-robotics/FRC2027Template](https://github.com/guerin-robotics/FRC2027Template):
+
+1. Click the green **Use this template** → **Create a new repository**.
+2. Owner: **guerin-robotics**. Name it for the robot, not the season template —
+   e.g. `Rebuilt2027`, `PracticeBot2027`.
+3. Visibility: **Private** while the season is in progress.
+4. Leave **Include all branches** unchecked. You want `main` only.
+
+Or from the command line:
+
+```bash
+gh repo create guerin-robotics/Rebuilt2027 \
+  --private \
+  --template guerin-robotics/FRC2027Template \
+  --clone
+```
+
+Because this template is private, only members of the org with read access to it can
+generate from it. That is intentional.
+
+### Why not a fork
+
+A fork looks like the same thing and behaves differently in ways that bite mid-season:
+
+| | Fork | Template |
+|---|---|---|
+| Pull requests | Default to **this** repo, not the robot repo. A student opening a PR on the robot lands it on the template unless they notice the dropdown | Default to the robot repo, correctly |
+| How many | GitHub allows the org **one** fork of a given repo. Comp bot *and* practice bot is impossible | Unlimited — generate as many as the season needs |
+| History | Carries this repo's full history, and every robot commit shows up in the template's network graph | Starts clean at one commit; robot history is the robot's |
+| Visibility | Tied to the parent; you cannot independently manage it | Set freely at creation |
+| Deleting the parent | Rewires or orphans the forks | No effect — there is no link |
+
+The cost of a template over a fork: **there is no upstream link**, so improvements do not
+flow automatically in either direction. That is a deliberate trade, and it has one rule
+attached — see below.
+
+### If you improve the shared layer, port it back here
+
+While working on a robot repo you will sometimes fix something that is not robot-specific:
+a bug in `frc/lib`, a drive or vision improvement, a rule in `.claude/rules/`, a doc that was
+wrong. Those belong back in this template, or next season starts from the broken version
+again.
+
+Copy the change into a branch of this repo and open a PR here. It is a manual copy — the
+robot repo is not a fork and cannot send one. Robot-specific work (mechanisms, game logic,
+autos, tuned gains) stays in the robot repo and never comes back.
+
+### First hour in a new robot repo
+
+Do these before writing any mechanism code:
+
+1. Verify the team number in `.wpilib/wpilib_preferences.json`.
+2. Confirm `./gradlew build` passes on a fresh clone.
+3. Rewrite this README to describe the robot instead of the template — delete this section
+   and the one above it. A README that still says "template" in March is a README nobody
+   reads.
+4. Work [template/NEW_SEASON_CHECKLIST.md](template/NEW_SEASON_CHECKLIST.md) top to bottom.
+   It is ordered by dependency; out of order you get numbers that look plausible and are
+   wrong.
+5. Read [Before This Drives A Real Robot](#before-this-drives-a-real-robot) below and treat
+   it as blocking.
+
+---
+
+## Using This With Claude Code
+
+The governance lives in the repo, so it applies wherever the agent runs — terminal, IDE, or
+[claude.ai/code](https://claude.ai/code) in the browser against the GitHub repo.
+
+- **`CLAUDE.md`** is loaded automatically at session start. It defines the hard stops (CAN
+  IDs, encoder offsets, gains, inversions, `Logger.processInputs()`), the safety hierarchy
+  for edits, and when the agent must ask before acting.
+- **`.claude/rules/`** carries the architecture, hardware, command, build and git rules that
+  `CLAUDE.md` pulls in.
+- **`.claude/skills/`** — `/add-subsystem` scaffolds a mechanism (six files, constants,
+  three-mode wiring, triggers); `/debug-match-log` root-causes a field problem from an
+  AdvantageKit log; `/pid-tune` runs a sim-first tuning loop.
+- **`.claude/prompts/`** holds task templates for the common jobs.
+- **`.github/instructions/`** and `.github/agents/` restate the same rules for GitHub
+  Copilot and the PR review agent. **If you change a rule in `.claude/`, change it there
+  too** — they drift silently otherwise.
+
+Working in the browser, the useful shape is one branch and one PR per logical change: the
+CI workflow (`spotlessCheck` then `build`) runs on every PR, and the review agent config in
+`.github/` reviews against these same rules. Nothing agent-related requires a local
+machine — but nothing agent-related can test on hardware either, so treat anything that
+moves the robot as needing a human at the driver station.
+
+---
+
 ## What's In Here
 
 **Subsystems**
