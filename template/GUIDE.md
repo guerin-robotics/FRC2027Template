@@ -161,7 +161,7 @@ competition seasons. Don't rewrite them; extend them.
 | All mechanism subsystems | New mechanisms every year |
 | `Constants.CanIds` / `.Setpoints` / `.Waits` / `.Thresholds` | New IDs, setpoints and timeouts every year — sections exist, fill them in |
 | `Triggers.java` | Button and state triggers. Exists with the drive bindings; add an accessor per robot function |
-| Game geometry in `FieldConstants` | Field elements change completely |
+| Game geometry in `FieldConstants` | Field elements change completely — see `frc/lib/ExampleFieldConstants.java` in this directory for the tag-pose-derived pattern to copy, and `docs/target-alignment.md` for how it plugs into `driveToPose` |
 | Scoring targets and zone logic in `RobotState` | Field coordinates change |
 | A sequences file (2026 had `ShootSequences` / `SpitSequences`) | The scoring pipeline is the game |
 | PathPlanner `.auto` files and paths | Field-specific |
