@@ -225,11 +225,10 @@ public class ModuleIOTalonFX implements ModuleIO {
         driveSupplyCurrent,
         turnSupplyCurrent);
     // Temperature changes on the order of minutes, so it does not belong in the 50 Hz group.
-    // It still has to be registered explicitly — optimizeBusUtilization() below disables every
-    // signal that isn't, which is how the 2026 intake follower ended up publishing at 4 Hz.
-    // Temperature and faults both change slowly, and sticky faults latch until cleared, so
-    // 4 Hz loses nothing. All of these still have to be registered explicitly —
-    // optimizeBusUtilization() below disables anything that isn't.
+    // Registered explicitly anyway: optimizeBusUtilization() below slows everything that is
+    // not registered to 4 Hz, and being at 4 Hz by intent is different from being at 4 Hz by
+    // omission. Temperature and faults both change slowly, and sticky faults latch until
+    // cleared, so 4 Hz loses nothing here.
     BaseStatusSignal.setUpdateFrequencyForAll(
         4.0,
         driveTemp,

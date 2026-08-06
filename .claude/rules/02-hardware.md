@@ -146,12 +146,19 @@ Call it **last**, after every frequency is set, on **every** TalonFX and CANcode
 and encoders included. A Talon publishes dozens of signals by default and the unused ones are
 pure bandwidth.
 
-**It disables everything you did not register.** Not "slows down" — disables. That is the point,
-and it is also the trap: a signal you forget is silently dead rather than merely stale, and it
-reads in the log as a value frozen at zero.
+**It slows everything you did not register to 4 Hz.** It does not disable them — CTRE chose 4 Hz
+specifically so the data still reaches the log. That is friendlier than disabling, and it is
+also the trap: a forgotten signal is *stale* rather than *missing*, so the channel exists, the
+numbers look plausible, and they are a quarter second old. Missing data announces itself; stale
+data does not.
 
-If you want a device's unregistered signals kept alive at a low rate instead of disabled, pass
-a floor: `follower.optimizeBusUtilization(4.0)`.
+**Signals share status frames.** If any signal in a frame has been given an explicit frequency,
+that frequency is honoured for the entire frame — so registering one signal can pull its
+frame-mates up with it, and the bandwidth cost of a registration is not strictly one signal's
+worth.
+
+Pass a frequency to change that floor — `optimizeBusUtilization(10.0)` to raise it, or
+`optimizeBusUtilization(0.0)` to genuinely disable the leftovers.
 
 **Cache every `StatusSignal` once in the constructor** and refresh them in one batched
 `BaseStatusSignal.refreshAll(...)` per `updateInputs()`. Calling `motor.getStatorCurrent()`
@@ -311,11 +318,14 @@ and the mechanism stalls or oscillates while drawing heavy current.
 
 **Log the follower, and register its signals.** A follower is a real motor that draws real
 current, generates real heat, and can fail independently of its leader — a dead follower
-looks exactly like an underpowered leader. And registering matters: `optimizeBusUtilization()`
-disables every signal that was not explicitly passed to `setUpdateFrequencyForAll()`. In 2026
-the intake roller's follower signals were never registered, so after optimization they
-published at the 4 Hz default. The data was present and simply stale, which is much harder to
-spot than data that is missing.
+looks exactly like an underpowered leader.
+
+Decide its rate deliberately. `optimizeBusUtilization()` leaves unregistered signals at 4 Hz,
+which is a perfectly reasonable rate for a follower: enough to see it is alive, drawing current
+and not overheating. In 2026 the intake roller's follower signals landed there by omission
+rather than by choice, and the data looked present while being a quarter second old — much
+harder to spot than data that is missing. Either register them explicitly or write down that
+4 Hz is intended.
 
 See the commented follower block at the bottom of
 `template/src/.../ExampleSubsystemIOReal.java` for the full pattern.

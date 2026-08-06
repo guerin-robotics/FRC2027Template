@@ -167,7 +167,9 @@ Non-negotiables, each of which has burned this team or is load-bearing for repla
   voltage and closed-loop reference; 10 Hz for device temperature and closed-loop error; 4 Hz
   for sticky faults; 50 Hz for a CANcoder's absolute position. See `.claude/rules/02-hardware.md`.
 - **`optimizeBusUtilization()` runs last, on every device** — followers and CANcoders included.
-  It disables every signal not registered, so anything forgotten is dead rather than slow.
+  It slows unregistered signals to 4 Hz rather than disabling them, so anything forgotten is
+  *stale* rather than missing — plausible numbers a quarter second old. Followers at 4 Hz are
+  fine; just arrive there on purpose.
 - `Follower(int, MotorAlignmentValue)`. The old boolean overload does not exist in Phoenix 6
   2026.
 - Supply current, not stator, goes to `BatteryLogger.reportCurrentUsage()`.

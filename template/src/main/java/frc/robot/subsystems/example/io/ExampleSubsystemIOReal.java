@@ -117,10 +117,19 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     // not an input to anything.
     BaseStatusSignal.setUpdateFrequencyForAll(10.0, motorTemperature, closedLoopError);
 
-    // MUST BE LAST, and must run on every device. optimizeBusUtilization() disables every
-    // signal not registered above, which is the whole point — a Talon publishes dozens of
-    // signals by default and unused ones are pure CAN bandwidth. Registering after this call
-    // works, but anything you forget to register is silently dead rather than merely slow.
+    // MUST BE LAST, and must run on every device. optimizeBusUtilization() slows every signal
+    // not registered above to 4 Hz — a Talon publishes dozens of signals by default and the
+    // unused ones are pure CAN bandwidth.
+    //
+    // It SLOWS rather than disables, deliberately, so the data still reaches the log. That
+    // makes a forgotten signal stale rather than missing, which is the harder failure to
+    // notice: the channel is there, the numbers look plausible, and they are a quarter second
+    // old. Pass a frequency to change the floor — optimizeBusUtilization(0.0) to truly
+    // disable.
+    //
+    // Signals share status frames. If any signal in a frame has an explicit frequency, that
+    // frequency is honoured for the whole frame, so the cost of registering one signal is not
+    // strictly one signal's worth of bandwidth.
     motor.optimizeBusUtilization();
   }
 
@@ -290,11 +299,14 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   //   ...
   //   followerStatorAmps = follower.getStatorCurrent();
   //
-  // AND REGISTER ITS SIGNALS. This is the trap: optimizeBusUtilization() disables every
-  // signal that was not explicitly registered. In 2026 the intake roller's follower signals
-  // were never added to setUpdateFrequencyForAll(), so after optimization they published at
-  // the 4 Hz default. The data looked present and was simply stale, which is far harder to
-  // notice than data that is missing.
+  // AND DECIDE ITS SIGNAL RATE. In 2026 the intake roller's follower signals were acquired but
+  // never added to setUpdateFrequencyForAll(), so optimizeBusUtilization() left them at the
+  // 4 Hz default. The data looked present and was simply stale, which is far harder to notice
+  // than data that is missing.
+  //
+  // 4 Hz is a fine rate for a follower — it is enough to see the motor is alive, drawing
+  // current and not overheating. The point is to arrive there on purpose. If you want the
+  // follower at the same rate as the leader, register its signals explicitly.
   //
   //   BaseStatusSignal.setUpdateFrequencyForAll(50, followerStatorAmps, /* ...and the rest */);
   //   follower.optimizeBusUtilization();
