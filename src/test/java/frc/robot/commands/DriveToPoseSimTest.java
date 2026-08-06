@@ -13,6 +13,7 @@ import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.GyroIO;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.littletonrobotics.junction.Logger;
@@ -31,6 +32,13 @@ import org.littletonrobotics.junction.Logger;
  * <p>Confirms the command converges at all — with {@link #driveController}'s gains still an untuned
  * placeholder (see the comment on that field in {@code DriveCommands}), this is not a substitute
  * for a real {@code /pid-tune} pass before the command is bound to a button.
+ *
+ * <p><b>Cleanup matters here.</b> {@code CommandScheduler} is a JVM-wide singleton and Gradle runs
+ * every test class in this module in the same JVM, so a command left scheduled at the end of a test
+ * keeps executing during every later test — including calling into {@code DriveCommands}'s shared
+ * static {@code angleController}/{@code driveController}, corrupting their state for whichever
+ * other sim test runs next. {@link #cancelScheduledCommands()} is what prevents that; do not remove
+ * it, and give any new {@code CommandScheduler.schedule(...)}-based test the same teardown.
  */
 class DriveToPoseSimTest {
 
@@ -62,6 +70,11 @@ class DriveToPoseSimTest {
   @AfterAll
   static void shutdownHal() {
     HAL.shutdown();
+  }
+
+  @AfterEach
+  void cancelScheduledCommands() {
+    CommandScheduler.getInstance().cancelAll();
   }
 
   @Test
