@@ -58,6 +58,9 @@ public class DriveCommands {
   // Heading-hold controller. Gains were tuned on the 2026 competition robot — re-tune for
   // 2027, since they depend on robot mass and moment of inertia, not on the game.
   //
+  // TODO(2027): re-tune via /pid-tune (or in sim) once the 2027 chassis exists. These numbers
+  // describe the 2026 robot's mass and MOI; treat them as a starting point, not a given.
+  //
   // This is the worked example of LoggedTunableProfiledPID. With Constants.tuningMode on, kP,
   // kI, kD, maxVelocity and maxAcceleration appear under "Tuning/Drive/Heading/..." and can be
   // adjusted while the robot is enabled; with it off they are exactly these numbers and cost
@@ -76,11 +79,14 @@ public class DriveCommands {
   }
 
   // Translation controller for driveToPose. UNTUNED PLACEHOLDER — this is a new capability with
-  // no tuning data behind it yet, unlike angleController above. Run a /pid-tune (or sim) session
-  // and commit the result before binding this to a button. driveToPose reuses angleController
+  // no tuning data behind it yet, unlike angleController above. driveToPose reuses angleController
   // for heading rather than declaring a second one, for the same reason angleController is
   // shared and static: every command in this class requires the drive subsystem, so only one
   // can run at a time, and sharing means one set of dashboard keys instead of two.
+  //
+  // TODO(2027): run a /pid-tune (or in-sim) session on the real chassis and commit the result
+  // here before binding driveToPose to a button. DriveToPoseSimTest only proves the command
+  // converges against a generic sim model — it is not evidence these gains are good on hardware.
   private static final LoggedTunableProfiledPID driveController =
       new LoggedTunableProfiledPID("Drive/ToPose", 3.0, 0.0, 0.0, 3.0, 3.0);
 
