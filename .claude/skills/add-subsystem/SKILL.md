@@ -104,9 +104,12 @@ rotations across full travel = full travel / travel per sensor rotation
 
 Under one turn, fit the encoder. Over one turn, you have three options: gear the sensor down so
 its full range covers the travel, accept a relative encoder and establish zero another way, or
-add a limit switch. **A relative encoder needs a zeroing routine** — see
-`ElevatorCommands.zero()` for the shape: drive into a hard stop under current sensing, then
-declare that position zero, and refuse to zero if the stop was never found.
+add a limit switch. **A relative encoder needs a zeroing routine** — see the commented ZEROING
+blocks in `template/src/.../example/ExampleCommands.java`, `ExampleSubsystem.java`,
+`ExampleSubsystemIO.java` and `ExampleSubsystemIOReal.java` for the shape: drive into a hard
+stop under current AND velocity sensing (not current alone — it spikes on static friction
+breakaway well before the real stop), declare that position zero, and refuse to zero if the
+stop was never found within a timeout.
 
 This is the question people skip, because the encoder works perfectly in sim — where the
 mechanism always starts at zero and the ambiguity never appears.

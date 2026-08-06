@@ -114,4 +114,41 @@ public class ExampleSubsystem extends SubsystemBase {
     Logger.recordOutput("ExampleSubsystem/PositionDegrees", inputs.motorPosition.in(Degrees));
     return atPosition;
   }
+
+  // ============================================================================================
+  // ZEROING — relative encoders only. Delete if this mechanism has an absolute encoder that
+  // fits within one turn. See ExampleSubsystemIOReal and ExampleCommands' commented ZEROING
+  // blocks, and docs/new-mechanism-bringup.md Phase 1 step 6.
+  // ============================================================================================
+  //
+  // The subsystem holds only the state and the primitive. The routine that decides WHEN to
+  // call zeroAtCurrentPosition() — drive down, watch for stall, refuse on timeout — is a
+  // COMMAND, not a subsystem method, so the scheduler can interrupt it like anything else.
+  //
+  //   private boolean zeroed = false;
+  //   private final Debouncer zeroingStallDebounce =
+  //       new Debouncer(ExampleSubsystemConstants.ZEROING_STALL_DEBOUNCE_SECONDS, kRising);
+  //
+  //   public void zeroAtCurrentPosition() {
+  //     io.zeroPosition();
+  //     zeroed = true;
+  //   }
+  //
+  //   public boolean isZeroed() {
+  //     return zeroed;
+  //   }
+  //
+  //   /**
+  //    * True once BOTH current is high and velocity is near zero for a sustained dwell — not
+  //    * current alone, which spikes momentarily on static friction breakaway even far from the
+  //    * real hard stop. Only meaningful while the zeroing command is actively driving down.
+  //    */
+  //   public boolean isAtZeroingStall() {
+  //     boolean highCurrent =
+  //         inputs.motorSupplyAmps.in(Amps) > ExampleSubsystemConstants.ZEROING_STALL_CURRENT_AMPS;
+  //     boolean nearZeroVelocity =
+  //         Math.abs(inputs.motorVelocity.in(RPM))
+  //             < ExampleSubsystemConstants.ZEROING_VELOCITY_THRESHOLD_RPM;
+  //     return zeroingStallDebounce.calculate(highCurrent && nearZeroVelocity);
+  //   }
 }

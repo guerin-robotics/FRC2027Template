@@ -431,6 +431,34 @@ public class ExampleSubsystemConstants {
   public static final double POSITION_TOLERANCE_INCHES = 0.25;
 
   // ==========================================================================================
+  // ZEROING — relative encoders only. Delete this whole block if the mechanism has an absolute
+  // encoder that fits within one turn. See ExampleCommands' commented ZEROING block for how
+  // these get used, and docs/new-mechanism-bringup.md Phase 1 step 6 for why each one matters.
+  // ==========================================================================================
+  //
+  // None of these are guessable — pick them with the mechanism in front of you. Two public
+  // reference points, both real robots, both keying off velocity rather than current alone:
+  // Team 5419's 2024 elevator creeps at -30% duty cycle (~3.6 V at a nominal 12 V bus) and
+  // confirms the stop after velocity stays under ~0.02 rot/s for 0.08 s. Team 6328's
+  // GenericSlamElevator uses the same velocity-near-zero-for-a-dwell idea.
+  //
+  //   /** Downward creep voltage while seeking the hard stop. Negative = down. */
+  //   public static final Voltage ZEROING_VOLTAGE = Volts.of(-3.0);
+  //
+  //   /** Supply current, in amps, that counts as "hit the hard stop" while creeping. */
+  //   public static final double ZEROING_STALL_CURRENT_AMPS = 25.0;
+  //
+  //   /** Mechanism velocity, in RPM, below which it counts as "not moving" while creeping. */
+  //   public static final double ZEROING_VELOCITY_THRESHOLD_RPM = 5.0;
+  //
+  //   /** How long BOTH conditions must hold before counting as a real stall, not a momentary
+  //    * current spike from static friction breakaway. */
+  //   public static final double ZEROING_STALL_DEBOUNCE_SECONDS = 0.1;
+  //
+  //   /** Give up and refuse to zero if the stop is never found within this budget. */
+  //   public static final double ZEROING_TIMEOUT_SECONDS = 3.0;
+
+  // ==========================================================================================
   // GAINS — REAL ROBOT
   // ==========================================================================================
   //
@@ -688,10 +716,12 @@ public class ExampleSubsystemConstants {
     config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = REVERSE_SOFT_LIMIT_ROTATIONS;
 
     // ---- Feedback ----
-    config.Feedback.FeedbackRemoteSensorID = Constants.CanIds.EXAMPLE_ENCODER;
-    config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
-    config.Feedback.RotorToSensorRatio = ROTOR_TO_SENSOR_RATIO;
-    config.Feedback.SensorToMechanismRatio = SENSOR_TO_MECHANISM_RATIO;
+    // Connects the motor to the CANcoder as a remote, fused sensor — the motor fuses the
+    // CANcoder's absolute position with its own rotor so multi-turn tracking still works.
+    config.Feedback.withFeedbackRemoteSensorID(Constants.CanIds.EXAMPLE_ENCODER)
+        .withFeedbackSensorSource(FeedbackSensorSourceValue.FusedCANcoder)
+        .withRotorToSensorRatio(ROTOR_TO_SENSOR_RATIO)
+        .withSensorToMechanismRatio(SENSOR_TO_MECHANISM_RATIO);
 
     // ---- Gains ----
     config.Slot0.kS = getKS();

@@ -83,4 +83,53 @@ public class ExampleCommands {
             runAtVelocity(subsystem, velocity))
         .withName("Example_AfterReady");
   }
+
+  // ==========================================================================================
+  // ZEROING — relative encoders only. Delete if this mechanism has an absolute encoder that
+  // fits within one turn (see "Before fitting an absolute encoder" in template/GUIDE.md). This
+  // is the worked example docs/new-mechanism-bringup.md and .claude/skills/add-subsystem point
+  // to for "build a routine that drives into a hard stop and declares that position zero."
+  // ==========================================================================================
+  //
+  // Three things make this safe, and all three matter:
+  //
+  //   1. It is a COMMAND, not a subsystem method, so it requires the subsystem and the
+  //      scheduler interrupts it if the operator commands a position mid-run. The subsystem
+  //      holds only the primitive: "declare the current position to be zero."
+  //   2. It detects the stop with CURRENT HIGH AND VELOCITY NEAR ZERO, debounced — not current
+  //      alone, which spikes at the instant the motor starts moving, long before it is
+  //      anywhere near the real hard stop.
+  //   3. On timeout it GIVES UP WITHOUT ZEROING. A zero taken at an unknown position is worse
+  //      than no zero: the mechanism believes it for the rest of the match, including in its
+  //      soft limits, and every height or angle afterward is wrong by a silent, fixed offset.
+  //
+  //   public static Command zero(ExampleSubsystem subsystem) {
+  //     return Commands.sequence(
+  //             Commands.run(
+  //                     () -> subsystem.setVoltage(ExampleSubsystemConstants.ZEROING_VOLTAGE),
+  //                     subsystem)
+  //                 .until(subsystem::isAtZeroingStall)
+  //                 .withTimeout(ExampleSubsystemConstants.ZEROING_TIMEOUT_SECONDS),
+  //             Commands.either(
+  //                 Commands.runOnce(subsystem::zeroAtCurrentPosition, subsystem),
+  //                 Commands.runOnce(
+  //                     () ->
+  //                         DriverStation.reportError(
+  //                             "Example zero failed: hard stop not found within "
+  //                                 + ExampleSubsystemConstants.ZEROING_TIMEOUT_SECONDS
+  //                                 + "s",
+  //                             false)),
+  //                 subsystem::isAtZeroingStall))
+  //         .finallyDo(interrupted -> subsystem.stop())
+  //         .withName("Example_Zero");
+  //   }
+  //
+  // Pick the creep voltage/current with the mechanism in front of you, not by guessing. Two
+  // public reference points, both real robots: Team 5419's 2024 elevator creeps at -30% duty
+  // cycle (~3.6 V at a nominal 12 V bus) and confirms the stop after velocity stays under
+  // ~0.02 rot/s for 0.08 s; Team 6328's GenericSlamElevator uses the same velocity-near-zero-
+  // for-a-dwell idea as its primary "arrived" signal. Both key off velocity, not current alone
+  // — 5419's current-based check exists in their source but is commented out and unused.
+  //
+  // Imports: edu.wpi.first.wpilibj.DriverStation
 }

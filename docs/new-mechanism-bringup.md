@@ -114,8 +114,10 @@ Work at low output, 1–2 V, with a hand on disable.
    means nothing until it is established. Power-up assumes the mechanism is at zero, which is
    wrong the moment someone powers on with it raised or moves it by hand while disabled.
 
-   Build a routine that drives into a hard stop and declares that position zero —
-   `ElevatorCommands.zero()` is the worked example. Three things make it safe:
+   Build a routine that drives into a hard stop and declares that position zero — the commented
+   ZEROING blocks in `template/src/.../example/ExampleCommands.java`,
+   `ExampleSubsystem.java`, `ExampleSubsystemIO.java` and `ExampleSubsystemIOReal.java` are the
+   worked example. Three things make it safe:
 
    - It is a **command**, not a subsystem method, so it requires the subsystem and the scheduler
      interrupts it if the operator commands a position mid-run. The subsystem holds only the

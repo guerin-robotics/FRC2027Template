@@ -61,6 +61,13 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   private final StatusSignal<Double> closedLoopReference;
   private final StatusSignal<Double> closedLoopError;
 
+  // Sticky faults latch until cleared, so they record what happened BETWEEN polls. 4 Hz is
+  // plenty — see .claude/rules/02-hardware.md.
+  private final StatusSignal<Boolean> stickyBootDuringEnable;
+  private final StatusSignal<Boolean> stickyUndervoltage;
+  private final StatusSignal<Boolean> stickyOverTemp;
+  private final StatusSignal<Boolean> stickyHardware;
+
   /**
    * Debounces the connection check.
    *
@@ -103,6 +110,10 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     motorTemperature = motor.getDeviceTemp();
     closedLoopReference = motor.getClosedLoopReference();
     closedLoopError = motor.getClosedLoopError();
+    stickyBootDuringEnable = motor.getStickyFault_BootDuringEnable();
+    stickyUndervoltage = motor.getStickyFault_Undervoltage();
+    stickyOverTemp = motor.getStickyFault_DeviceTemp();
+    stickyHardware = motor.getStickyFault_Hardware();
 
     // ---- Signal rates. This split is the team standard; use it on every mechanism. ----
     //
@@ -127,6 +138,10 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     // not an input to anything.
     BaseStatusSignal.setUpdateFrequencyForAll(10.0, motorTemperature, closedLoopError);
 
+    // 4 Hz — sticky faults, which latch until cleared, so a fast rate buys nothing.
+    BaseStatusSignal.setUpdateFrequencyForAll(
+        4.0, stickyBootDuringEnable, stickyUndervoltage, stickyOverTemp, stickyHardware);
+
     // MUST BE LAST, and must run on every device. optimizeBusUtilization() slows every signal
     // not registered above to 4 Hz — a Talon publishes dozens of signals by default and the
     // unused ones are pure CAN bandwidth.
@@ -146,8 +161,14 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   @Override
   public void updateInputs(ExampleSubsystemIOInputs inputs) {
     // Refresh the slow groups. Cheap — a signal that has not updated simply repeats its last
-    // value, so calling this at 50 Hz on a 10 Hz signal costs nothing.
-    BaseStatusSignal.refreshAll(motorTemperature, closedLoopError);
+    // value, so calling this at 50 Hz on a 10 Hz or 4 Hz signal costs nothing.
+    BaseStatusSignal.refreshAll(
+        motorTemperature,
+        closedLoopError,
+        stickyBootDuringEnable,
+        stickyUndervoltage,
+        stickyOverTemp,
+        stickyHardware);
 
     // Connection comes from the 50 Hz group ALONE.
     //
@@ -181,6 +202,10 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     inputs.motorTemperature = motorTemperature.getValue();
     inputs.closedLoopReference = closedLoopReference.getValueAsDouble();
     inputs.closedLoopError = closedLoopError.getValueAsDouble();
+    inputs.stickyBootDuringEnable = stickyBootDuringEnable.getValue();
+    inputs.stickyUndervoltage = stickyUndervoltage.getValue();
+    inputs.stickyOverTemp = stickyOverTemp.getValue();
+    inputs.stickyHardwareFault = stickyHardware.getValue();
 
     updateTunedConfig();
   }
@@ -285,6 +310,21 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   //     cfg.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
   //     PhoenixUtil.tryUntilOk(5, () -> encoder.getConfigurator().apply(cfg));
   //
+  //     // Connect the motor to it as a remote, fused sensor — fluent .withX() style, not field
+  //     // assignment, so this reads as one clearly-scoped operation. Do this as part of the
+  //     // main config in ExampleSubsystemConstants.getFXConfig(), not a separate apply() call:
+  //     //
+  //     //   config.Feedback
+  //     //       .withFeedbackRemoteSensorID(Constants.CanIds.EXAMPLE_ENCODER)
+  //     //       .withFeedbackSensorSource(FeedbackSensorSourceValue.FusedCANcoder)
+  //     //       .withRotorToSensorRatio(ROTOR_TO_SENSOR_RATIO)
+  //     //       .withSensorToMechanismRatio(SENSOR_TO_MECHANISM_RATIO);
+  //     //
+  //     // A second, separate apply() of a fresh FeedbackConfigs object after the main config is
+  //     // a real trap: apply() on a partial config writes the WHOLE sub-group to the device, so
+  //     // untouched fields on that second object — RotorToSensorRatio included — go back to
+  //     // their class defaults (1.0) and silently undo what the first apply() just set.
+  //
   //     // THE TRAP. Register the encoder's Position and Velocity BEFORE optimizing, or
   //     // optimization drops them to the 4 Hz default. The motor reads those signals off the
   //     // bus to do the rotor/CANcoder fusion, so the fused position then updates twelve times
@@ -338,4 +378,25 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   //   follower.optimizeBusUtilization();
   //
   // Imports: com.ctre.phoenix6.controls.Follower, com.ctre.phoenix6.signals.MotorAlignmentValue
+
+  // ==========================================================================================
+  // ZEROING — relative encoders only (no CANcoder, or a CANcoder that can't cover full travel
+  // in one turn). Delete this block if the mechanism has an absolute encoder that fits — see
+  // "Before fitting an absolute encoder" in template/GUIDE.md.
+  // ==========================================================================================
+  //
+  // A motor's internal rotor position is relative: it means nothing until something establishes
+  // where zero actually is, and power-up silently assumes the mechanism is already there. Build
+  // a routine that drives into a hard stop and declares that position zero. This is the IO-level
+  // primitive only — the routine that decides WHEN to call it lives in the command factory, not
+  // here. See ExampleCommands' commented ZEROING block for the full shape, and
+  // docs/new-mechanism-bringup.md Phase 1 step 6 for why each piece matters.
+  //
+  //   @Override
+  //   public void zeroPosition() {
+  //     PhoenixUtil.tryUntilOk(5, () -> motor.setPosition(0.0, 0.25));
+  //   }
+  //
+  // Add `default void zeroPosition() {}` to ExampleSubsystemIO alongside the other control
+  // outputs if this mechanism needs it.
 }

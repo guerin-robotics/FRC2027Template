@@ -99,4 +99,11 @@ public interface ExampleSubsystemIO {
 
   /** Always provide a stop. A command that ends without stopping leaves the mechanism running. */
   default void stop() {}
+
+  // Relative encoders only (no CANcoder, or a CANcoder that can't cover full travel in one
+  // turn) — see ExampleSubsystemIOReal's commented ZEROING block for the real implementation,
+  // and ExampleCommands' commented ZEROING block for the routine that decides when to call it.
+  //
+  //   /** Declares the CURRENT position as zero. Only call once actually at the hard stop. */
+  //   default void zeroPosition() {}
 }
