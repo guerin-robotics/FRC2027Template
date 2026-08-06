@@ -56,7 +56,12 @@ class GainSweepTest {
   @BeforeAll
   static void initializeHal() {
     // Required before touching any WPILib sim class — see the class javadoc.
-    assert HAL.initialize(500, 0) : "HAL failed to initialize; sim-backed tests cannot run";
+    //
+    // NOT an assert. Java assertions are disabled unless -ea is passed, and Gradle only enables
+    // them because Test.enableAssertions defaults to true. Put the call inside an assert and any
+    // runner that turns them off skips the initialization entirely, then fails somewhere else
+    // with an access violation inside wpiHal.dll rather than the message you wrote.
+    assertTrue(HAL.initialize(500, 0), "HAL failed to initialize; sim-backed tests cannot run");
 
     // Sim classes clamp their input to battery voltage. Pin it so results do not depend on
     // whatever the simulated rail happens to default to.

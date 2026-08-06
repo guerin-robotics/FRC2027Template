@@ -25,10 +25,10 @@ public class VisionConstants {
   // number of VisionIO instances constructed in RobotContainer for ALL THREE modes
   // (REAL, SIM, REPLAY) — replay needs one VisionIO per camera so every camera's
   // logged inputs are replayed.
-  public static String camera0Name = "camera0";
-  public static String camera1Name = "camera1";
-  public static String camera2Name = "camera2";
-  public static String camera3Name = "camera3";
+  public static final String camera0Name = "camera0";
+  public static final String camera1Name = "camera1";
+  public static final String camera2Name = "camera2";
+  public static final String camera3Name = "camera3";
 
   // ---- Camera transforms ----
   //

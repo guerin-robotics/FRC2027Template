@@ -78,7 +78,7 @@ cd tools/wpilib-agent-tools
 What this does:
 - Creates a `.venv` with `robotpy-wpiutil`, `pyntcore`, `numpy`, `matplotlib`, `sympy`
 - Adds `.wpilib-agent-tools/run_cli.sh` shim at the repo root
-- Adds a managed block to [CLAUDE.md](../../CLAUDE.md) and a slash command in [.claude/commands/](../../.claude/commands/)
+- Adds a managed block to [CLAUDE.md](../../CLAUDE.md) and a slash command in `.claude/commands/` (a directory the installer creates — it does not exist until you run this)
 
 > Heads-up: this modifies CLAUDE.md. Review the diff before committing — our hand-written safety hierarchy must stay intact.
 

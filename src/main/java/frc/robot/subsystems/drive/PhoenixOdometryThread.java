@@ -10,6 +10,7 @@ package frc.robot.subsystems.drive;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
 import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotController;
 import frc.robot.generated.TunerConstants;
 import java.util.ArrayList;
@@ -120,7 +121,11 @@ public class PhoenixOdometryThread extends Thread {
           if (phoenixSignals.length > 0) BaseStatusSignal.refreshAll(phoenixSignals);
         }
       } catch (InterruptedException e) {
-        e.printStackTrace();
+        // Restore the flag. Swallowing an interrupt leaves this thread unable to be shut down
+        // cleanly, because the signal that something asked it to stop is discarded. Reported
+        // through DriverStation rather than printStackTrace so it reaches the log.
+        Thread.currentThread().interrupt();
+        DriverStation.reportError("Odometry thread interrupted: " + e, false);
       } finally {
         signalsLock.unlock();
       }

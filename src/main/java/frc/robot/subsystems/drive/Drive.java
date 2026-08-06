@@ -214,13 +214,19 @@ public class Drive extends SubsystemBase {
 
   @Override
   public void periodic() {
+    // try/finally so the odometry thread is never left blocked on a lock this method failed to
+    // release. In practice an exception here takes the robot program down with it, so this is
+    // hygiene rather than a live hazard — but an unreleased lock turns a crash into a hang.
     odometryLock.lock(); // Prevents odometry updates while reading data
-    gyroIO.updateInputs(gyroInputs);
-    Logger.processInputs("Drive/Gyro", gyroInputs);
-    for (var module : modules) {
-      module.periodic();
+    try {
+      gyroIO.updateInputs(gyroInputs);
+      Logger.processInputs("Drive/Gyro", gyroInputs);
+      for (var module : modules) {
+        module.periodic();
+      }
+    } finally {
+      odometryLock.unlock();
     }
-    odometryLock.unlock();
 
     // Stop moving when disabled
     if (DriverStation.isDisabled()) {
