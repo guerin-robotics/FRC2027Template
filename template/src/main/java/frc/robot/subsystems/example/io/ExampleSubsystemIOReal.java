@@ -9,6 +9,7 @@ import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.MotionMagicVelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
+import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Voltage;
@@ -59,6 +60,15 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   // was wrong, the profile was saturating, or the gains could not keep up.
   private final StatusSignal<Double> closedLoopReference;
   private final StatusSignal<Double> closedLoopError;
+
+  /**
+   * Debounces the connection check.
+   *
+   * <p>{@code kFalling} starts optimistic and only reports a disconnect once the condition has held
+   * for half a second, so one dropped frame does not raise an alert mid-match. Same shape {@code
+   * ModuleIOTalonFX} uses for the swerve modules.
+   */
+  private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
 
   // Control requests. Build these ONCE — allocating a request object every loop is a
   // per-cycle allocation the GC has to clean up inside the 20 ms budget.
@@ -135,16 +145,32 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
 
   @Override
   public void updateInputs(ExampleSubsystemIOInputs inputs) {
-    BaseStatusSignal.refreshAll(
-        motorVoltage,
-        motorStatorAmps,
-        motorSupplyAmps,
-        motorTorqueCurrent,
-        motorVelocity,
-        motorPosition,
-        motorTemperature,
-        closedLoopReference,
-        closedLoopError);
+    // Refresh the slow groups. Cheap — a signal that has not updated simply repeats its last
+    // value, so calling this at 50 Hz on a 10 Hz signal costs nothing.
+    BaseStatusSignal.refreshAll(motorTemperature, closedLoopError);
+
+    // Connection comes from the 50 Hz group ALONE.
+    //
+    // refreshAll() returns the WORST status of everything passed to it, so folding the 10 Hz and
+    // 4 Hz signals in here would let the slowest one govern: for the first quarter second after
+    // boot, before the first slow frame arrives, the mechanism reads disconnected and every
+    // FaultMonitor alert tied to it fires for no reason.
+    var status =
+        BaseStatusSignal.refreshAll(
+            motorVelocity,
+            motorPosition,
+            motorStatorAmps,
+            motorSupplyAmps,
+            motorTorqueCurrent,
+            motorVoltage,
+            closedLoopReference);
+    inputs.connected = connectedDebounce.calculate(status.isOK());
+
+    // A FOLLOWER is checked with follower.isConnected() instead — its signals sit at the 4 Hz
+    // optimize floor by design, so a status built from them reports staleness, not presence.
+    //
+    // A SEPARATE DEVICE gets its own status. A CANcoder can drop out while its motor stays
+    // healthy, which is exactly the failure worth catching, and merging the two hides it.
 
     inputs.motorVoltage = motorVoltage.getValue();
     inputs.motorStatorAmps = motorStatorAmps.getValue();

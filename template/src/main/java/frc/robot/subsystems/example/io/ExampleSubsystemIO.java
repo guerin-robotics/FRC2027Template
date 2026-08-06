@@ -24,6 +24,11 @@ public interface ExampleSubsystemIO {
 
   @AutoLog
   class ExampleSubsystemIOInputs {
+    // Is the device answering? Derived from the 50 Hz signal group only and debounced — see
+    // ExampleSubsystemIOReal. Register this with FaultMonitor so a motor that drops off the bus
+    // mid-match announces itself instead of just going quiet.
+    public boolean connected = false;
+
     // --- Logged signals (add every sensor/status you want to see in AdvantageKit) ---
     public Voltage motorVoltage = Volts.of(0);
     public Current motorStatorAmps = Amps.of(0);

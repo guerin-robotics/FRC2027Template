@@ -34,6 +34,7 @@ and a wrong guess produces code that compiles and misbehaves.
 | **Linear only: rigging stage count** | A 2-stage cascade travels twice per rotation. Miss it and every height is off by an exact integer factor |
 | Gravity-affected? Arm or elevator? | Decides `kG` and `GravityTypeValue` |
 | **Arm only: what angle reads as horizontal?** | `Arm_Cosine` measures from horizontal. If zero is the stow position, `GravityArmPositionOffset` has to carry the difference |
+| **How far does it travel, in sensor rotations?** | Over one turn, an absolute encoder cannot say which turn it is on — see below |
 | Travel limits, if position-controlled | Soft limits. Without them a position goal can drive a mechanism into itself |
 | Setpoints it gets commanded to | These go in `Constants.Setpoints` |
 | Operator controls | Which Xbox buttons, and what each does |
@@ -83,6 +84,33 @@ is not enough — you need the shaft.
 
 The first two cover nearly everything this team builds — a hex-bore CANcoder on the mechanism
 shaft, or the motor encoder alone. Confirm which, then move on.
+
+### Before fitting an absolute encoder: does travel stay under one turn?
+
+An absolute reading spans **one sensor rotation**. If the mechanism moves further than that, the
+reading repeats, and the encoder cannot say which turn it is on. `FusedCANcoder` seeds position
+from it at boot, so the mechanism boots believing a height or angle that is right only by luck.
+
+Compute it before choosing:
+
+```
+rotations across full travel = full travel / travel per sensor rotation
+```
+
+| Mechanism | Travel | Per sensor rotation | Turns | Absolute encoder? |
+|---|---|---|---|---|
+| Intake pivot | 95° | 360° | **0.26** | Yes — unambiguous |
+| Elevator, drum-mounted | 24 in | 6.28 in (2 in drum) | **3.82** | No — 0.5 could be 3.1, 9.4, 15.7 or 22.0 in |
+
+Under one turn, fit the encoder. Over one turn, you have three options: gear the sensor down so
+its full range covers the travel, accept a relative encoder and establish zero another way, or
+add a limit switch. **A relative encoder needs a zeroing routine** — see
+`ElevatorCommands.zero()` for the shape: drive into a hard stop under current sensing, then
+declare that position zero, and refuse to zero if the stop was never found.
+
+This is the question people skip, because the encoder works perfectly in sim — where the
+mechanism always starts at zero and the ambiguity never appears.
+
 
 **The third case is the one to catch.** The 2026 hood had a CANcoder on a shaft that still drove
 a 12T→122T gear pair after it, so the encoder turned about ten times per hood rotation.
@@ -166,6 +194,10 @@ Non-negotiables, each of which has burned this team or is load-bearing for repla
 - **Signal rates follow the standard**: 50 Hz for velocity, position, stator, supply, torque,
   voltage and closed-loop reference; 10 Hz for device temperature and closed-loop error; 4 Hz
   for sticky faults; 50 Hz for a CANcoder's absolute position. See `.claude/rules/02-hardware.md`.
+- **`connected` comes from the 50 Hz group alone**, debounced with `Debouncer(0.5, kFalling)`.
+  Mixing rate groups into one status means the slowest signal governs and every alert fires for
+  the first quarter second after boot. Followers use `TalonFX.isConnected()`; a separate device
+  like a CANcoder gets its own status, because it can fail while the motor is fine.
 - **`optimizeBusUtilization()` runs last, on every device** — followers and CANcoders included.
   It slows unregistered signals to 4 Hz rather than disabling them, so anything forgotten is
   *stale* rather than missing — plausible numbers a quarter second old. Followers at 4 Hz are

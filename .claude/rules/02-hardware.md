@@ -157,6 +157,41 @@ that frequency is honoured for the entire frame — so registering one signal ca
 frame-mates up with it, and the bandwidth cost of a registration is not strictly one signal's
 worth.
 
+### Deriving `connected` from a rate-split device
+
+`BaseStatusSignal.refreshAll(...)` returns the worst status of everything passed to it. That
+makes the split above a trap: fold the 10 Hz and 4 Hz signals into the same call and **the
+slowest signal governs**. For the first quarter second after boot, before the first sticky-fault
+frame arrives, the whole mechanism reads disconnected and every `FaultMonitor` alert tied to it
+fires spuriously.
+
+```java
+// Refresh everything — cheap, and a slow signal just repeats its last value.
+BaseStatusSignal.refreshAll(temp, closedLoopError, stickyUndervoltage, /* ... */);
+
+// But derive connection from the 50 Hz group ALONE.
+var status = BaseStatusSignal.refreshAll(velocity, position, stator, supply, torque,
+                                         voltage, closedLoopReference);
+inputs.connected = connectedDebounce.calculate(status.isOK());
+```
+
+**Debounce it, falling, 0.5 s:**
+
+```java
+private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+```
+
+`kFalling` starts optimistic and only reports a disconnect once the condition has held, so a
+single dropped frame does not raise an alert mid-match. `ModuleIOTalonFX` uses exactly this for
+the swerve modules — copy it rather than inventing something.
+
+**Check a follower with `TalonFX.isConnected()`, not signal status.** Its signals sit at the 4 Hz
+optimize floor by design, so a status built from them reports staleness rather than presence.
+
+**A separate device gets a separate status.** A CANcoder can drop out while its motor stays
+perfectly healthy — that is precisely the failure worth catching, and it disappears if the two
+are merged into one boolean.
+
 Pass a frequency to change that floor — `optimizeBusUtilization(10.0)` to raise it, or
 `optimizeBusUtilization(0.0)` to genuinely disable the leftovers.
 

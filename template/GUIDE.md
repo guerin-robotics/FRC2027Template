@@ -62,8 +62,15 @@ The split is decided by **where the encoder is**:
 | CANcoder on the mechanism itself | `GEAR_RATIO` | `1.0` |
 | CANcoder on an intermediate shaft | ratio above it | ratio below it |
 
-The first two are what we build almost every time — a hex-bore CANcoder on the mechanism shaft,
-or the motor encoder alone. The third is the 2026 hood, where a 12T→122T pair still sat between
+**Before fitting an absolute encoder, check that full travel stays under one sensor rotation.**
+An absolute reading repeats every turn, so a mechanism that moves further cannot say which turn
+it is on. The intake pivot travels 0.26 rotations and is fine; a 24 in elevator on a 2 in drum
+travels 3.82, so a reading of 0.5 could be 3.1, 9.4, 15.7 or 22.0 inches. Over one turn, either
+gear the sensor down, or use the motor encoder and add a zeroing routine against a hard stop.
+The ambiguity never shows up in sim, because sim always starts at zero.
+
+The first two rows are what we build almost every time — a hex-bore CANcoder on the mechanism
+shaft, or the motor encoder alone. The third is the 2026 hood, where a 12T→122T pair still sat between
 the encoder and the hood. That file calls the encoder's shaft the "output shaft", meaning the
 gearbox output rather than the mechanism, which is exactly how the case gets missed. The question
 that resolves it: **does the encoder turn 1:1 with the thing you are measuring?**

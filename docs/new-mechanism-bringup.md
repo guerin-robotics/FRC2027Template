@@ -31,6 +31,24 @@ The two must multiply back to `GEAR_RATIO`. The question that resolves the third
 the encoder turn 1:1 with the thing you are measuring?** If anything geared sits after it, it
 does not.
 
+### Does full travel stay under one sensor rotation?
+
+Ask this before fitting an absolute encoder at all. An absolute reading spans one rotation and
+then repeats, so a mechanism that travels further cannot say which turn it is on.
+
+| Mechanism | Travel | Per sensor rotation | Turns | Verdict |
+|---|---|---|---|---|
+| Intake pivot | 95° | 360° | 0.26 | Absolute encoder works |
+| Elevator, drum-mounted | 24 in | 6.28 in | 3.82 | Ambiguous — 0.5 could be 3.1, 9.4, 15.7 or 22.0 in |
+
+Over one turn: gear the sensor down until its range covers the travel, or drop the absolute
+encoder and use the motor's own. A relative encoder then needs zero established some other way —
+see Phase 1.
+
+**This never appears in simulation**, because the sim mechanism always starts at zero and the
+ambiguity is invisible from there. It appears the first time the robot is powered on with the
+mechanism somewhere other than the bottom.
+
 ### The first sanity check you get for free
 
 `MAX_SPEED_RPM` is computed, not typed. **Read it before going further.**
@@ -92,7 +110,26 @@ Work at low output, 1–2 V, with a hand on disable.
      the reading flips between ~0.0 and ~1.0 at rest and a position loop chases a full rotation
      of phantom error.
 
-6. **Gravity reference**, for rotating mechanisms only. `Arm_Cosine` scales kG by
+6. **Zeroing, for any mechanism without an absolute encoder.** Position is relative, so it
+   means nothing until it is established. Power-up assumes the mechanism is at zero, which is
+   wrong the moment someone powers on with it raised or moves it by hand while disabled.
+
+   Build a routine that drives into a hard stop and declares that position zero —
+   `ElevatorCommands.zero()` is the worked example. Three things make it safe:
+
+   - It is a **command**, not a subsystem method, so it requires the subsystem and the scheduler
+     interrupts it if the operator commands a position mid-run. The subsystem holds only the
+     primitive: "declare the current position to be zero."
+   - It detects the stop with **current high AND velocity near zero**, debounced, so it does not
+     trigger on the inrush current at the instant the motor starts.
+   - On timeout it **gives up without zeroing**. A zero taken at an unknown position is worse
+     than no zero, because the mechanism believes it for the rest of the match — including in
+     its soft limits.
+
+   Log whether zeroing has happened and register it with `FaultMonitor`, so nobody silently
+   trusts the power-up assumption.
+
+7. **Gravity reference**, for rotating mechanisms only. `Arm_Cosine` scales kG by
    `cos(position + offset)` and expects the peak at horizontal. If mechanism zero is the stow
    position — it usually is — find the angle at which the arm is level and set
    `GRAVITY_HORIZONTAL_OFFSET_DEGREES` to its negative. Left at zero, kG peaks where gravity is
