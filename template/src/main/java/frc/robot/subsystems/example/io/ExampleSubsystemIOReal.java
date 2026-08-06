@@ -53,6 +53,13 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
   private final StatusSignal<Angle> motorPosition;
   private final StatusSignal<edu.wpi.first.units.measure.Temperature> motorTemperature;
 
+  // Closed-loop diagnostics. These are what turn "it didn't get there" into an answer: the
+  // reference says what the profile was ASKING for, the error says how far off it was. Without
+  // them a log shows the mechanism in the wrong place with no way to tell whether the setpoint
+  // was wrong, the profile was saturating, or the gains could not keep up.
+  private final StatusSignal<Double> closedLoopReference;
+  private final StatusSignal<Double> closedLoopError;
+
   // Control requests. Build these ONCE — allocating a request object every loop is a
   // per-cycle allocation the GC has to clean up inside the 20 ms budget.
   private final VoltageOut voltageRequest = new VoltageOut(0).withEnableFOC(true);
@@ -84,19 +91,36 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     motorVelocity = motor.getVelocity();
     motorPosition = motor.getPosition();
     motorTemperature = motor.getDeviceTemp();
+    closedLoopReference = motor.getClosedLoopReference();
+    closedLoopError = motor.getClosedLoopError();
 
-    // Set update frequency (50 Hz is standard; use 250 Hz for odometry-critical signals)
-    // Torque current goes in the 50 Hz group next to stator/supply current, NOT in a
-    // slower diagnostic group — it is a control signal, not a diagnostic.
+    // ---- Signal rates. This split is the team standard; use it on every mechanism. ----
+    //
+    // 50 Hz — everything the control loop or a match review needs per cycle. Torque current
+    // belongs here, not in the slow group: under TorqueCurrentFOC it IS the control signal.
+    // Closed-loop REFERENCE belongs here too, because comparing it against measured velocity
+    // or position is how you see profile saturation, and that comparison is worthless if the
+    // two are sampled at different rates.
     BaseStatusSignal.setUpdateFrequencyForAll(
-        50,
-        motorVoltage,
+        50.0,
+        motorVelocity,
+        motorPosition,
         motorStatorAmps,
         motorSupplyAmps,
         motorTorqueCurrent,
-        motorVelocity,
-        motorPosition,
-        motorTemperature);
+        motorVoltage,
+        closedLoopReference);
+
+    // 10 Hz — diagnostics that change slowly. Temperature moves over minutes. Closed-loop
+    // ERROR is here rather than at 50 Hz because it is derivable from reference minus measured,
+    // both of which are already at 50 Hz; this channel is a convenience for scrubbing a log,
+    // not an input to anything.
+    BaseStatusSignal.setUpdateFrequencyForAll(10.0, motorTemperature, closedLoopError);
+
+    // MUST BE LAST, and must run on every device. optimizeBusUtilization() disables every
+    // signal not registered above, which is the whole point — a Talon publishes dozens of
+    // signals by default and unused ones are pure CAN bandwidth. Registering after this call
+    // works, but anything you forget to register is silently dead rather than merely slow.
     motor.optimizeBusUtilization();
   }
 
@@ -109,7 +133,9 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
         motorTorqueCurrent,
         motorVelocity,
         motorPosition,
-        motorTemperature);
+        motorTemperature,
+        closedLoopReference,
+        closedLoopError);
 
     inputs.motorVoltage = motorVoltage.getValue();
     inputs.motorStatorAmps = motorStatorAmps.getValue();
@@ -118,6 +144,8 @@ public class ExampleSubsystemIOReal implements ExampleSubsystemIO {
     inputs.motorVelocity = motorVelocity.getValue();
     inputs.motorPosition = motorPosition.getValue();
     inputs.motorTemperature = motorTemperature.getValue();
+    inputs.closedLoopReference = closedLoopReference.getValueAsDouble();
+    inputs.closedLoopError = closedLoopError.getValueAsDouble();
 
     updateTunedConfig();
   }

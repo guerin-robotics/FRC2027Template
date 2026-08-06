@@ -100,16 +100,58 @@ wrong for any other drivetrain — regenerate the whole file for the 2027 robot.
 
 ## Phoenix 6 Status Signal Frequency
 
-```java
-// Standard subsystems — 50 Hz
-BaseStatusSignal.setUpdateFrequencyForAll(50, signal1, signal2, ...);
+**This split is the team standard. Use it on every mechanism.**
 
-// Odometry-critical signals — 250 Hz (swerve drive/steer only)
-BaseStatusSignal.setUpdateFrequencyForAll(250, driveVelocity, steerPosition, ...);
+```java
+// 50 Hz — the control loop and match review need these every cycle
+BaseStatusSignal.setUpdateFrequencyForAll(
+    50.0,
+    velocity,
+    position,
+    statorCurrent,
+    supplyCurrent,
+    torqueCurrent,
+    motorVoltage,
+    closedLoopReference);
+
+// 10 Hz — diagnostics that change slowly
+BaseStatusSignal.setUpdateFrequencyForAll(10.0, deviceTemp, closedLoopError);
+
+// 4 Hz — sticky faults, which latch until cleared
+BaseStatusSignal.setUpdateFrequencyForAll(4.0, stickyUndervoltage, /* ... */);
+
+// CANcoder, if the mechanism has one — 50 Hz, same as the motor's position
+BaseStatusSignal.setUpdateFrequencyForAll(50.0, encoderAbsolutePosition);
+
+// LAST, on every device
+motor.optimizeBusUtilization();
+encoder.optimizeBusUtilization();
 ```
 
-Always call `motor.optimizeBusUtilization()` after setting signal frequencies.
-Unused signals at default 100 Hz waste CAN bandwidth.
+Why each lands where it does:
+
+- **Torque current is 50 Hz**, not a diagnostic. Under `TorqueCurrentFOC` it *is* the control
+  signal.
+- **Closed-loop reference is 50 Hz** because comparing it against the measured value is how
+  profile saturation becomes visible, and that comparison is meaningless if the two are sampled
+  at different rates.
+- **Closed-loop error is 10 Hz** because it is reference minus measured, both of which are
+  already at 50 Hz. The channel is a convenience for scrubbing a log, not an input to anything.
+- **Temperature is 10 Hz** because it moves over minutes.
+- **Sticky faults are 4 Hz** because they latch; a fast rate buys nothing.
+
+### optimizeBusUtilization is mandatory, on every device
+
+Call it **last**, after every frequency is set, on **every** TalonFX and CANcoder — followers
+and encoders included. A Talon publishes dozens of signals by default and the unused ones are
+pure bandwidth.
+
+**It disables everything you did not register.** Not "slows down" — disables. That is the point,
+and it is also the trap: a signal you forget is silently dead rather than merely stale, and it
+reads in the log as a value frozen at zero.
+
+If you want a device's unregistered signals kept alive at a low rate instead of disabled, pass
+a floor: `follower.optimizeBusUtilization(4.0)`.
 
 **Cache every `StatusSignal` once in the constructor** and refresh them in one batched
 `BaseStatusSignal.refreshAll(...)` per `updateInputs()`. Calling `motor.getStatorCurrent()`
@@ -128,7 +170,24 @@ At minimum, per motor:
 | `getSupplyCurrent()` | Current drawn from the battery — brownout analysis |
 | `getVelocity()` | Actual motion |
 | `getDeviceTemp()` | Thermal headroom — Krakens limit output before they fault |
+| `getPosition()` | Where it actually is — required on anything position-controlled |
 | `getTorqueCurrent()` | **Required for any motor driven by a `*TorqueCurrentFOC` request** |
+| `getClosedLoopReference()` | What the profile was asking for. **Required on any closed-loop motor** |
+| `getClosedLoopError()` | How far off it was |
+
+### Closed-loop reference and error
+
+Log both on every closed-loop mechanism. Without them a log shows the mechanism in the wrong
+place and gives you no way to tell which of three different problems you have:
+
+| What the log shows | What it means |
+|---|---|
+| Reference tracks the goal, measured lags it | Gains too weak, or the motor is saturated |
+| Reference never reaches the goal | Profile too slow, or clamped by a soft limit |
+| Reference flat at the wrong number | The setpoint itself was wrong |
+
+Those need very different fixes, and guessing between them is how a tuning session gets spent
+on the wrong gain.
 
 ### Stator vs supply current — do not mix them up
 

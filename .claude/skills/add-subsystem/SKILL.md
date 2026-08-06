@@ -160,6 +160,14 @@ Non-negotiables, each of which has burned this team or is load-bearing for repla
   or the unregistered ones drop to 4 Hz and read stale.
 - Torque current is logged whenever the control mode is any `*TorqueCurrentFOC` — it is the
   control signal, and stator current is not a substitute.
+- **Closed-loop reference and error are logged on every closed-loop mechanism.** Reference at
+  50 Hz next to the measured value, error at 10 Hz. Without them a log cannot distinguish weak
+  gains from a saturated profile from a wrong setpoint.
+- **Signal rates follow the standard**: 50 Hz for velocity, position, stator, supply, torque,
+  voltage and closed-loop reference; 10 Hz for device temperature and closed-loop error; 4 Hz
+  for sticky faults; 50 Hz for a CANcoder's absolute position. See `.claude/rules/02-hardware.md`.
+- **`optimizeBusUtilization()` runs last, on every device** — followers and CANcoders included.
+  It disables every signal not registered, so anything forgotten is dead rather than slow.
 - `Follower(int, MotorAlignmentValue)`. The old boolean overload does not exist in Phoenix 6
   2026.
 - Supply current, not stator, goes to `BatteryLogger.reportCurrentUsage()`.

@@ -31,7 +31,12 @@ which signals confirm or eliminate each.
 **A mechanism didn't act when the button was pressed**
 ```
 Triggers/[gatingTrigger]           — was the composite trigger true?
-[Mechanism]/closedLoopReference    — was it targeting a setpoint?
+[Mechanism]/closedLoopReference    — what the profile was ASKING for this instant
+[Mechanism]/closedLoopError        — how far off it was (10 Hz; reference minus measured)
+
+  Reference tracks goal, measured lags   → weak gains, or saturated (check torque current)
+  Reference never reaches goal           → profile too slow, or hit a soft limit
+  Reference flat at the wrong number     → the setpoint was wrong; look upstream at the command
 [Mechanism]/isReady                — did the readiness condition pass?
 [Mechanism]/torqueCurrentAmps      — was it loaded, stalled, or free-spinning?
 Commands/Active                    — was the command actually scheduled?

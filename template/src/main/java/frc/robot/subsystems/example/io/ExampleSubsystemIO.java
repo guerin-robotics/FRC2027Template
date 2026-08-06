@@ -48,6 +48,23 @@ public interface ExampleSubsystemIO {
     // and put the unit in the field name: public double motorTempCelsius = 0.0;
     public Temperature motorTemperature = Celsius.of(0);
 
+    // ---- Closed-loop diagnostics ----
+    //
+    // Log these on every closed-loop mechanism. The reference is what the profile was ASKING
+    // for this instant; the error is how far off it was. Together with the measured value they
+    // turn "it didn't get there" into an answer:
+    //
+    //   reference tracking the goal, measured lagging it   → gains too weak, or saturated
+    //   reference NOT reaching the goal                    → profile too slow, or clamped by
+    //                                                        a soft limit
+    //   reference flat at the wrong number                 → the setpoint was wrong
+    //
+    // Primitives, not Measure types, on purpose: the units depend on the control mode
+    // (rotations for position, rot/s for velocity), so there is no single Measure type that
+    // is honest here. AdvantageScope shows them next to the measured value either way.
+    public double closedLoopReference = 0.0;
+    public double closedLoopError = 0.0;
+
     // Sticky faults latch until cleared, so they record what happened BETWEEN polls. Log at
     // least these four — bootDuringEnable is the one that turns "the motor died for three
     // seconds" into "the motor rebooted at 47.2 s, check its power connector".
