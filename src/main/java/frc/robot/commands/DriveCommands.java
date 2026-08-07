@@ -262,8 +262,14 @@ public class DriveCommands {
         .beforeStarting(() -> angleController.reset(drive.getRotation().getRadians()))
         .finallyDo(
             () -> {
-              Logger.recordOutput("AutoAim/TargetAngle", 0.0);
-              Logger.recordOutput("AutoAim/CurrentAngle", 0.0);
+              // Rotation2d, not 0.0 — the loop above logs these two keys as Rotation2d, and
+              // AdvantageKit fixes a field's type on first write. A double here is REJECTED
+              // rather than converted, so the channels would keep their last aiming value
+              // after the command ended and a match log would read as though the robot were
+              // still aiming. Match the type the loop writes. AngleErrorRad is a double in
+              // both places, so it stays 0.0.
+              Logger.recordOutput("AutoAim/TargetAngle", Rotation2d.kZero);
+              Logger.recordOutput("AutoAim/CurrentAngle", Rotation2d.kZero);
               Logger.recordOutput("AutoAim/AngleErrorRad", 0.0);
             })
         .withName("Drive_JoystickAtAngle");

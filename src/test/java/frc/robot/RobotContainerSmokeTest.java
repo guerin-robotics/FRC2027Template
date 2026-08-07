@@ -64,6 +64,17 @@ class RobotContainerSmokeTest {
     assertTrue(HAL.initialize(500, 0), "HAL failed to initialize; sim-backed tests cannot run");
     RoboRioSim.setVInVoltage(12.0);
     DriverStationSim.setEnabled(false);
+
+    // Declare both controllers present. configureButtonBindings() polls flight-stick buttons
+    // through Triggers, and an undeclared joystick makes the DriverStation warn that the button
+    // is unavailable. On a real robot both controllers are plugged in for every match — see the
+    // note on Constants.Controllers about verifying ports in the DS USB tab — so modelling them
+    // as present is what matches reality. Counts are generous rather than exact so that adding a
+    // binding does not silently reintroduce the warning.
+    DriverStationSim.setJoystickButtonCount(Constants.Controllers.FLIGHT_STICK_PORT, 16);
+    DriverStationSim.setJoystickAxisCount(Constants.Controllers.FLIGHT_STICK_PORT, 6);
+    DriverStationSim.setJoystickButtonCount(Constants.Controllers.XBOX_PORT, 16);
+    DriverStationSim.setJoystickAxisCount(Constants.Controllers.XBOX_PORT, 6);
     DriverStationSim.notifyNewData();
 
     // Logger.start() normally exits the JVM unless the main class extends LoggedRobot, and

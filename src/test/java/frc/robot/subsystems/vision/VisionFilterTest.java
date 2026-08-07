@@ -16,6 +16,7 @@ import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
+import edu.wpi.first.wpilibj.simulation.DriverStationSim;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.RobotState;
 import frc.robot.subsystems.drive.Drive;
@@ -68,6 +69,17 @@ class VisionFilterTest {
     // Vision.periodic() calls Logger.processInputs and Logger.recordOutput unconditionally.
     Logger.AdvancedHooks.disableRobotBaseCheck();
     Logger.start();
+
+    // Report disabled before the first periodic(). AdvantageKit builds the struct schema for a
+    // record type the first time one is logged, and warns when that happens while enabled
+    // because the work can blow the loop budget. VisionIOInputs carries PoseObservation and
+    // TargetObservation records, so this test is where they are first seen — and the
+    // CommandScheduler is a JVM-wide singleton, so whichever test class ran first may have left
+    // the DriverStation enabled. On a real robot the schema is built during disabled, before
+    // the match starts; saying so here makes the test match the robot rather than silencing a
+    // warning that would be real.
+    DriverStationSim.setEnabled(false);
+    DriverStationSim.notifyNewData();
   }
 
   @AfterEach
