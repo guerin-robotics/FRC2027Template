@@ -6,7 +6,7 @@ Everything here runs on `./gradlew build` and in CI on every PR and push to main
 touches hardware; the sim-backed ones use the HAL simulator and the physics `IOSim`
 implementations.
 
-The suite is deliberately small — 32 tests across 8 classes. It covers the things that fail
+The suite is deliberately small — 39 tests across 9 classes. It covers the things that fail
 *silently*, and leaves everything else to review. Adding a test is cheap; maintaining one that
 nobody trusts is not.
 
@@ -74,10 +74,13 @@ deliberate: the values were earned from real 2026 match logs and are the source 
 | `commands/JoystickDriveAtAngleSimTest` | Heading hold converges |
 | `subsystems/drive/DriveOdometrySimTest` | Odometry integrates correctly |
 | `subsystems/drive/DrivePeriodicBudgetTest` | `Drive.periodic()` staying inside the loop budget |
+| `frc/lib/LoopTimeMonitorTest` | The watchdog that reports an over-budget loop |
 | `frc/robot/GainSweepTest` | The gain-sweep harness `/pid-tune` drives |
 
-`DrivePeriodicBudgetTest` measures wall-clock time on a dev laptop or CI runner, not a
-roboRIO. A RIO is far slower, so passing is necessary, not sufficient. What it reliably
+`LoopTimeMonitorTest` drives timing with `SimHooks.pauseTiming()`/`stepTiming()`, so its
+assertions about the 20 ms budget and the 25 ms alert threshold are exact rather than
+machine-dependent. `DrivePeriodicBudgetTest` is the opposite: it measures wall-clock time on a
+dev laptop or CI runner, not a roboRIO. A RIO is far slower, so passing is necessary, not sufficient. What it reliably
 catches is a *structural* regression — an accidental O(n²), a blocking call added to the hot
 path, a heavyweight object rebuilt every cycle. Those show up as multiples, not percentages.
 The real check is watching `LoopTiming/AverageMs` from the first day the robot drives.
