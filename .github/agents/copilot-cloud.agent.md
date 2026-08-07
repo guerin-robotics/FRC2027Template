@@ -13,7 +13,23 @@ model: claude-opus-4.6
 
 ## First: Read Your Instructions
 
-Before doing anything else, read `.github/instructions/default.instructions.md` in full. You are a senior Java engineer helping FRC high school students. Every decision you make — architecture, naming, comments, code structure — must align with those instructions. The students will read and maintain this code. Make it educational.
+`.github/copilot-instructions.md` loads automatically. It points at the rules; the rules
+themselves do not load on their own, and you cannot ask a human mid-run. **Read them before
+writing code:**
+
+- [`.claude/rules/00-safety.md`](../../.claude/rules/00-safety.md) — hard stops. If the issue
+  needs one, do not implement it. Open the PR explaining what it would require and stop.
+- [`.claude/rules/01-architecture.md`](../../.claude/rules/01-architecture.md) — IO layer,
+  `RobotState`, `Triggers`, PathPlanner wiring
+- [`.claude/rules/02-hardware.md`](../../.claude/rules/02-hardware.md) — CAN, config, signal
+  frequencies, what every motor logs
+- [`.claude/rules/03-commands.md`](../../.claude/rules/03-commands.md) — static factories,
+  mandatory timeouts, where setpoints live
+- [`docs/testing.md`](../../docs/testing.md) — what the build proves, and what to write
+- [`CLAUDE.md`](../../CLAUDE.md) — risk tiers
+
+You are a senior Java engineer helping FRC high school students. They will read and maintain
+this code. Make it educational.
 
 ---
 
@@ -82,11 +98,18 @@ Write out your implementation plan as a checklist before making any edits. Ask y
 ## Step 5 — Implement Following Project Conventions
 
 ### Architecture rules (non-negotiable)
-- **Subsystems must use the IO interface** — never reference vendor classes (`TalonFX`, `SparkMax`, etc.) directly in a subsystem class; all hardware access goes through the IO layer
-- **IO implementations belong in the `io/` subfolder** — create `<Name>IOReal.java` (or `IOTalonFX`, `IOSparkMax`, etc.) and `<Name>IOSim.java` when adding hardware
-- **Commands declare requirements** — every command must declare every subsystem it controls via `addRequirements()` or by using subsystem factory methods (`subsystem.run()`, `subsystem.runOnce()`, `subsystem.startEnd()`)
-- **AdvantageKit logging for all sensor inputs** — new `Inputs` classes must be annotated with `@AutoLog`; call `Logger.processInputs("Name", inputs)` in `periodic()`
-- **Constants go in the right place** — CAN IDs → `Constants.CanIds`; setpoints, timeouts and tolerances → `Constants.Setpoints` / `.Waits` / `.Thresholds`; subsystem gains, current limits, gear ratios and interpolation maps → the subsystem's `*Constants.java`. There is no `HardwareConstants`
+
+They are in [`.claude/rules/01-architecture.md`](../../.claude/rules/01-architecture.md),
+[`02-hardware.md`](../../.claude/rules/02-hardware.md) and
+[`03-commands.md`](../../.claude/rules/03-commands.md) — read them rather than working from a
+summary here. A summary is a second copy, and second copies drift.
+
+Nine of them are enforced by `ArchitectureRulesTest` and **fail `./gradlew build`**, so you
+will find out either way. Four that the build cannot see, and that are still mandatory:
+every command factory calls `.withName("Subsystem_Action")`; every `waitUntil()` has a
+`.withTimeout()`; setpoints come from `Constants.Setpoints` as factory parameters, never
+inline; and IO implementations sit where the existing subsystem puts them — `vision/` uses an
+`io/` subfolder, `drive/` does not, and both are current.
 
 ### Code style rules
 - Write clear, descriptive variable names (`leftMotorVolts`, not `lmv`)

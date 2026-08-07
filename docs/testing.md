@@ -73,9 +73,9 @@ Two exemptions, both documented at the rule with why each is legitimate:
 evaluated in `initialize()` rather than `execute()` — verified against PathplannerLib 2026.1.2,
 recheck on a major upgrade).
 
-**If you change a rule, change it in three places:** `.claude/rules/`,
-`.github/instructions/default.instructions.md`, and here. The first two drift silently; this
-one fails loudly.
+**If you change a rule, change it in two places:** `.claude/rules/`, which is authoritative
+for every harness, and here. The Copilot configs under `.github/` point at those rules rather
+than copying them, so they need no edit — keep it that way.
 
 ### Wiring
 
