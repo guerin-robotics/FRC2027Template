@@ -1,7 +1,7 @@
 ---
 name: Code Review
 description: Logical and behavioral audit of robot code — bugs, not style.
-model: claude-opus-4.6
+model: claude-opus-5
 ---
 
 # Code Review Agent

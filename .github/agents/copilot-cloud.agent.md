@@ -6,7 +6,7 @@
 
 name: Copilot Coding Agent
 description: Ai agent to implement issues autonomously in the cloud.
-model: claude-opus-4.6
+model: claude-opus-5
 ---
 
 # Copilot Coding Agent — Autonomous Issue Implementation
