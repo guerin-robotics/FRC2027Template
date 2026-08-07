@@ -154,3 +154,23 @@ a level below either command — it commands raw `ChassisSpeeds` directly and ch
 `+omega` odometry moves the way WPILib's convention says it should. Re-run it (or its pattern)
 after any change to `TunerConstants`, module inversion, or `Drive`'s kinematics — those are exactly
 the failure classes `.claude/rules/00-safety.md` calls out as high-risk and hard to notice.
+
+### Loop timing
+
+A new alignment command runs `angleController` (and maybe `driveController`) every cycle, so it
+adds to the 20 ms budget. Two tests guard that budget from opposite ends:
+
+- [`LoopTimeMonitorTest`](../src/test/java/frc/lib/LoopTimeMonitorTest.java) — pins down the
+  watchdog itself: that a sustained ~33 ms loop (the 2026 robot's actual rate) is reported, that a
+  startup spike is not, that the deliberate gap between the 20 ms budget and the 25 ms alert
+  threshold is preserved, and that the alert clears on recovery. Timing is controlled with
+  `SimHooks.pauseTiming()`/`stepTiming()`, so these assertions are exact rather than
+  machine-dependent.
+- [`DrivePeriodicBudgetTest`](../src/test/java/frc/robot/subsystems/drive/DrivePeriodicBudgetTest.java)
+  — measures `Drive.periodic()`, the largest known contributor, and fails if its median jumps by
+  more than an order of magnitude. Copy this pattern for any 2027 subsystem whose `periodic()` does
+  real work.
+
+Neither replaces watching `LoopTiming/AverageMs` on the actual robot from the first day it drives —
+a dev laptop is not a roboRIO. They catch structural regressions early, which is when they are
+cheap to fix.
