@@ -8,15 +8,23 @@ Faster checks first.
 ## 1. Build (required for every change)
 
 ```bash
-./gradlew compileJava          # Must pass
-./gradlew spotlessCheck         # Must pass (or run spotlessApply first)
+./gradlew build                 # Compiles, checks formatting, and runs the test suite
 ```
+
+That single command is what CI runs. Use the narrower ones only to iterate faster —
+`compileJava` and `spotlessCheck` alone will not catch a rule violation or a broken test, and
+a change that passes them can still fail CI.
 
 For changes to `@AutoLog` inputs classes:
 ```bash
 ./gradlew clean generateSources # Regenerates AutoLogged classes
-./gradlew compileJava
+./gradlew build
 ```
+
+**Several checks below are now enforced by that build**, so a green build means you can skim
+them rather than verify them by hand. They are marked ⚙ and are listed in
+[testing.md](testing.md). Everything unmarked still needs your eyes — the build reads types
+and call targets, never whether a value is correct.
 
 ---
 
@@ -26,15 +34,17 @@ For changes to `@AutoLog` inputs classes:
 - [ ] No reformatting of unrelated lines
 - [ ] No renamed variables outside the scope of the task
 - [ ] No new imports in files that weren't otherwise modified
-- [ ] No debug `System.out.println()` left in
+- [ ] No debug `System.out.println()` left in ⚙ *(in subsystems)*
 
 ---
 
 ## 3. Architecture Check
 
-- [ ] No hardware calls (TalonFX, CANcoder, etc.) inside a subsystem class
-- [ ] No subsystem-to-subsystem references outside `RobotContainer` or the sequences layer
-- [ ] No new command classes (`extends Command`) — use static factories only
+- [ ] No hardware calls (TalonFX, CANcoder, etc.) inside a subsystem class ⚙
+- [ ] No subsystem-to-subsystem references outside `RobotContainer` or the sequences layer ⚙
+- [ ] No new command classes (`extends Command`) — use static factories only ⚙
+- [ ] No controller object outside `Triggers.java` ⚙
+- [ ] `DriverStation.getAlliance()` not called outside `AllianceFlipUtil` ⚙
 - [ ] Every new command factory method calls `.withName()`
 - [ ] Every new `waitUntil()` has a `.withTimeout()`
 
@@ -42,7 +52,7 @@ For changes to `@AutoLog` inputs classes:
 
 ## 4. Logging Check
 
-- [ ] Every new subsystem `periodic()` calls `Logger.processInputs()`
+- [ ] Every new subsystem `periodic()` calls `Logger.processInputs()` ⚙
 - [ ] Every new subsystem `periodic()` calls `Robot.batteryLogger.reportCurrentUsage()`
 - [ ] Every new motor logs voltage, stator amps, supply amps, velocity and temperature
 - [ ] Any motor driven by a `*TorqueCurrentFOC` request also logs `getTorqueCurrent()`,
@@ -51,13 +61,13 @@ For changes to `@AutoLog` inputs classes:
       `BaseStatusSignal.refreshAll(...)`, not fetched inside `updateInputs()`
 - [ ] Sim IO does not invent values for signals it cannot model (e.g. torque current)
 - [ ] New state values use `Logger.recordOutput()` or `@AutoLogOutput`
-- [ ] No `Logger.processInputs()` calls removed
+- [ ] No `Logger.processInputs()` calls removed ⚙
 
 ---
 
 ## 5. Hardware Check (only for changes touching hardware config)
 
-- [ ] No CAN IDs changed
+- [ ] No CAN IDs changed *(collisions and out-of-range IDs are caught ⚙, but a valid ID pointing at the wrong device is not)*
 - [ ] No motor inversion flags changed
 - [ ] No swerve encoder offsets changed
 - [ ] All new TalonFX configurations use `PhoenixUtil.tryUntilOk(5, ...)`

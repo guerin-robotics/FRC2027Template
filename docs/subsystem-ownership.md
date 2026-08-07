@@ -164,7 +164,11 @@ frc/lib/
 Everything here is season-agnostic except `FieldConstants`, which holds the field
 dimensions and AprilTag layout and gains game geometry each year.
 
-Three classes read `frc.robot.Constants` — `AllianceFlipUtil`, the two tunables, and
+Four classes read `frc.robot.Constants` — `AllianceFlipUtil`, the two tunables, and
 `PhoenixSignalLogger` — but only for global mode flags (`disableHAL`, `tuningMode`,
 `currentMode`), never for robot structure. If you lift this package into another project,
-those four flags are the only thing you need to supply.
+those flags are the only thing you need to supply.
+
+`ArchitectureRulesTest.theLibraryLayerDoesNotDependOnRobotCode` enforces this: `frc.lib` may
+depend on `frc.robot.Constants` and nothing else under `frc.robot`. A new `frc.lib` class
+reaching into a subsystem or `RobotState` fails the build.
