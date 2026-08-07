@@ -45,10 +45,11 @@ import org.junit.jupiter.api.Test;
  *
  * <h2>Exemptions</h2>
  *
- * <p>Two rules below carry a named exemption. Both are written out in full at the rule, with why.
- * An exemption list is honest where a deleted rule is not: it keeps the rule enforced everywhere
- * else while the debt stays visible and greppable. {@link #onlyAllianceFlipUtilReadsTheAlliance}'s
- * exemption for {@code DriveCommands} is real technical debt and should be removed, not extended.
+ * <p>{@link #onlyAllianceFlipUtilReadsTheAlliance} carries two named exemptions, both written out
+ * in full at the rule with why each one is legitimate rather than deferred. An exemption list is
+ * honest where a deleted rule is not: it keeps the rule enforced everywhere else while any debt
+ * stays visible and greppable. Add to it only for a call that genuinely is not per-loop, and say so
+ * at the line.
  *
  * <h2>What this cannot check</h2>
  *
@@ -188,22 +189,6 @@ class ArchitectureRulesTest {
         // DriveCommands below.
         .and()
         .doNotHaveFullyQualifiedName("frc.robot.subsystems.drive.Drive")
-
-        // ------------------------------------------------------------------------------------
-        // KNOWN DEBT — not a legitimate exemption. Remove this line, do not extend it.
-        //
-        // DriveCommands.joystickDrive, joystickDriveLimited and joystickDriveAtAngle each call
-        // getAlliance() TWICE per loop, inside the Commands.run lambda, to compute isFlipped.
-        // joystickDrive is the drivetrain's default command, so this is the hottest path on the
-        // robot. The fix is to replace each pair with AllianceFlipUtil.shouldFlip(), which is
-        // already imported elsewhere in the codebase and returns the same answer.
-        //
-        // Left in place because changing DriveCommands is a change to code that controls physical
-        // robot motion, which CLAUDE.md requires be confirmed rather than folded into unrelated
-        // work. Once fixed, delete these three lines and this comment.
-        // ------------------------------------------------------------------------------------
-        .and()
-        .doNotHaveFullyQualifiedName("frc.robot.commands.DriveCommands")
         .should()
         .callMethod(DriverStation.class, "getAlliance")
         .because(
