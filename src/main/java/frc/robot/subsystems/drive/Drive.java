@@ -162,30 +162,8 @@ public class Drive extends SubsystemBase {
     // Start odometry thread
     PhoenixOdometryThread.getInstance().start();
 
-    // Configure AutoBuilder for PathPlanner
-    AutoBuilder.configure(
-        this::getPose,
-        this::setPose,
-        this::getChassisSpeeds,
-        this::runVelocity,
-        // Gains tuned via PathFollowingGainSweepTest (kP 50 saturated the modules and amplified
-        // vision pose corrections into velocity steps, causing chop)
-        // Sim-derived values (10.0 / 7.5); last real-robot tested values from drive
-        // practice were 40.0 / 35.0 (PR #91)
-        new PPHolonomicDriveController(
-            new PIDConstants(10.0, 0.0, 0.0), new PIDConstants(7.1, 0.0, 0.1)),
-        PP_CONFIG,
-        () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
-        this);
-    Pathfinding.setPathfinder(new LocalADStarAK());
-    PathPlannerLogging.setLogActivePathCallback(
-        (activePath) -> {
-          Logger.recordOutput("Odometry/Trajectory", activePath.toArray(new Pose2d[0]));
-        });
-    PathPlannerLogging.setLogTargetPoseCallback(
-        (targetPose) -> {
-          Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
-        });
+    // PathPlanner wiring is NOT done here — see configureAutoBuilder(), called by
+    // RobotContainer. It mutates PathPlanner's global state, which a constructor should not.
 
     // Configure SysId
     //
@@ -210,6 +188,52 @@ public class Drive extends SubsystemBase {
     // This ensures there is only ONE SwerveDrivePoseEstimator — eliminating the dual-estimator
     // divergence bug where two independent estimators would drift apart.
     RobotState.getInstance().setPoseSupplier(this::getPose);
+  }
+
+  /**
+   * Wires this drivetrain into PathPlanner. Call once, from {@code RobotContainer}, and <b>before
+   * {@code AutoBuilder.buildAutoChooser()}</b>.
+   *
+   * <p>The configuration itself stays here rather than in {@code RobotContainer} — the gains, the
+   * robot config and the output consumer all belong with the drivetrain, and {@code
+   * .claude/rules/01-architecture.md} requires it. What moved out of the constructor is only
+   * <i>when</i> it runs.
+   *
+   * <p><b>Why it is not in the constructor.</b> Every call below mutates PathPlanner's global
+   * static state: one `AutoBuilder`, one pathfinder, one pair of logging callbacks, shared by the
+   * whole JVM. Constructing a `Drive` therefore reached outside itself and reconfigured a
+   * singleton, which meant a second `Drive` — four sim tests build one — silently stole the binding
+   * from the first and made PathPlanner report an error on every test run.
+   *
+   * <p><b>If you forget to call this</b>, {@code AutoBuilder.buildAutoChooser()} throws {@code
+   * AutoBuilderException: AutoBuilder was not configured}, taking out the whole auto chooser rather
+   * than one routine. That is loud by design, and {@code RobotContainerSmokeTest} catches it before
+   * it reaches a robot.
+   */
+  public void configureAutoBuilder() {
+    AutoBuilder.configure(
+        this::getPose,
+        this::setPose,
+        this::getChassisSpeeds,
+        this::runVelocity,
+        // Gains tuned via PathFollowingGainSweepTest (kP 50 saturated the modules and amplified
+        // vision pose corrections into velocity steps, causing chop)
+        // Sim-derived values (10.0 / 7.5); last real-robot tested values from drive
+        // practice were 40.0 / 35.0 (PR #91)
+        new PPHolonomicDriveController(
+            new PIDConstants(10.0, 0.0, 0.0), new PIDConstants(7.1, 0.0, 0.1)),
+        PP_CONFIG,
+        () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
+        this);
+    Pathfinding.setPathfinder(new LocalADStarAK());
+    PathPlannerLogging.setLogActivePathCallback(
+        (activePath) -> {
+          Logger.recordOutput("Odometry/Trajectory", activePath.toArray(new Pose2d[0]));
+        });
+    PathPlannerLogging.setLogTargetPoseCallback(
+        (targetPose) -> {
+          Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
+        });
   }
 
   @Override

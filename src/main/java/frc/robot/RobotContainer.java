@@ -120,6 +120,12 @@ public class RobotContainer {
         break;
     }
 
+    // Wire the drivetrain into PathPlanner. The configuration lives in Drive.java; only the
+    // timing is decided here, because it mutates PathPlanner's global state and a constructor
+    // is the wrong place to do that. Must come before buildAutoChooser() below — without it
+    // that call throws AutoBuilderException and takes out the whole chooser.
+    drive.configureAutoBuilder();
+
     // IMPORTANT: register PathPlanner named commands and event triggers BEFORE building the
     // auto chooser. AutoBuilder.buildAutoChooser() parses the .auto files and resolves named
     // commands at build time — anything registered after this line is silently ignored.

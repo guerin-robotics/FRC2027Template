@@ -123,7 +123,19 @@ every call. At 50 Hz this creates GC pressure and unpredictable `periodic()` tim
 
 ## PathPlanner Wiring
 
-**Rule:** `AutoBuilder.configure()` lives in `Drive.java`, not `RobotContainer`.
+**Rule:** `AutoBuilder.configure()` lives in `Drive.java` — in `Drive.configureAutoBuilder()`,
+not in `RobotContainer`. The gains, `PP_CONFIG` and the output consumer belong with the
+drivetrain.
+
+**Rule:** `RobotContainer` calls `drive.configureAutoBuilder()` once, before
+`AutoBuilder.buildAutoChooser()`.
+
+**Why it is a method and not the constructor:** `AutoBuilder`, the pathfinder and the logging
+callbacks are PathPlanner *global* state, one set per JVM. Configuring them from a constructor
+means building a second `Drive` silently rebinds them — which is exactly what the sim tests do,
+four times, and it made PathPlanner report an error on every test run. Forgetting the call is
+loud rather than silent: `buildAutoChooser()` throws `AutoBuilderException`, and
+`RobotContainerSmokeTest` catches it.
 
 **Rule:** Named commands and event triggers must be registered before
 `AutoBuilder.buildAutoChooser()` is called.

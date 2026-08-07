@@ -170,9 +170,11 @@ drains those queues under `odometryLock` and feeds `poseEstimator.updateWithTime
 constructor. If the gyro disconnects, heading falls back to integrating module deltas via
 `kinematics.toTwist2d()` and an `Alert` is raised.
 
-**PathPlanner.** `AutoBuilder.configure()` lives in the `Drive` constructor. Path-following
-gains and `PP_CONFIG` (mass, MOI, wheel COF) are there too — all 2026 values, all need
-re-measuring.
+**PathPlanner.** `AutoBuilder.configure()` lives in `Drive.configureAutoBuilder()`, which
+`RobotContainer` calls once before `AutoBuilder.buildAutoChooser()`. It is a method rather than
+constructor code because `AutoBuilder` is global state and a second `Drive` would rebind it.
+Path-following gains and `PP_CONFIG` (mass, MOI, wheel COF) are in that method — all 2026
+values, all need re-measuring.
 
 **Commands.** `joystickDrive`, `joystickDriveLimited`, `joystickDriveAtAngle`, `stopWithX`,
 `feedforwardCharacterization`, `wheelRadiusCharacterization`. Every "align to X" command is

@@ -120,7 +120,7 @@ rather than assuming a green build means they hold.
 | Other CAN IDs | `Constants.CanIds` |
 | Setpoints / timeouts / tolerances | `Constants.Setpoints` / `.Waits` / `.Thresholds` — never inline |
 | PID gains (mechanisms) | `[Subsystem]Constants.java` or IO implementation |
-| Path-following gains | `Drive.java` (`AutoBuilder.configure`) |
+| Path-following gains | `Drive.java` (`configureAutoBuilder()`) |
 | Heading-hold gains | `DriveCommands.java` (`ANGLE_KP` / `ANGLE_KD`) |
 | Vision thresholds | `subsystems/vision/VisionConstants.java` |
 | Field dimensions / AprilTag layout | `frc/lib/FieldConstants.java` |

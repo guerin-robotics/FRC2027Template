@@ -130,10 +130,11 @@ command left scheduled, or a subsystem left registered, keeps running during eve
 test. Every sim test here has teardown that cancels and unregisters; give any new one the
 same. `DriveToPoseSimTest`'s javadoc explains the failure mode in full.
 
-### Known noise
+### Global state and the scheduler
 
-Every test run prints `Auto builder has already been configured. This is likely in error.`
-`Drive`'s constructor calls `AutoBuilder.configure()`, and several test classes build a
-`Drive`. It is benign today — no test drives an AutoBuilder path — but it becomes a real trap
-if someone adds an auto-following sim test, because `AutoBuilder` would point at whichever
-`Drive` was constructed last rather than theirs.
+Two JVM-wide singletons will bite a new test if you let them. `CommandScheduler` is one, above.
+PathPlanner's `AutoBuilder` is the other: it used to be configured from `Drive`'s constructor,
+so every test that built a `Drive` rebound it and PathPlanner reported an error on every run.
+It now lives in `Drive.configureAutoBuilder()`, which only `RobotContainer` calls — so a sim
+test gets a `Drive` that has not touched PathPlanner global state. If you write a test that
+needs path following, call `configureAutoBuilder()` on your own `Drive` explicitly.

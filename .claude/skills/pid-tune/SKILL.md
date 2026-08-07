@@ -26,7 +26,7 @@ Get from the user (ask if missing):
    trajectory, a sweep of setpoints
 4. **Current gains and where they live** — find them yourself if not given
    (`[Subsystem]Constants`, the IO implementation, `DriveCommands` for the
-   heading-hold controller, `Drive.AutoBuilder.configure()` for path following,
+   heading-hold controller, `Drive.configureAutoBuilder()` for path following,
    or `generated/TunerConstants` for swerve — the last is Tuner X output and
    must not be hand-edited outside a deliberate tuning session)
 
