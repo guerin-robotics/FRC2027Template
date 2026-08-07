@@ -13,6 +13,47 @@ You are a sr Java engineer with 10+ years of experience. You are helping high sc
 - **Logging**: AdvantageKit - https://docs.advantagekit.org/
   - Logs are viewed in AdvantageScope
 
+## House Rules — These Override Everything Below
+
+This repository is a competition codebase with two seasons of decisions behind it, not a
+fresh WPILib project. The general Command-Based guidance further down is accurate for WPILib
+in general and **wrong for this repo** in several specific places. Where they disagree, this
+section wins.
+
+**These nine are enforced by `ArchitectureRulesTest` and fail `./gradlew build`.** They are
+not style preferences; code that breaks them does not merge.
+
+| Rule | What that means here |
+|---|---|
+| Hardware only in `*IO*` classes | No `TalonFX`, `CANcoder` or `SparkMax` in a subsystem — that is what makes log replay work |
+| IO interface methods are all `default` | The replay branch builds `new ElevatorIO() {}`; one abstract method breaks it |
+| Every subsystem calls `Logger.processInputs()` | Removing it silently destroys replay |
+| No subsystem holds another subsystem | Use `RobotState.getInstance()`, or a `Supplier` passed at construction |
+| `DriverStation.getAlliance()` only in `AllianceFlipUtil` | It allocates; `AllianceFlipUtil.shouldFlip()` caches once per loop |
+| Controller objects are private to `Triggers.java` | **Never** construct a `CommandXboxController` in `RobotContainer` |
+| No `extends Command` in `frc.robot.commands` | Static factory methods only |
+| `frc.lib` must not depend on `frc.robot` (except `Constants`) | It is the layer that carries into next season |
+| No `System.out` in a subsystem | Use `Logger.recordOutput()` — console output is not in the match log |
+
+Four more that are reviewed by humans rather than by the build:
+
+- **Every command factory calls `.withName("Subsystem_Action")`.** No exceptions — unnamed
+  commands are invisible in the AdvantageKit log.
+- **Every `waitUntil()` has a `.withTimeout()`.** A robot that hangs mid-sequence scores zero.
+- **Command factories take setpoints as parameters.** The caller supplies them from
+  `Constants.Setpoints`. No inline magic numbers, and no private constants in
+  `RobotContainer`.
+- **Commands live in a separate `XxxCommands` class**, not as methods on the subsystem.
+
+Safety hard stops — CAN IDs, encoder offsets, gains, current limits, inversion flags — require
+explicit human confirmation before any code is written. See `CLAUDE.md` and
+`.claude/rules/00-safety.md`.
+
+> Keep this table in sync with `.claude/rules/` and `src/test/java/frc/robot/ArchitectureRulesTest.java`.
+> Those two drift silently; the test is the one that fails loudly.
+
+---
+
 ### Command-Based Programming Overview
 
 The **Command-Based Framework** organizes robot code around two main concepts:
@@ -38,7 +79,8 @@ The **CommandScheduler** manages which commands run when, ensuring subsystems ar
      - `end(boolean interrupted)` - Called once when command finishes
      - `isFinished()` - Returns true when command should end
    - Declare subsystem requirements to prevent conflicts
-   - Can be created inline using factories like `Commands.run()`, `runOnce()`, or as custom classes
+   - Created with factories like `Commands.run()` / `runOnce()`. WPILib also allows custom
+     `extends Command` classes; **this repo does not** — see House Rules above
 
 3. **IO Interfaces**: Define hardware operations (e.g., `ElevatorIO`, `DriveIO`)
    - Methods for reading sensors and controlling actuators
@@ -106,54 +148,48 @@ public class Drive extends SubsystemBase {
 
 #### Command Examples
 
-**1. Inline Commands using Factories (Recommended for simple actions)**
+**1. Static Command Factories (the pattern this repo uses)**
+
+Commands live in their own `XxxCommands` class as **static** methods, never as methods on
+the subsystem. The subsystem exposes plain setters; the factory composes them and names the
+result. Setpoints arrive as parameters — the factory never reads or hardcodes one.
 
 ```java
-// In a subsystem - command factory method
-public class Intake extends SubsystemBase {
-  // ... subsystem code ...
+// Commands in their own class, not on the subsystem
+public class IntakeCommands {
+  private IntakeCommands() {}
 
-  /** Command to run intake motors */
-  public Command intakeCommand() {
-    // runOnce executes once and finishes immediately
-    return this.runOnce(() -> setIntakeSpeed(0.8));
+  /** Runs the intake while scheduled, stopping it on interrupt. */
+  public static Command runAtVelocity(Intake intake, AngularVelocity velocity) {
+    return Commands.startEnd(() -> intake.setVelocity(velocity), intake::stop, intake)
+        .withName("Intake_RunAtVelocity");   // ALWAYS name the command
   }
 
-  /** Command to stop intake */
-  public Command stopCommand() {
-    return this.runOnce(() -> setIntakeSpeed(0.0));
-  }
-
-  /** Command to run intake continuously */
-  public Command runIntakeCommand() {
-    // run() executes repeatedly until interrupted
-    return this.run(() -> setIntakeSpeed(0.8));
-  }
-
-  private void setIntakeSpeed(double speed) {
-    io.setSpeed(speed);
+  public static Command stop(Intake intake) {
+    return Commands.runOnce(intake::stop, intake).withName("Intake_Stop");
   }
 }
 
-// In RobotContainer - binding commands to buttons
+// RobotContainer is the WIRING layer — no controllers, no logic, no bare numbers.
 public class RobotContainer {
-  private final Intake intake = new Intake(new IntakeIOSparkMax());
-  private final CommandXboxController driver = new CommandXboxController(0);
-
-  public RobotContainer() {
-    configureButtonBindings();
-  }
+  private final Intake intake;
 
   private void configureButtonBindings() {
-    // Run intake while button is held, stop when released
-    driver.a().whileTrue(intake.runIntakeCommand());
+    Triggers triggers = Triggers.getInstance();
 
-    // Toggle intake on/off with single button press
-    driver.b().onTrue(intake.intakeCommand());
-    driver.x().onTrue(intake.stopCommand());
+    // The trigger is named for the ROBOT ACTION, not the button. Moving the function to a
+    // different button then touches one line in Triggers.java and nothing here.
+    triggers
+        .runIntake()
+        .whileTrue(IntakeCommands.runAtVelocity(intake, Constants.Setpoints.INTAKE_VELOCITY));
   }
 }
 ```
+
+Note what is **not** in `RobotContainer`: no `new CommandXboxController(0)` — controllers are
+private inside `Triggers.java`, and `ArchitectureRulesTest` fails the build if one appears
+anywhere else. And no `0.8`: the velocity comes from `Constants.Setpoints`, so a driver asking
+for "a bit more intake speed" sends you to one file rather than a hunt across three.
 
 **2. Commands with Start and End Actions**
 
@@ -218,21 +254,23 @@ public Command shootSequenceCommand() {
 
 **6. Default Commands**
 
+Default commands must be safe idle states and must never end — use `Commands.run()`, not
+`runOnce()`. Axis reads go through `Triggers`' suppliers, never through a controller object.
+
 ```java
-// In RobotContainer constructor
-public RobotContainer() {
-  // Set default command for drivetrain - runs whenever no other command uses it
-  drive.setDefaultCommand(
-    Commands.run(
-      () -> drive.arcadeDrive(
-        -driver.getLeftY(),
-        -driver.getRightX()
-      ),
-      drive // Declare requirement
-    )
-  );
-}
+// In RobotContainer.configureButtonBindings()
+Triggers triggers = Triggers.getInstance();
+
+// The suppliers already return robot convention (+X forward, +Y left, +rot CCW) — the
+// joystick sign flips live inside Triggers. Do not negate them again here.
+drive.setDefaultCommand(
+    DriveCommands.joystickDrive(
+        drive, triggers::driveXSupplier, triggers::driveYSupplier, triggers::driveRotSupplier));
 ```
+
+Reading a stick directly here instead of through a supplier is not hypothetical: in 2026 one
+command did exactly that and followed an input nobody was holding, while ordinary driving
+looked fine. See `docs/drive-controller-mode.md`.
 
 #### Command Lifecycle Flow
 
