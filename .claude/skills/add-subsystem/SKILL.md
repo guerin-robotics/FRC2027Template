@@ -266,20 +266,19 @@ stops working mid-match is worth an alert.
 `@AutoLog` generates `<Name>IOInputsAutoLogged` at build time. If the compiler says it is
 missing a field you just added, run `./gradlew clean generateSources`.
 
-**Run the full `build`, not just `compileJava`** — four existing tests judge this scaffold
-without needing anything new written, and a compile-only check misses all of them:
+**Run the full `build`, not just `compileJava`.** Two existing tests judge this scaffold with
+nothing new written, because both read the real sources rather than a registry:
 
 | If it fails | What the scaffold got wrong |
 |---|---|
-| `ArchitectureRulesTest.hardwareIsOnlyTouchedByIoImplementations` | A `TalonFX`/`CANcoder` landed in the subsystem instead of the IO impl |
-| `ArchitectureRulesTest.everySubsystemProcessesItsInputs` | `periodic()` is missing `Logger.processInputs` |
-| `ArchitectureRulesTest.noSubsystemHoldsAnotherSubsystem` | A subsystem field on the new subsystem — use `RobotState` or a supplier |
-| `ArchitectureRulesTest.ioInterfaceMethodsAllHaveDefault…` | A method on `<Name>IO` is abstract, which breaks the replay branch |
 | `CanIdUniquenessTest` | The new CAN ID collides, is out of range, or reuses the swerve block |
-| `RobotContainerSmokeTest` | Wiring throws, or a default command is unnamed |
+| `RobotContainerSmokeTest` | Wiring throws, the chooser breaks, or a default command is unnamed |
 
-These read the real sources, so the new mechanism is covered the moment it exists — there is
-nothing to register. See [docs/testing.md](../../../docs/testing.md).
+**Everything else is on you.** Nothing automated checks the architecture rules — a `TalonFX` in
+the subsystem instead of the IO impl, a `periodic()` missing `Logger.processInputs`, a subsystem
+field on the new subsystem, or an abstract method on `<Name>IO` that breaks the replay branch
+will all compile and pass. Re-read `.claude/rules/01-architecture.md` against what you wrote.
+See [docs/testing.md](../../../docs/testing.md).
 
 **Tests you should write**, per `docs/testing.md`:
 

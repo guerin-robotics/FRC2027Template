@@ -104,12 +104,13 @@ They are in [`.claude/rules/01-architecture.md`](../../.claude/rules/01-architec
 [`03-commands.md`](../../.claude/rules/03-commands.md) — read them rather than working from a
 summary here. A summary is a second copy, and second copies drift.
 
-Nine of them are enforced by `ArchitectureRulesTest` and **fail `./gradlew build`**, so you
-will find out either way. Four that the build cannot see, and that are still mandatory:
-every command factory calls `.withName("Subsystem_Action")`; every `waitUntil()` has a
-`.withTimeout()`; setpoints come from `Constants.Setpoints` as factory parameters, never
-inline; and IO implementations sit where the existing subsystem puts them — `vision/` uses an
-`io/` subfolder, `drive/` does not, and both are current.
+**Nothing automated enforces them** — the test suite covers CAN IDs, wiring, vision filtering
+and sim convergence, not architecture. A violation reaches a human reviewer, or it reaches the
+robot. Five that are missed most often: every command factory calls `.withName("Subsystem_Action")`;
+every `waitUntil()` has a `.withTimeout()`; setpoints come from `Constants.Setpoints` as factory
+parameters, never inline; hardware stays inside `*IO*` classes; and IO implementations sit where
+the existing subsystem puts them — `vision/` uses an `io/` subfolder, `drive/` does not, and both
+are current.
 
 ### Code style rules
 - Write clear, descriptive variable names (`leftMotorVolts`, not `lmv`)

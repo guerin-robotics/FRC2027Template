@@ -29,18 +29,19 @@ External references: [WPILib Command-Based](https://docs.wpilib.org/en/stable/do
 
 ## Do not spend review effort on what the build proves
 
-`ArchitectureRulesTest` fails the build on nine architecture rules; `CanIdUniquenessTest`,
-`PathPlannerAssetsTest` and `RobotContainerSmokeTest` cover ID collisions, broken PathPlanner
-assets, and wiring that will not construct. **If the build is green, those are already true.**
+`CanIdUniquenessTest` and `RobotContainerSmokeTest` cover CAN ID collisions, unregistered
+PathPlanner named commands, and wiring that will not construct. `VisionFilterTest` covers the
+pose-rejection ladder. **If the build is green, those are already true** — do not re-report
+them.
 
-A review that lists nine things the build already checks and misses the one wrong number has
-failed. Spend the attention here instead:
+Everything else is yours, including every architecture rule in `.claude/rules/`. Nothing
+automated checks those. Spend the attention here:
 
 - Whether a value is **correct** — a gain, a tolerance, a timeout, a field coordinate.
 - Whether a `waitUntil()` has a `withTimeout()`, and whether that timeout is long enough to be
   reached and short enough to matter.
 - Whether every command factory calls `.withName()`.
-- Whether a call sits inside a **hot path** — ArchUnit sees the call, not the loop around it.
+- Whether a call sits inside a **hot path** — `DriverStation.getAlliance()` in a `Commands.run` lambda allocates 50 times a second.
 - Whether the code does what the author **meant**.
 
 ## Scope

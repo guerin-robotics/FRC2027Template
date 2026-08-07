@@ -169,6 +169,6 @@ Four classes read `frc.robot.Constants` — `AllianceFlipUtil`, the two tunables
 `currentMode`), never for robot structure. If you lift this package into another project,
 those flags are the only thing you need to supply.
 
-`ArchitectureRulesTest.theLibraryLayerDoesNotDependOnRobotCode` enforces this: `frc.lib` may
-depend on `frc.robot.Constants` and nothing else under `frc.robot`. A new `frc.lib` class
-reaching into a subsystem or `RobotState` fails the build.
+Keep it that way: `frc.lib` may depend on `frc.robot.Constants` and nothing else under
+`frc.robot`. Nothing checks this automatically, so a new `frc.lib` class reaching into a
+subsystem or `RobotState` will compile happily — catch it in review.

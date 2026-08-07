@@ -21,10 +21,10 @@ For changes to `@AutoLog` inputs classes:
 ./gradlew build
 ```
 
-**Several checks below are now enforced by that build**, so a green build means you can skim
-them rather than verify them by hand. They are marked ⚙ and are listed in
-[testing.md](testing.md). Everything unmarked still needs your eyes — the build reads types
-and call targets, never whether a value is correct.
+**The build covers very little of what follows.** The suite checks CAN ID collisions,
+`RobotContainer` wiring, vision filtering and sim convergence — see [testing.md](testing.md).
+The architecture rules below are enforced by *this checklist* and nothing else, so read them
+rather than assuming a green build means they hold.
 
 ---
 
@@ -34,17 +34,18 @@ and call targets, never whether a value is correct.
 - [ ] No reformatting of unrelated lines
 - [ ] No renamed variables outside the scope of the task
 - [ ] No new imports in files that weren't otherwise modified
-- [ ] No debug `System.out.println()` left in ⚙ *(in subsystems)*
+- [ ] No debug `System.out.println()` left in
 
 ---
 
 ## 3. Architecture Check
 
-- [ ] No hardware calls (TalonFX, CANcoder, etc.) inside a subsystem class ⚙
-- [ ] No subsystem-to-subsystem references outside `RobotContainer` or the sequences layer ⚙
-- [ ] No new command classes (`extends Command`) — use static factories only ⚙
-- [ ] No controller object outside `Triggers.java` ⚙
-- [ ] `DriverStation.getAlliance()` not called outside `AllianceFlipUtil` ⚙
+- [ ] No hardware calls (TalonFX, CANcoder, etc.) inside a subsystem class
+- [ ] No subsystem-to-subsystem references outside `RobotContainer` or the sequences layer
+- [ ] No new command classes (`extends Command`) — use static factories only
+- [ ] No controller object outside `Triggers.java`
+- [ ] `DriverStation.getAlliance()` not called outside `AllianceFlipUtil`
+- [ ] Nothing in `frc.lib` depends on `frc.robot` except `Constants`
 - [ ] Every new command factory method calls `.withName()`
 - [ ] Every new `waitUntil()` has a `.withTimeout()`
 
@@ -52,7 +53,7 @@ and call targets, never whether a value is correct.
 
 ## 4. Logging Check
 
-- [ ] Every new subsystem `periodic()` calls `Logger.processInputs()` ⚙
+- [ ] Every new subsystem `periodic()` calls `Logger.processInputs()`
 - [ ] Every new subsystem `periodic()` calls `Robot.batteryLogger.reportCurrentUsage()`
 - [ ] Every new motor logs voltage, stator amps, supply amps, velocity and temperature
 - [ ] Any motor driven by a `*TorqueCurrentFOC` request also logs `getTorqueCurrent()`,
@@ -61,13 +62,13 @@ and call targets, never whether a value is correct.
       `BaseStatusSignal.refreshAll(...)`, not fetched inside `updateInputs()`
 - [ ] Sim IO does not invent values for signals it cannot model (e.g. torque current)
 - [ ] New state values use `Logger.recordOutput()` or `@AutoLogOutput`
-- [ ] No `Logger.processInputs()` calls removed ⚙
+- [ ] No `Logger.processInputs()` calls removed
 
 ---
 
 ## 5. Hardware Check (only for changes touching hardware config)
 
-- [ ] No CAN IDs changed *(collisions and out-of-range IDs are caught ⚙, but a valid ID pointing at the wrong device is not)*
+- [ ] No CAN IDs changed *(collisions and out-of-range IDs are caught by `CanIdUniquenessTest`; a valid ID pointing at the wrong device is not)*
 - [ ] No motor inversion flags changed
 - [ ] No swerve encoder offsets changed
 - [ ] All new TalonFX configurations use `PhoenixUtil.tryUntilOk(5, ...)`

@@ -58,21 +58,26 @@ differently, and what breaks if it is wrong. Then stop.
 ./gradlew build     # compiles, checks formatting, runs the test suite — what CI runs
 ```
 
-`compileJava` alone is not enough. **Nine architecture rules are enforced by
-`src/test/java/frc/robot/ArchitectureRulesTest.java` and fail the build** — hardware outside
-an `*IO*` class, a subsystem missing `Logger.processInputs()`, a subsystem holding another
-subsystem, a controller object outside `Triggers`, `extends Command` in `frc.robot.commands`,
-and others. If the build fails there, the rule is in `.claude/rules/`, and the fix is the
-code, not the test.
+`compileJava` alone is not enough — it skips the tests.
 
-Four things the build cannot check, which are still mandatory:
+**The architecture rules are not enforced by anything automated.** The suite is deliberately
+small: it covers CAN ID collisions, `RobotContainer` wiring, vision filtering, and sim
+convergence. Everything below is on you and the reviewer:
+
+- Hardware (`TalonFX`, `CANcoder`, `SparkMax`) only inside an `*IO*` class.
+- Every subsystem `periodic()` calls `Logger.processInputs()`.
+- No subsystem holds a reference to another subsystem — use `RobotState` or a supplier.
+- `DriverStation.getAlliance()` only inside `AllianceFlipUtil`.
+- Controller objects only inside `Triggers.java`.
+- No `extends Command` in `frc.robot.commands`.
+- `frc.lib` depends on nothing in `frc.robot` except `Constants`.
 
 - Every command factory calls `.withName("Subsystem_Action")`.
 - Every `waitUntil()` has a `.withTimeout()`.
 - Setpoints come from `Constants.Setpoints` as factory parameters — never inline, never a
   private field in `RobotContainer`.
-- Whether a value is *correct*. ArchUnit sees types and call targets, never whether a gain,
-  tolerance or field coordinate is right.
+- Whether a value is *correct* — a gain, tolerance or field coordinate. No test in this repo
+  checks that.
 
 ---
 
