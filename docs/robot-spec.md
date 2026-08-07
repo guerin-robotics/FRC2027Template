@@ -60,6 +60,9 @@ frc/robot/subsystems/vision/ Vision, VisionConstants, io/
 frc/robot/commands/          DriveCommands (+ one file per mechanism)
 ```
 
+Tests mirror this structure under `src/test/java`. See [testing.md](testing.md) for what each
+layer covers — notably `ArchitectureRulesTest`, which enforces §4 below as build failures.
+
 TODO — add mechanism packages as they are created.
 
 ---
@@ -78,6 +81,10 @@ Summarized here; authoritative version is `.claude/rules/01-architecture.md`.
 - `TunerConstants` is the sole source of truth for drivetrain geometry and gains.
 - Never call `DriverStation.getAlliance()` in a hot path — use `AllianceFlipUtil`.
 - Every `waitUntil` has a `withTimeout`.
+
+All but the last two are enforced by `ArchitectureRulesTest` and fail the build rather than
+review. `waitUntil` timeouts and pose-estimator uniqueness are still human-reviewed —
+ArchUnit reads types and call targets, not whether a call sits inside a loop.
 
 ---
 

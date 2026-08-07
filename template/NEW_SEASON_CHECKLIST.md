@@ -155,10 +155,11 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
 - [ ] Use MotionMagic for anything with real inertia or travel; set cruise velocity and
       acceleration deliberately (they are Hard Stop items)
 - [ ] `kI = 0` everywhere unless you can explain the windup behavior during a stall
-- [ ] **Set up the sim gain-sweep test harness** with the first mechanism you tune.
-      `src/test/java` is empty and the `/pid-tune` skill assumes a JUnit sweep exists. The
-      2026 season used one to find PathPlanner gains without touching the robot; building it
-      once means every later retune starts from a working harness instead of robot time
+- [ ] **Copy the sim gain-sweep harness** for the first mechanism you tune. `GainSweepTest`
+      already exists and is what `/pid-tune` drives — it sweeps gains against the physics sim
+      and reports rise time, overshoot and steady-state error, the same way the 2026 season
+      found its PathPlanner gains without touching the robot. Point it at the new mechanism's
+      `IOSim` rather than building a harness from scratch
 - [ ] Build any distance → setpoint interpolation tables against the real field element
 - [ ] Validate vision std dev scaling against real AprilTag observations
 - [ ] Re-validate the vision rejection thresholds against 2027 logs (they're 2026-derived)

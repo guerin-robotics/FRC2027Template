@@ -24,6 +24,7 @@ Process and workflow docs. Nothing in them depends on a particular robot or game
 | [tunables.md](tunables.md) | Changing values live instead of redeploying. RAM-side vs TalonFX Slot0 gains, what should and should not be tunable, where Phoenix Tuner X fits, and why gains typed into Tuner X get silently overwritten at the next boot |
 | [new-mechanism-bringup.md](new-mechanism-bringup.md) | The ordered path from "the subsystem compiles" to "the mechanism is trusted": what to set before it moves, first open-loop motion, gains, motion profile, tolerances, and writing it all back |
 | [target-alignment.md](target-alignment.md) | How to use `joystickDriveAtAngle` and `driveToPose`, the FieldConstants pattern for turning AprilTag poses into scoring targets, and the sim tests to copy before wiring a new one up |
+| [testing.md](testing.md) | What is under test and what each layer catches — pure logic, CAN/PathPlanner config validation, the ArchUnit rules that enforce `.claude/rules/`, wiring, and sim. Read before adding a mechanism |
 
 ## Procedure kept, data needs filling in
 

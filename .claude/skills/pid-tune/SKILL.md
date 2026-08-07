@@ -38,8 +38,13 @@ before tuning — "looks smooth" is not a criterion.
 Prefer a **JUnit simulation sweep test** over interactive sim — it's
 repeatable, automatic, and becomes a permanent asset. The 2026 season had a
 `PathFollowingGainSweepTest` that swept PathPlanner gains and found the retune
-values without touching the robot; `src/test/java` is empty in this template, so
-the first mechanism to be tuned should establish that harness for the rest.
+values without touching the robot.
+
+**That harness already exists here: `src/test/java/frc/robot/GainSweepTest.java`.**
+Read it before writing anything — it sweeps a gain range against the physics sim
+and reports the metrics below, so a new mechanism usually needs a new case rather
+than a new harness. `DriveToPoseSimTest` and `JoystickDriveAtAngleSimTest` are the
+convergence-check pattern to copy for a closed-loop command.
 
 The harness must:
 - Drive the mechanism's `IOSim` (or the physics sim) through the test motion

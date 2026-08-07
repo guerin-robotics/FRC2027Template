@@ -259,13 +259,36 @@ stops working mid-match is worth an alert.
 ## Step 5 — Verify, then report honestly
 
 ```bash
-./gradlew compileJava     # must pass
-./gradlew spotlessCheck   # or spotlessApply
+./gradlew build           # compiles, checks formatting, and runs the test suite
 ./gradlew simulateJava    # must reach "Robot program startup complete" and stay up
 ```
 
 `@AutoLog` generates `<Name>IOInputsAutoLogged` at build time. If the compiler says it is
 missing a field you just added, run `./gradlew clean generateSources`.
+
+**Run the full `build`, not just `compileJava`** — four existing tests judge this scaffold
+without needing anything new written, and a compile-only check misses all of them:
+
+| If it fails | What the scaffold got wrong |
+|---|---|
+| `ArchitectureRulesTest.hardwareIsOnlyTouchedByIoImplementations` | A `TalonFX`/`CANcoder` landed in the subsystem instead of the IO impl |
+| `ArchitectureRulesTest.everySubsystemProcessesItsInputs` | `periodic()` is missing `Logger.processInputs` |
+| `ArchitectureRulesTest.noSubsystemHoldsAnotherSubsystem` | A subsystem field on the new subsystem — use `RobotState` or a supplier |
+| `ArchitectureRulesTest.ioInterfaceMethodsAllHaveDefault…` | A method on `<Name>IO` is abstract, which breaks the replay branch |
+| `CanIdUniquenessTest` | The new CAN ID collides, is out of range, or reuses the swerve block |
+| `RobotContainerSmokeTest` | Wiring throws, or a default command is unnamed |
+
+These read the real sources, so the new mechanism is covered the moment it exists — there is
+nothing to register. See [docs/testing.md](../../../docs/testing.md).
+
+**Tests you should write**, per `docs/testing.md`:
+
+- Pure logic — interpolation tables, readiness bands, zone math. Use
+  `.claude/prompts/write-test.md`; known-correct cases come from measurement, not from the
+  code.
+- A sim convergence test for any closed-loop mechanism, shaped like `DriveToPoseSimTest`.
+  This requires a physics `IOSim` — if the scaffold left it as stubs, say so rather than
+  writing a test that asserts against fiction.
 
 Then state plainly:
 
@@ -301,6 +324,8 @@ If the request needs one of those, say so and ask.
 - `.claude/rules/01-architecture.md` — IO layer, `RobotState`, `Triggers`
 - `.claude/rules/02-hardware.md` — CAN, config, inversion, signal frequency
 - `.claude/rules/03-commands.md` — factories, timeouts, where setpoints live
+- `docs/testing.md` — what the existing suite already covers, and what to write for a new
+  mechanism
 - `docs/new-mechanism-bringup.md` — **what the user does next**: the ordered path from a
   compiling subsystem to a tuned one. Point them at it in your report
 - `docs/tunables.md` — tunable gains and the Phoenix Tuner X ownership trap

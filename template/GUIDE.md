@@ -151,6 +151,7 @@ competition seasons. Don't rewrite them; extend them.
 | `PhoenixUtil.tryUntilOk` | CTRE silently ignores configs on a busy bus; this retries until they stick |
 | `LocalADStarAK` | Required for PathPlanner pathfinding to work under replay |
 | `LoggedDashboardChooser` | Logs which auto was selected — essential for post-match review |
+| The test suite in `src/test/` | Config validation, the ArchUnit rules that enforce `.claude/rules/`, wiring, and sim convergence. Covers a new mechanism the moment it exists — see `docs/testing.md` |
 
 ---
 
@@ -185,6 +186,7 @@ already resolved in this template:
 | `Drive.aligningDefensively` flag with no remaining reader | Deleted |
 | `RobotState.getAngleToTarget()` silently added 180° for the rear-facing shooter | Returns the true bearing; mechanism offset is now a call-site concern |
 | Dead `@AutoLogOutput` methods running every loop with no consumer | Removed during the port; watch for this reappearing |
+| `DriveCommands` called `DriverStation.getAlliance()` twice per loop in three factories, including the drivetrain's default command | Replaced with `AllianceFlipUtil.shouldFlip()`; `ArchitectureRulesTest` now fails the build if it comes back |
 
 ---
 
