@@ -100,6 +100,12 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+    // ArchUnit — used only by ArchitectureRulesTest, which enforces the rules written in
+    // .claude/rules/ as build failures instead of review comments. Plain artifact rather than
+    // archunit-junit5: the rules are ordinary @Test methods, so there is no second test engine
+    // and failures print in the normal format.
+    testImplementation 'com.tngtech.archunit:archunit:1.3.0'
+
     def akitJson = new groovy.json.JsonSlurper().parseText(new File(projectDir.getAbsolutePath() + "/vendordeps/AdvantageKit.json").text)
     annotationProcessor "org.littletonrobotics.akit:akit-autolog:$akitJson.version"
 }
