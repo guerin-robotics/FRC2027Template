@@ -517,6 +517,31 @@ public class ExampleSubsystemConstants {
   }
 
   // ==========================================================================================
+  // JAM DETECTION — mechanisms that can stall against a game piece. Delete otherwise.
+  // See the JAM DETECTION block in ExampleSubsystem for the code these feed.
+  // ==========================================================================================
+  //
+  // NONE OF THESE ARE GUESSABLE. They come from logging stator current during a real jam AND
+  // during a normal pickup, because telling those two apart is the entire job.
+  //
+  //   /** Stator current, in amps, above which the mechanism counts as "working hard".
+  //    * Sits BELOW STATOR_CURRENT_LIMIT_AMPS — a jam that already saturated the limit has
+  //    * been a jam for a while. */
+  //   public static final double JAM_STATOR_CURRENT_AMPS = 55.0;
+  //
+  //   /** Measured velocity below this FRACTION of commanded counts as "not turning". A
+  //    * fraction, not an absolute RPM, so one threshold works at every setpoint. */
+  //   public static final double JAM_VELOCITY_FRACTION = 0.25;
+  //
+  //   /** How long all conditions must hold. MUST EXCEED SPIN-UP TIME — see the note in
+  //    * ExampleSubsystem. Raise it if ACCELERATION_RPM_PER_SEC ever drops. */
+  //   public static final double JAM_DEBOUNCE_SECONDS = 0.5;
+  //
+  //   /** Commanded RPM below which the check is skipped, so a stopped mechanism does not
+  //    * trivially satisfy "measured is below 25% of commanded". */
+  //   public static final double JAM_MIN_COMMANDED_RPM = 100.0;
+
+  // ==========================================================================================
   // ZEROING — relative encoders only. Delete this whole block if the mechanism has an absolute
   // encoder that fits within one turn. See ExampleCommands' commented ZEROING block for how
   // these get used, and docs/new-mechanism-bringup.md Phase 1 step 6 for why each one matters.

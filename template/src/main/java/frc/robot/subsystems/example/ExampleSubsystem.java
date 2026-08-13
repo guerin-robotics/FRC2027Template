@@ -128,6 +128,88 @@ public class ExampleSubsystem extends SubsystemBase {
   }
 
   // ============================================================================================
+  // JAM DETECTION — any mechanism that can stall against a game piece. Rollers, feeders,
+  // intakes, transports. Delete for anything that physically cannot jam.
+  // ============================================================================================
+  //
+  // 2026 ran its rollers open-loop with no feedback, so jams were SILENT: the mechanism stopped
+  // working, and nothing in the log said why. This is the cheapest instrumentation on this list
+  // and it is the one that was missing.
+  //
+  // A jam is a CONJUNCTION, never a single signal:
+  //
+  //   1. we are actually commanding motion          (an idle roller is not jammed)
+  //   2. measured velocity is far below commanded   (it is not turning)
+  //   3. stator current is high                     (it is trying hard)
+  //   4. all three have held for a dwell            (not a transient)
+  //
+  // Current alone is the classic mistake — it spikes on every static-friction breakaway and
+  // every first contact with a game piece, both normal. Same lesson as the ZEROING block below.
+  //
+  // STATOR, not supply. .claude/rules/02-hardware.md assigns stall indication to stator: it is
+  // the winding current. At the low-speed, high-load condition that defines a jam, supply is
+  // only a fraction of stator because the controller is chopping, so a supply threshold sits
+  // much closer to the noise floor. (GUIDE.md section D.3 says "supply-current monitoring" —
+  // it predates this block and is the looser phrasing.)
+  //
+  // THE DWELL MUST EXCEED SPIN-UP TIME, or every start reads as a jam: during spin-up the
+  // command is high, the measurement is low and the current is high, which is exactly the jam
+  // signature. Check it against ACCELERATION_RPM_PER_SEC, and raise it if that ever drops.
+  //
+  // DETECT HERE, RESPOND IN A COMMAND. Reversing to clear a jam is a policy decision with a
+  // game-strategy answer — it can eject a piece the driver wanted. The subsystem owns the
+  // signal; ExampleCommands owns what to do about it. Same split as ZEROING.
+  //
+  //   private final Debouncer jamDebounce =
+  //       new Debouncer(ExampleSubsystemConstants.JAM_DEBOUNCE_SECONDS, kRising);
+  //
+  //   // Evaluated ONCE per loop in periodic(), never inside the getter. A debouncer advances
+  //   // its timer every time it is polled, so calling calculate() from isJammed() would make
+  //   // the dwell depend on how many callers happened to ask — a command polling it and a
+  //   // FaultMonitor condition reading it in the same loop would trip it in half the time.
+  //   private boolean jammed = false;
+  //   private int jamCount = 0;
+  //   private boolean wasJammed = false;
+  //
+  //   // ...called from periodic():
+  //   private void updateJamDetection() {
+  //     jammed = jamDebounce.calculate(isJamConditionPresent());
+  //     if (jammed && !wasJammed) {
+  //       jamCount++;
+  //     }
+  //     wasJammed = jammed;
+  //     Logger.recordOutput("ExampleSubsystem/Jammed", jammed);
+  //     Logger.recordOutput("ExampleSubsystem/JamCount", jamCount);
+  //     // The raw conjunction too. Comparing it against Jammed in a log is how you tell
+  //     // "threshold too low, it keeps flickering" from "dwell too long, it never latches".
+  //     Logger.recordOutput("ExampleSubsystem/JamConditionRaw", isJamConditionPresent());
+  //   }
+  //
+  //   private boolean isJamConditionPresent() {
+  //     double commandedRpm = Math.abs(goalVelocity.in(RPM));
+  //     if (commandedRpm < ExampleSubsystemConstants.JAM_MIN_COMMANDED_RPM) {
+  //       return false;   // idle is not jammed
+  //     }
+  //     boolean notTurning =
+  //         Math.abs(inputs.motorVelocity.in(RPM))
+  //             < commandedRpm * ExampleSubsystemConstants.JAM_VELOCITY_FRACTION;
+  //     boolean workingHard =
+  //         inputs.motorStatorAmps.in(Amps) > ExampleSubsystemConstants.JAM_STATOR_CURRENT_AMPS;
+  //     return notTurning && workingHard;
+  //   }
+  //
+  //   /** Live condition — clears when the jam does. Safe to poll from anywhere. */
+  //   public boolean isJammed() {
+  //     return jammed;
+  //   }
+  //
+  // ALSO: clear goalVelocity in stop() and setVoltage(), or the detector keeps comparing
+  // against a setpoint nobody is commanding any more.
+  //
+  // AND: register it with FaultMonitor in RobotContainer, so a mechanism jamming repeatedly
+  // reaches the pit between matches instead of only the log.
+
+  // ============================================================================================
   // ZEROING — relative encoders only. Delete if this mechanism has an absolute encoder that
   // fits within one turn. See ExampleSubsystemIOReal and ExampleCommands' commented ZEROING
   // blocks, and docs/new-mechanism-bringup.md Phase 1 step 6.

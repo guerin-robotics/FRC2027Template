@@ -221,6 +221,14 @@ Non-negotiables, each of which has burned this team or is load-bearing for repla
 - `Follower(int, MotorAlignmentValue)`. The old boolean overload does not exist in Phoenix 6
   2026.
 - Supply current, not stator, goes to `BatteryLogger.reportCurrentUsage()`.
+- **If the mechanism can stall against a game piece, it gets jam detection.** Rollers, feeders,
+  intakes, transports. 2026 ran these open-loop and jams were silent — the mechanism stopped
+  working and nothing in the log said why. Copy the JAM DETECTION block from
+  `ExampleSubsystem` and its constants: the conjunction of commanded-motion AND
+  not-turning AND high **stator** current, debounced for longer than spin-up takes. Detect in
+  the subsystem, respond in a command, register it with `FaultMonitor`. Ask for the thresholds
+  or mark them unmeasured — telling a jam from a normal pickup is the whole job, and it needs
+  real current data.
 
 ---
 
