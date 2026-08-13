@@ -14,6 +14,8 @@ import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Time;
 import frc.lib.LoggedTunableNumber;
@@ -429,6 +431,90 @@ public class ExampleSubsystemConstants {
 
   /** How close counts as "at position" for a linear mechanism, in inches. */
   public static final double POSITION_TOLERANCE_INCHES = 0.25;
+
+  // ==========================================================================================
+  // VISUALIZATION — display only. Delete with ExampleSubsystemVisualizer if unused.
+  // ==========================================================================================
+
+  /**
+   * Geometry for {@link ExampleSubsystemVisualizer}.
+   *
+   * <p><b>None of this affects the robot.</b> Every value here changes a picture and nothing else,
+   * which makes it the one block in this file you can safely guess at and adjust by eye while
+   * watching AdvantageScope. Do that rather than deferring it — a visualizer nobody bothered to
+   * scale is one nobody looks at.
+   *
+   * <p>The canvas is in meters because {@code LoggedMechanism2d} is, but it is a drawing, not the
+   * robot. Only the {@code PIVOT_*} offsets describe real space, and those come off the CAD.
+   */
+  public static class Visualization {
+
+    private Visualization() {}
+
+    /**
+     * Master switch. Publishing a Mechanism2d to NetworkTables every loop is not free, and the 2026
+     * robot ran closer to 30 Hz than 50 Hz all season.
+     *
+     * <p>Leave it on through bring-up, where it is the whole point. Before competition, check
+     * {@code LoopTiming/} with it enabled and turn it off if the budget is tight — see {@code
+     * .claude/rules/00-safety.md}.
+     */
+    public static final boolean ENABLED = true;
+
+    /** Canvas size. Cosmetic — pick something the mechanism fits inside with room to spare. */
+    public static final double CANVAS_WIDTH_METERS = 1.0;
+
+    public static final double CANVAS_HEIGHT_METERS = 1.0;
+
+    /** Where the fixed point sits on the canvas: the pivot for an arm, the base for a lift. */
+    public static final double ROOT_X_METERS = 0.5;
+
+    public static final double ROOT_Y_METERS = 0.2;
+
+    /** Drawn length of a rotating mechanism's arm. Cosmetic; scale it to fill the canvas. */
+    public static final double LENGTH_METERS = 0.4;
+
+    /**
+     * Linear mechanisms only — drawn length at zero travel.
+     *
+     * <p>A ligament of zero length is not drawn at all, so without this a fully retracted carriage
+     * silently disappears and reads as a broken visualizer rather than a retracted mechanism.
+     */
+    public static final double MIN_LENGTH_METERS = 0.05;
+
+    /**
+     * Linear mechanisms only — canvas meters drawn per inch of real travel.
+     *
+     * <p>Pure display scale, unrelated to {@code TRAVEL_PER_ROTATION}. Choose it so full travel
+     * roughly fills the canvas: for 24 in of travel on a 1 m canvas, about 0.035.
+     */
+    public static final double INCHES_TO_CANVAS_METERS = 0.035;
+
+    // ----------------------------------------------------------------------------------------
+    // 3D component pose — the only real-space values here
+    // ----------------------------------------------------------------------------------------
+    //
+    // Robot frame: X forward, Y left, Z up, origin at the robot's center on the floor.
+    //
+    // AdvantageScope rotates a component mesh ABOUT the pose it is given, so this has to be the
+    // mechanism's actual axis of rotation — the pivot shaft, not the arm tip. Measure it in CAD.
+    // Both default to the robot origin, which draws the component in the middle of the robot and
+    // is obviously wrong on sight, which is the intent.
+
+    /** Pivot axis (rotating) or retracted carriage position (linear), in the robot frame. */
+    public static final Translation3d PIVOT_OFFSET = Translation3d.kZero;
+
+    /** Fixed mounting rotation of the component, before the mechanism's own motion is added. */
+    public static final Rotation3d PIVOT_ROTATION = Rotation3d.kZero;
+
+    /**
+     * Which way the mesh turns as the measured angle increases. Rotating mechanisms only.
+     *
+     * <p>Depends on which way the mechanism faces in the robot frame. Guessing is fine — flip the
+     * sign while watching AdvantageScope. It is cosmetic and cannot affect the robot.
+     */
+    public static final double PITCH_SIGN = 1.0;
+  }
 
   // ==========================================================================================
   // ZEROING — relative encoders only. Delete this whole block if the mechanism has an absolute

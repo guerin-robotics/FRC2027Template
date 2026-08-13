@@ -34,6 +34,12 @@ public class ExampleSubsystem extends SubsystemBase {
   /** Last commanded position, so {@link #isAtPosition()} has something to compare against. */
   private Angle goalPosition = Rotations.of(0);
 
+  /**
+   * Draws the mechanism. Diagnostic only — delete this field, the file and the constants block if
+   * this mechanism is velocity-controlled or you do not want the loop cost.
+   */
+  private final ExampleSubsystemVisualizer visualizer = new ExampleSubsystemVisualizer();
+
   public ExampleSubsystem(ExampleSubsystemIO io) {
     this.io = io;
     this.inputs = new ExampleSubsystemIOInputsAutoLogged();
@@ -49,6 +55,12 @@ public class ExampleSubsystem extends SubsystemBase {
         "ExampleSubsystem", // TODO: rename
         false,
         inputs.motorSupplyAmps != null ? inputs.motorSupplyAmps.in(Amps) : 0.0);
+
+    // Draw it. Diagnostic only — the visualizer no-ops when Visualization.ENABLED is false.
+    // For a LINEAR mechanism, swap to visualizer.updateLinear() and convert both sides with
+    // ExampleSubsystemConstants.rotationsToInches().
+    visualizer.updateRotation(
+        inputs.motorPosition.in(Degrees), goalPosition.in(Degrees), isAtPosition());
   }
 
   // --- Public control methods (called by commands) ---

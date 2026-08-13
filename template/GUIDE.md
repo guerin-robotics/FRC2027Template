@@ -22,10 +22,56 @@ subsystems/myMechanism/
 │   ├── MyMechanismIOReal.java      ← TalonFX code lives HERE and only here
 │   └── MyMechanismIOSim.java       ← physics sim (or stubs), same interface
 ├── MyMechanism.java                ← logic only, zero hardware imports
-└── MyMechanismConstants.java       ← gains, ratios, limits — how it is built
+├── MyMechanismConstants.java       ← gains, ratios, limits — how it is built
+└── MyMechanismVisualizer.java      ← OPTIONAL seventh file; see below
 
 commands/MyMechanismCommands.java   ← static factories, all .withName()'d
 ```
+
+### The optional seventh file — the visualizer
+
+`MyMechanismVisualizer.java` draws the mechanism as a `LoggedMechanism2d` and publishes a
+`Pose3d` for the AdvantageScope 3D robot model. It is **diagnostic only** — nothing in it
+affects robot behavior, and deleting it changes nothing except what you can see.
+
+It is optional because it is not always worth it. Take it for **position** mechanisms, skip
+it for **velocity** ones: a spinning roller has no position worth drawing, and a ligament
+turning at 6000 RPM sampled at 50 Hz aliases into a bar that appears to drift slowly
+backward. The velocity plot beside `closedLoopReference` already answers every question a
+picture would, and answers it better.
+
+What it catches that a plot does not — all of these were real, and all of them look like
+perfectly plausible numbers in a log:
+
+| Mistake | How it appears |
+|---|---|
+| Inverted sense | Commanded up, drawn down. The plot rises either way |
+| Wrong gear ratio | The arm sweeps three times the travel it physically has |
+| Wrong zero | Stowed reads 90°, so every setpoint is offset by a constant nobody wrote down |
+| Goal never reached | Measured and goal drawn together — a saturated profile is obvious |
+| Linear: wrong `STAGE_COUNT` | The carriage travels an exact integer multiple of its real travel |
+
+Two things about it that are deliberate:
+
+- **`Visualization.ENABLED` is a real switch, not decoration.** It publishes to NetworkTables
+  every loop, and the 2026 robot ran closer to 30 Hz than 50 Hz all season. Leave it on
+  through bring-up, where it is the whole point; check `LoopTiming/` with it enabled before
+  competition and turn it off if the budget is tight.
+- **`SmartDashboard.putData` is called once, in the constructor.** The 2026
+  `IntakePivotVisualizer` called it inside its update method, re-publishing the Sendable
+  fifty times a second. The dashboard holds a reference and reads through it — once is all it
+  ever needed.
+
+**What did not carry over:** 2026's `RobotModelVisualizer` published a single
+`Pose3d[]` at `RobotModel/ComponentPoses` for the articulated 3D model, which is the right
+shape once there are two or more moving components — AdvantageScope wants one field dragged
+onto the robot object, not four. It is not in this template because it described the 2026
+robot's four components exactly and none of those numbers transfer. Rebuild it in `frc/lib`
+when the second articulated mechanism lands, taking a `Supplier<Angle>` per component rather
+than subsystem references.
+
+2026's `FlywheelVisualizer` was not this pattern at all — it projected a shot trajectory,
+which is game logic and belongs with the sequences.
 
 ### Units
 
@@ -270,17 +316,20 @@ frc/lib/                      ← ALL shared utilities: field/alliance, hardware
 nothing here is compiled or deployed. Spotless *does* format these files, so keep them valid
 Java.
 
-**It deliberately does not compile.** Six values cannot be guessed, so their declarations are
+**It deliberately does not compile.** Nine values cannot be guessed, so their declarations are
 commented out while the config still assigns them. Copy the scaffold and the compiler names
-exactly what you owe it, one error per value:
+exactly what you owe it:
 
 ```
-EXAMPLE_MOTOR                 CAN ID
-EXAMPLE_ENCODER               CAN ID (position mechanisms only)
-ROTOR_TO_SENSOR_RATIO         motor rotations per encoder rotation
-SENSOR_TO_MECHANISM_RATIO     encoder rotations per mechanism rotation
-FORWARD_SOFT_LIMIT_ROTATIONS  travel bound
-REVERSE_SOFT_LIMIT_ROTATIONS  travel bound
+EXAMPLE_MOTOR                     CAN ID
+EXAMPLE_ENCODER                   CAN ID (position mechanisms only)
+GEAR_RATIO                        total reduction, motor -> mechanism
+ROTOR_TO_SENSOR_RATIO             motor rotations per encoder rotation
+SENSOR_TO_MECHANISM_RATIO         encoder rotations per mechanism rotation
+FORWARD_SOFT_LIMIT_ROTATIONS      travel bound
+REVERSE_SOFT_LIMIT_ROTATIONS      travel bound
+ACCELERATION_RPM_PER_SEC_DEFAULT  pick the linear / rotation / velocity row
+CRUISE_VELOCITY_RPM_DEFAULT       pick the linear / rotation row
 ```
 
 Commenting out the *assignments* instead would compile, and would be worse. Phoenix defaults
@@ -297,7 +346,8 @@ Everything else has a defensible default: 40 A supply, 80 A stator, ±80 A torqu
 sourceSets { main { java { srcDir 'template/src/main/java' } } }
 ```
 
-Expect exactly those six errors and no others. Anything else is rot. That check is what found
+Expect exactly those nine symbols and no others — ten error sites, because two of them are
+referenced twice. Anything else is rot. That check is what found
 the scaffold still using the `TalonFX(int, String)` constructor, which Phoenix 6 deprecated for
 removal — a scaffold is the worst place for a deprecated call, since being copied is its whole
 purpose.

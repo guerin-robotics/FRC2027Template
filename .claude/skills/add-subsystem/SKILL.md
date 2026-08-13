@@ -173,10 +173,23 @@ subsystems/<name>/
 ├── io/<Name>IOReal.java      every Phoenix call, and only here
 ├── io/<Name>IOSim.java       physics sim against the same interface
 ├── <Name>.java               logic; zero hardware imports
-└── <Name>Constants.java      gains, ratios, limits, getFXConfig()
+├── <Name>Constants.java      gains, ratios, limits, getFXConfig()
+└── <Name>Visualizer.java     OPTIONAL — position mechanisms only
 
 commands/<Name>Commands.java  static factories, all .withName()'d
 ```
+
+**Generate the visualizer for position mechanisms; skip it for velocity ones.** It draws the
+mechanism as a `LoggedMechanism2d` and publishes a `Pose3d` for the AdvantageScope 3D model,
+which is how an inverted sense, a wrong gear ratio or a wrong zero become visible — each of
+those produces perfectly plausible numbers in a position plot. A spinning roller has no
+position worth drawing, so the file is dead weight there.
+
+Copy `ExampleSubsystemVisualizer` and keep **one** of `updateRotation` / `updateLinear`,
+renamed to `update()`. Copy the `Visualization` block from `ExampleSubsystemConstants` with
+it, and tell the user that `PIVOT_OFFSET` / `PIVOT_ROTATION` need CAD numbers while
+everything else in that block is cosmetic and can be nudged by eye. Uncomment the
+soft-limit bound markers once the soft limits have real values.
 
 Non-negotiables, each of which has burned this team or is load-bearing for replay:
 
