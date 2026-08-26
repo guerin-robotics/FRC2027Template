@@ -126,17 +126,30 @@ and are wrong. If you only remember one thing: **measure top speed and slip curr
 
 ## Mechanism Subsystems
 
-For each mechanism, using `template/src/` as the pattern:
+For each mechanism, **first pick the scaffold** in `template/src/` — the choice sets the control
+request, neutral mode, gravity type, motion profile, sim model and units, and carrying a value
+across scaffolds is how an arm ends up with 30x the acceleration it should have:
+
+- [ ] It spins, and only speed matters → `exampleRoller`
+- [ ] It pivots to an angle → `exampleArm`
+- [ ] It travels in a line → `exampleLift`
+
+Then, for each mechanism:
 
 - [ ] `subsystems/myMechanism/io/MyMechanismIO.java`
 - [ ] `subsystems/myMechanism/io/MyMechanismIOReal.java`
 - [ ] `subsystems/myMechanism/io/MyMechanismIOSim.java`
 - [ ] `subsystems/myMechanism/MyMechanism.java`
+- [ ] `subsystems/myMechanism/MyMechanismConstants.java`
+- [ ] `subsystems/myMechanism/MyMechanismVisualizer.java` — position mechanisms only
 - [ ] `commands/MyMechanismCommands.java`
 - [ ] Wire real/sim/replay in `RobotContainer` — all three branches
 - [ ] Confirm `Logger.processInputs()` is called in `periodic()`
 - [ ] Confirm `Robot.batteryLogger.reportCurrentUsage()` is called in `periodic()`
-- [ ] Add supply-current jam detection if the mechanism can stall (2026 had none — jams were silent)
+- [ ] Add stator-current jam detection if the mechanism can stall — uncomment the block in
+      `ExampleRoller` and measure its four thresholds (2026 had none, so jams were silent)
+- [ ] If it has no absolute encoder, run `ExampleLiftCommands.zero()`'s routine before trusting
+      any reported position
 - [ ] Verify the logs appear in AdvantageScope
 
 ## Tuning — Mechanisms and Vision

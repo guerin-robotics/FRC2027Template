@@ -28,8 +28,7 @@ and a wrong guess produces code that compiles and misbehaves.
 | Follower orientation — same way or opposite | Wrong means the motors fight; it cooks a gearbox |
 | **Gear ratio**, motor rotations per mechanism rotation | Everything downstream is in the wrong units without it, and it sets the computed top speed |
 | **Encoder, and exactly where it sits** | Decides the ratio split and whether `FusedCANcoder` is used. Ask for the shaft, not just yes/no — see below |
-| Control mode — velocity or position | Picks `getVelocityFXConfig()` or `getPositionFXConfig()` and the request type |
-| **Rotating or linear?** | Decides whether positions are degrees or inches, and which profile defaults apply |
+| **Which of the three kinds is it — spins, pivots, or travels in a line?** | Picks the scaffold, and with it the control request, neutral mode, gravity type, profile defaults, sim model and units. This is the first question; everything else follows from it |
 | **Linear only: drum/sprocket PITCH diameter** | The only way to turn rotations into inches. Pitch diameter, not the outer diameter of the flange |
 | **Linear only: rigging stage count** | A 2-stage cascade travels twice per rotation. Miss it and every height is off by an exact integer factor |
 | Gravity-affected? Arm or elevator? | Decides `kG` and `GravityTypeValue` |
@@ -104,12 +103,14 @@ rotations across full travel = full travel / travel per sensor rotation
 
 Under one turn, fit the encoder. Over one turn, you have three options: gear the sensor down so
 its full range covers the travel, accept a relative encoder and establish zero another way, or
-add a limit switch. **A relative encoder needs a zeroing routine** — see the commented ZEROING
-blocks in `template/src/.../example/ExampleCommands.java`, `ExampleSubsystem.java`,
-`ExampleSubsystemIO.java` and `ExampleSubsystemIOReal.java` for the shape: drive into a hard
-stop under current AND velocity sensing (not current alone — it spikes on static friction
-breakaway well before the real stop), declare that position zero, and refuse to zero if the
-stop was never found within a timeout.
+add a limit switch. **A relative encoder needs a zeroing routine**, and `exampleLift` ships one working — `ExampleLiftCommands.zero()`, the zeroing state in `ExampleLift.java`, and `zeroPosition()` in
+`ExampleLiftIO`. Copy it rather than writing one. The shape: drive into a hard stop under current
+AND velocity sensing (not current alone — it spikes on static-friction breakaway well before the
+real stop), declare that position zero, and **refuse to zero if the stop was never found within a
+timeout**. A zero taken at an unknown position is worse than no zero.
+
+This is also the question that picks `exampleArm` vs `exampleLift`: the arm assumes a fused
+CANcoder and has no zeroing at all, the lift assumes the motor encoder and needs it.
 
 This is the question people skip, because the encoder works perfectly in sim — where the
 mechanism always starts at zero and the ambiguity never appears.
@@ -126,21 +127,21 @@ Always compute `MAX_SPEED_RPM` from `GEAR_RATIO`, never from a split half. On a 
 CANcoder on its own shaft, `SENSOR_TO_MECHANISM_RATIO` is `1.0`, so using it would report the
 motor's raw free speed as the mechanism's top speed.
 
-Motion Magic defaults, which are tunable once set:
+Motion Magic defaults are **already correct in each scaffold**, which is the main reason there are
+three of them:
 
-| Mechanism | Cruise velocity | Acceleration |
+| Scaffold | Cruise velocity | Acceleration |
 |---|---|---|
-| Linear position | `MAX_SPEED_RPM / 2` | 9000 RPM/s |
-| Rotation position | 60 RPM | 300 RPM/s |
-| Velocity | n/a — the setpoint is the cruise | 9000 RPM/s |
+| `exampleLift` | `MAX_SPEED_RPM / 2` | 9000 RPM/s |
+| `exampleArm` | 60 RPM | 300 RPM/s |
+| `exampleRoller` | n/a — the setpoint is the cruise | 9000 RPM/s |
 
-The scaffold will not compile until you pick one — `CRUISE_VELOCITY_RPM_DEFAULT` and
-`ACCELERATION_RPM_PER_SEC_DEFAULT` are commented out for the same reason the gear ratio is.
-These are the only defaults where the wrong answer would still build, and an arm that
-inherits the lift's row gets 30x the acceleration it should have, aimed at a hard stop.
+Do not carry a value across scaffolds. An arm that inherits the lift's row gets 30x the
+acceleration it should have, aimed at a hard stop — and it compiles. That failure is exactly what
+splitting one scaffold into three was meant to make impossible, so do not reintroduce it by hand.
 
-Both end up as `LoggedTunableNumber`s, so the chosen value is only the compiled-in default
-and the starting dashboard value — the profile stays adjustable at runtime.
+Both end up as `LoggedTunableNumber`s, so the compiled-in value is only the starting dashboard
+value — the profile stays adjustable at runtime.
 
 A cruise velocity above `MAX_SPEED_RPM` does not fail loudly. The motor saturates and the
 profile stops being followed, which looks like bad tuning rather than an impossible request
@@ -158,14 +159,25 @@ is none. Ask for the horizontal angle; do not assume zero.
 **CANcoder discontinuity point.** `1.0` looks like the natural default and is usually wrong: it
 puts the reading's wrap at 0, which is where the mechanism sits most of the match, so the value
 flips between ~0.0 and ~1.0 at rest and a position loop chases a full rotation of phantom error.
-Use `0.5` for arms and pivots unless the travel actually crosses 180°.
+Use `0.5` for arms and pivots unless the travel actually crosses 180°. `exampleArm` already
+defaults to `0.5`; leave it there unless you can say where this mechanism travels.
 
 ---
 
 ## Step 2 — Generate the six files
 
-Copy the structure from `template/src/main/java/frc/robot/subsystems/example/`. Read those
+Copy **the scaffold that matches the mechanism** — not a generic one:
+
+| Mechanism spins | `template/src/main/java/frc/robot/subsystems/exampleRoller/` |
+| Mechanism pivots to an angle | `template/src/main/java/frc/robot/subsystems/exampleArm/` |
+| Mechanism travels in a line | `template/src/main/java/frc/robot/subsystems/exampleLift/` |
+
+plus the matching `template/src/main/java/frc/robot/commands/Example*Commands.java`. Read the
 files first — they carry the current conventions, and they are kept up to date.
+
+Each one is complete and internally consistent: there is nothing to delete and no commented-out
+branch to choose. If you find yourself deleting a block to make a scaffold fit, you probably
+picked the wrong scaffold.
 
 ```
 subsystems/<name>/
@@ -185,11 +197,11 @@ which is how an inverted sense, a wrong gear ratio or a wrong zero become visibl
 those produces perfectly plausible numbers in a position plot. A spinning roller has no
 position worth drawing, so the file is dead weight there.
 
-Copy `ExampleSubsystemVisualizer` and keep **one** of `updateRotation` / `updateLinear`,
-renamed to `update()`. Copy the `Visualization` block from `ExampleSubsystemConstants` with
-it, and tell the user that `PIVOT_OFFSET` / `PIVOT_ROTATION` need CAD numbers while
-everything else in that block is cosmetic and can be nudged by eye. Uncomment the
-soft-limit bound markers once the soft limits have real values.
+Copy `ExampleArmVisualizer` or `ExampleLiftVisualizer` — each already has just the one `update()`
+for its kind, and the soft-limit bound markers already live rather than commented. Copy the
+`Visualization` block from the matching constants file with it, and tell the user which values need
+CAD numbers: `PIVOT_OFFSET` / `PIVOT_ROTATION` on the arm, `CARRIAGE_OFFSET` on the lift.
+Everything else in that block is cosmetic and can be nudged by eye while watching AdvantageScope.
 
 Non-negotiables, each of which has burned this team or is load-bearing for replay:
 
@@ -224,7 +236,7 @@ Non-negotiables, each of which has burned this team or is load-bearing for repla
 - **If the mechanism can stall against a game piece, it gets jam detection.** Rollers, feeders,
   intakes, transports. 2026 ran these open-loop and jams were silent — the mechanism stopped
   working and nothing in the log said why. Copy the JAM DETECTION block from
-  `ExampleSubsystem` and its constants: the conjunction of commanded-motion AND
+  `ExampleRoller` and `ExampleRollerConstants`: the conjunction of commanded-motion AND
   not-turning AND high **stator** current, debounced for longer than spin-up takes. Detect in
   the subsystem, respond in a command, register it with `FaultMonitor`. Ask for the thresholds
   or mark them unmeasured — telling a jam from a normal pickup is the whole job, and it needs
@@ -248,7 +260,7 @@ without a redeploy; sim gains stay plain doubles. Gear ratio and `MAX_SPEED_RPM`
 they describe the machine, not a knob.
 
 If the mechanism is closed-loop, include the `updateTunedConfig()` block from the scaffold's
-`ExampleSubsystemIOReal`. It must apply **both** `config.Slot0` and `config.MotionMagic`:
+`*IOReal`. It must apply **both** `config.Slot0` and `config.MotionMagic`:
 the gains are in the first, cruise and acceleration in the second, and applying only Slot0
 leaves the profile knobs moving on the dashboard while the mechanism ignores them. See
 `docs/tunables.md`.

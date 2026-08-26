@@ -470,8 +470,11 @@ commands/
 └── MyMechanismCommands.java   ← static command factories, all .withName()'d
 ```
 
-A working example of all six files lives in `template/src/` — copy it and
-rename. `subsystems/vision/` in `src/` is the same pattern in production form.
+Three scaffolds of these six files live in `template/src/` — `exampleRoller` for anything
+that spins, `exampleArm` for anything that pivots to an angle, `exampleLift` for anything
+that travels in a line. Copy the one that matches and rename it; see
+[template/GUIDE.md](../template/GUIDE.md) for how they differ.
+`subsystems/vision/` in `src/` is the same pattern in production form.
 
 **The one rule that matters:** hardware objects (`TalonFX`, `CANcoder`,
 `Pigeon2`…) exist ONLY inside `IOReal` classes. A motor import in a subsystem
@@ -490,9 +493,10 @@ public void periodic() {
 ### The recipe
 
 1. Get the hardware facts from whoever wired it: motor type, CAN ID, bus,
-   follower (and opposition), encoder, control mode.
+   follower (and opposition), encoder, and which of the three kinds it is —
+   spins, pivots, or travels in a line.
 2. Fill in `.claude/prompts/add-subsystem.md` and paste. Claude generates all
-   six files from `template/src/`, adds the CAN ID to
+   six files from the matching scaffold in `template/src/`, adds the CAN ID to
    `Constants.CanIds`, wires real/sim/replay in `RobotContainer`,
    compiles, and writes the unit tests.
 3. Review: CAN ID matches the wiring sheet; correct bus; config via

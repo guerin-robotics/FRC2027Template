@@ -137,10 +137,11 @@ public final class Constants {
 
     // ---- No IDs yet ----
     //
-    // Deliberately empty. The example scaffold in template/src/ references
-    // Constants.CanIds.EXAMPLE_MOTOR and friends, and those are NOT defined here on purpose:
-    // copying the scaffold should fail to compile until you supply a real ID, rather than
-    // building against a fictional one that could ship to a competition robot.
+    // Deliberately empty. The scaffolds in template/src/ reference
+    // Constants.CanIds.EXAMPLE_ROLLER_MOTOR, EXAMPLE_ARM_MOTOR, EXAMPLE_ARM_ENCODER and
+    // EXAMPLE_LIFT_MOTOR, and none of those are defined here on purpose: copying a scaffold
+    // should fail to compile until you supply a real ID, rather than building against a
+    // fictional one that could ship to a competition robot.
     //
     // Add one line per device, with the bus in a comment — the bus is not visible from the
     // number, and a device on the wrong bus is simply not found at startup. IDs 0-12 belong to
@@ -265,7 +266,7 @@ public final class Constants {
     // ============================================================================
     // TODO: REPLACE with measured values, and rename for what they actually gate.
     // ============================================================================
-    // Referenced by template/src/.../ExampleCommands.java. Unlike the CAN ID placeholders these
+    // Referenced by every scaffold's command factory. Unlike the CAN ID placeholders these
     // are harmless to ship — a timeout of 1.0 s is a real, if arbitrary, timeout. They are still
     // guesses, and a sequence budget nobody measured is a sequence that times out at the worst
     // possible moment.

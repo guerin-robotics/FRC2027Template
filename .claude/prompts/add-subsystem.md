@@ -67,7 +67,9 @@ Run ./gradlew compileJava before reporting complete.
 
 ## What Claude Will Do
 
-1. Create the six files using the IO pattern from the vision subsystem
+1. Create the six files from the matching scaffold in `template/src/` — `exampleRoller`
+   if it spins, `exampleArm` if it pivots to an angle, `exampleLift` if it travels in a
+   line. `subsystems/vision/` is the same IO pattern in production form
 2. Add the CAN IDs to `Constants.CanIds`, with the bus in a comment on each line
 3. Add the setpoints to `Constants.Setpoints` — never inline in `RobotContainer`,
    never as a private field there, never in the subsystem's own constants file

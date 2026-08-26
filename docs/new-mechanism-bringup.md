@@ -114,10 +114,14 @@ Work at low output, 1–2 V, with a hand on disable.
    means nothing until it is established. Power-up assumes the mechanism is at zero, which is
    wrong the moment someone powers on with it raised or moves it by hand while disabled.
 
-   Build a routine that drives into a hard stop and declares that position zero — the commented
-   ZEROING blocks in `template/src/.../example/ExampleCommands.java`,
-   `ExampleSubsystem.java`, `ExampleSubsystemIO.java` and `ExampleSubsystemIOReal.java` are the
-   worked example. Three things make it safe:
+   Build a routine that drives into a hard stop and declares that position zero. **The
+   `exampleLift` scaffold ships this working, not commented out** — `ExampleLiftCommands.zero()`
+   plus the zeroing state in `ExampleLift.java` and the `zeroPosition()` primitive in
+   `ExampleLiftIO`. Copy it rather than rewriting it.
+
+   A lift needs it because its travel usually exceeds one sensor rotation; `exampleArm` has no
+   zeroing at all, because a fused CANcoder already knows where it is at boot. Which of those two
+   your mechanism is is the question to answer first. Three things make the routine safe:
 
    - It is a **command**, not a subsystem method, so it requires the subsystem and the scheduler
      interrupts it if the operator commands a position mid-run. The subsystem holds only the

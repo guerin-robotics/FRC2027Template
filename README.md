@@ -209,8 +209,9 @@ and skills forward.
 `change-classification.md`) are ready to use; the robot-describing ones are skeletons with
 banners saying what to fill in. See [docs/README.md](docs/README.md).
 
-**Style reference** — `template/` holds the six-file subsystem pattern every mechanism
-must follow, plus [GUIDE.md](template/GUIDE.md) and a
+**Style reference** — `template/` holds three scaffolds of the six-file subsystem pattern every
+mechanism must follow: `exampleRoller` (velocity), `exampleArm` (rotary position), `exampleLift`
+(linear position). Plus [GUIDE.md](template/GUIDE.md) and a
 [new-season checklist](template/NEW_SEASON_CHECKLIST.md). Not part of the Gradle build.
 
 **Tooling** — `tools/` holds ClaudeScope (`.wpilog` / NT querying with `/scope` and

@@ -225,13 +225,23 @@ behavior after you changed it is worse than no doc — update it in the same com
 
 ## Style Reference
 
-`template/` holds a working example of the team's subsystem pattern — the six files every
-mechanism must have. It is **not** part of the Gradle build, so it is never compiled or
-deployed; the examples deliberately reference classes that don't exist yet.
+`template/` holds **three** scaffolds of the team's subsystem pattern — six files each, one per
+kind of mechanism. Copy the one that matches; each is complete, with nothing to delete and no
+commented-out fork to choose between.
 
-- [template/GUIDE.md](template/GUIDE.md) — the six-file pattern, what carried over, what debt is still open
+| Scaffold | For | Owes you |
+|---|---|---|
+| `exampleRoller/` | roller, flywheel, feeder, intake — velocity | CAN ID, gear ratio |
+| `exampleArm/` | arm, pivot, hood, turret — rotary position, degrees | 8 values incl. encoder split |
+| `exampleLift/` | elevator, lift, extension — linear position, inches | 5 values incl. drum geometry |
+
+They are **not** part of the Gradle build, so they are never compiled or deployed, and each
+**deliberately fails to compile** until you supply the values that cannot be guessed — the compiler
+names them one at a time.
+
+- [template/GUIDE.md](template/GUIDE.md) — how the three differ and why, what carried over, what debt is still open
 - [template/NEW_SEASON_CHECKLIST.md](template/NEW_SEASON_CHECKLIST.md) — season startup sequence
-- `template/src/` — copy these when scaffolding a mechanism
+- `template/src/` — copy the scaffold that matches when adding a mechanism
 
 `subsystems/vision/` in `src/` is the same pattern in production form.
 

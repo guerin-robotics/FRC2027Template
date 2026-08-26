@@ -84,8 +84,10 @@ convergence. Everything below is on you and the reviewer:
 ## Orientation
 
 `Drive` and `Vision` in `src/main/java/frc/robot/subsystems/` are the reference
-implementations — copy their structure. `template/` holds a working example of the six-file
-mechanism pattern; it is excluded from the Gradle build, so it never compiles or deploys.
+implementations — copy their structure. `template/` holds three scaffolds of the six-file
+mechanism pattern — `exampleRoller` (velocity), `exampleArm` (rotary position), `exampleLift`
+(linear position). They are excluded from the Gradle build, so they never compile or deploy, and
+each deliberately fails to compile until the unguessable values are supplied.
 
 Template values carried over from the 2026 robot are **wrong for a 2027 robot** — swerve
 constants, camera transforms, the AprilTag layout, PathPlanner robot config. See the
