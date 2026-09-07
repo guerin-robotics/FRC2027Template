@@ -414,7 +414,20 @@ every setpoint and gain assumes mechanism rotations — a confidently wrong robo
 harder to notice than one that refuses to build. The same argument applies with more force to the
 soft limits: a missing travel bound does not fail, it drives an arm into a hard stop at full current.
 
-Everything else has a defensible default: 40 A supply, 80 A stator, ±80 A torque clamp, ±12 V.
+Everything else has a defensible default: 40 A supply everywhere, ±12 V everywhere, and a
+stator ceiling that depends on the scaffold — 80 A with a matching ±80 A torque clamp on
+`exampleRoller`, 40 A with a matching ±40 A clamp on `exampleArm` and `exampleLift`.
+
+The split is about what a wrong setpoint does. A position mechanism sent somewhere it cannot
+reach drives into its own hard stop with everything the limit allows and holds there, so the
+two position scaffolds start deliberately weak and carry a TODO to raise the limit once a log
+shows what the mechanism actually draws. A roller sent to a speed it cannot reach just spins
+slower, so it starts at a working value; a roller that *can* stall is covered by the jam
+detector rather than by a low limit.
+
+Raise the stator limit and the torque-current clamp together. A clamp above the stator limit
+is not a clamp — the loop asks for current the device refuses — and a stator limit raised
+without the clamp leaves the mechanism exactly as weak as before.
 
 **To check the scaffolds**, temporarily put them in the source set:
 

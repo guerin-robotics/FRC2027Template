@@ -111,8 +111,26 @@ public class ExampleLiftConstants {
   /** How long the lower limit may be exceeded — lets the mechanism draw inrush without clamping. */
   public static final Time SUPPLY_CURRENT_LOWER_TIME = Seconds.of(0.1);
 
-  /** Winding current ceiling, in amps. Governs heating and stall torque. */
-  public static final double STATOR_CURRENT_LIMIT_AMPS = 80.0;
+  /**
+   * Winding current ceiling, in amps. Governs heating and stall torque.
+   *
+   * <p><b>40 A is a deliberately weak starting point, not a measurement.</b> A position mechanism
+   * commanded somewhere it cannot reach drives into its own hard stop with everything the limit
+   * allows, and keeps doing it for as long as the setpoint stands. Starting low means the first
+   * wrong setpoint pushes instead of slams — the difference between a bent bracket and a rebuilt
+   * mechanism. {@code exampleRoller} starts at 80 because a velocity mechanism has no hard stop to
+   * find.
+   *
+   * <p>TODO: raise this once the mechanism has moved under load and a log shows what it actually
+   * draws. A lift lifting its carriage frequently needs more than 40 A, and a two-motor lift splits
+   * the draw between them. Too little current does not fail loudly: the profile saturates and the
+   * mechanism never arrives, which reads as a tuning problem and is not one. Diagnose it from the
+   * closed-loop reference channel — reference tracking the goal with measured lagging behind is the
+   * signature — not by feel.
+   *
+   * <p>Raise this and {@link #PEAK_FORWARD_TORQUE_CURRENT_AMPS} together; see the note there.
+   */
+  public static final double STATOR_CURRENT_LIMIT_AMPS = 40.0;
 
   /**
    * Peak torque current the closed loop may REQUEST, in amps.
@@ -120,11 +138,17 @@ public class ExampleLiftConstants {
    * <p>Distinct from the stator limit, and both are needed. Under {@code TorqueCurrentFOC} the
    * control output is itself a current request, so without this clamp the loop can ask for
    * arbitrary current and only the stator limit stops it — after the fact, by saturating.
+   *
+   * <p><b>Keep this at or below {@link #STATOR_CURRENT_LIMIT_AMPS}.</b> A request clamp set above
+   * the stator limit is not a clamp at all: the loop asks for current the device will refuse, which
+   * is precisely the after-the-fact saturation this field exists to prevent. The two move together
+   * — raising the stator limit without raising this one leaves the mechanism just as weak, and
+   * raising this one alone does nothing but re-introduce the saturation.
    */
-  public static final double PEAK_FORWARD_TORQUE_CURRENT_AMPS = 80.0;
+  public static final double PEAK_FORWARD_TORQUE_CURRENT_AMPS = 40.0;
 
-  /** Peak reverse torque current. Negative. */
-  public static final double PEAK_REVERSE_TORQUE_CURRENT_AMPS = -80.0;
+  /** Peak reverse torque current. Negative, and the mirror of the forward clamp. */
+  public static final double PEAK_REVERSE_TORQUE_CURRENT_AMPS = -40.0;
 
   /** Peak forward voltage. 12 V is nominal battery, so this is "no artificial cap". */
   public static final double PEAK_FORWARD_VOLTAGE = 12.0;
@@ -251,6 +275,21 @@ public class ExampleLiftConstants {
     return RPM.per(Second).of(rpmPerSec).in(RotationsPerSecondPerSecond);
   }
 
+  /**
+   * Mechanism RPM/sec squared to the rotations/sec cubed Phoenix wants, for jerk.
+   *
+   * <p>The numeric factor is 60 again, so this could have reused the acceleration helper above and
+   * been right. It does not, for the reason stated there: a helper named for the quantity it
+   * converts stays correct when someone changes it, and one borrowed for a quantity it is not named
+   * after does not.
+   */
+  public static double rpmPerSecSquaredToRotationsPerSecCubed(double rpmPerSecSquared) {
+    return RPM.per(Second)
+        .per(Second)
+        .of(rpmPerSecSquared)
+        .in(RotationsPerSecondPerSecond.per(Second));
+  }
+
   // ==========================================================================================
   // THEORETICAL TOP SPEED
   // ==========================================================================================
@@ -275,16 +314,38 @@ public class ExampleLiftConstants {
   // MOTION PROFILE
   // ==========================================================================================
   //
-  // Half of theoretical leaves headroom for load, which a lift needs because it fights gravity the
-  // whole way up and a saturated motor simply stops following the profile. 9000 RPM/s is close to
-  // unlimited on purpose — motion ends up bounded by cruise velocity and the current limit rather
-  // than by acceleration.
+  // CRUISE — half of theoretical, which leaves headroom for load. A lift fights gravity the whole
+  // way up, and a saturated motor simply stops following the profile.
+  //
+  // Measured against real elevators this is conservative, deliberately: 6328's 2025 elevator
+  // cruised at 2.0 m/s (79 in/s) and 254's at 3.6 m/s (140 in/s). Half of theoretical will usually
+  // land below both. Raise it once the mechanism is characterized; it is a tunable.
+  //
+  // ACCELERATION — 900 RPM/s, about 0.4 g on a lift in the 10 in/rotation range.
+  //
+  // THIS USED TO BE 9000, on the reasoning that acceleration should be near-unlimited and let
+  // cruise velocity and the current limit bound the motion. That reasoning holds only if the
+  // current limit actually binds first, and with the deliberately low STATOR_CURRENT_LIMIT_AMPS
+  // above it frequently does not. On a light carriage 9000 RPM/s is a real 4+ g: the profile
+  // reaches cruise in about one loop and roughly a third of an inch, so it is a step rather than a
+  // ramp. That is the opposite of what a low current limit is there to buy you.
+  //
+  // 900 is calibrated against 6328's 2025 elevator, which ran 4.0 m/s^2 (0.41 g) — an
+  // AdvantageKit codebase using the same tunable-profile pattern as this one. 254 ran 4.0 g, but
+  // with cruise pinned at the motor's voltage ceiling and jerk doing the smoothing. That is a
+  // tuned endpoint reached by a team with match data, not a starting default.
+  //
+  // RE-DERIVE IT FOR YOUR MECHANISM. RPM/s is not an acceleration you can compare across robots —
+  // it means different things on different drums. Multiply by TRAVEL_PER_ROTATION and divide by 60
+  // for in/s^2. Aim near 0.4 g to start, then raise it while watching closedLoopReference against
+  // the measured position: once the reference stops being followed, the current limit is binding
+  // and a larger number buys nothing.
   //
   // These differ from exampleArm's on purpose. An arm cruises at a flat 60 RPM and accelerates at
-  // 300 RPM/s, because an over-fast profile on a pivoting mechanism does mechanical damage. An arm
-  // that inherited this row would get roughly 30x the acceleration it should have, aimed at a hard
-  // stop — which is precisely why the three scaffolds are separate files rather than one file with
-  // a comment telling you which block to delete.
+  // 300 RPM/s, because an over-fast profile on a pivoting mechanism does mechanical damage — and
+  // a pivot's units are degrees, not inches, so neither number carries across. That is precisely
+  // why the three scaffolds are separate files rather than one file with a comment telling you
+  // which block to delete.
   //
   // Both are tunable. A profile is the thing you most want to adjust with the mechanism in front of
   // you, and it is far safer to change than a gain. See docs/tunables.md.
@@ -292,8 +353,13 @@ public class ExampleLiftConstants {
   /** Compiled-in default for {@link #CRUISE_VELOCITY_RPM}, in drum RPM. */
   public static final double CRUISE_VELOCITY_RPM_DEFAULT = MAX_SPEED_RPM / 2.0;
 
-  /** Compiled-in default for {@link #ACCELERATION_RPM_PER_SEC}, in drum RPM per second. */
-  public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 9000.0;
+  /**
+   * Compiled-in default for {@link #ACCELERATION_RPM_PER_SEC}, in drum RPM per second.
+   *
+   * <p>About 0.4 g on a typical lift — see the note above for where that came from and how to
+   * convert it into your own mechanism's inches per second squared.
+   */
+  public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 900.0;
 
   /** Profile cruise velocity, in drum RPM. Tunable at runtime. */
   public static final LoggedTunableNumber CRUISE_VELOCITY_RPM =
@@ -303,9 +369,31 @@ public class ExampleLiftConstants {
   public static final LoggedTunableNumber ACCELERATION_RPM_PER_SEC =
       new LoggedTunableNumber(NAME + "/AccelRpmPerSec", ACCELERATION_RPM_PER_SEC_DEFAULT);
 
+  /**
+   * Compiled-in default for {@link #JERK_RPM_PER_SEC_SQUARED}, in mechanism RPM per second squared.
+   *
+   * <p>Ten times the acceleration default, which is the usual starting ratio. Jerk bounds how fast
+   * the acceleration itself is allowed to change, so it rounds the corners at the start and the end
+   * of a profile rather than stepping into them. Those two corners are where a mechanism lurches
+   * and where it arrives hardest, which makes this the profile-side companion to the low stator
+   * limit above.
+   *
+   * <p>Too low and it becomes the binding constraint: the profile never reaches the acceleration
+   * you asked for, and every motion is slower than the cruise and acceleration numbers suggest.
+   * That is why the default is expressed as a multiple — retune acceleration and this stays
+   * proportionate instead of quietly taking over. Zero disables jerk limiting entirely, which is
+   * Phoenix's default and what this scaffold used to do.
+   */
+  public static final double JERK_RPM_PER_SEC_SQUARED_DEFAULT =
+      ACCELERATION_RPM_PER_SEC_DEFAULT * 10.0;
+
+  /** Profile jerk, in mechanism RPM per second squared. Tunable at runtime. */
+  public static final LoggedTunableNumber JERK_RPM_PER_SEC_SQUARED =
+      new LoggedTunableNumber(NAME + "/JerkRpmPerSecSq", JERK_RPM_PER_SEC_SQUARED_DEFAULT);
+
   /** Everything re-applied to the Talon when a dashboard profile value moves. */
   public static final LoggedTunableNumber[] TUNABLE_PROFILE = {
-    ACCELERATION_RPM_PER_SEC, CRUISE_VELOCITY_RPM
+    ACCELERATION_RPM_PER_SEC, CRUISE_VELOCITY_RPM, JERK_RPM_PER_SEC_SQUARED
   };
 
   // ==========================================================================================
@@ -318,8 +406,16 @@ public class ExampleLiftConstants {
    * <p>A tolerance in degrees would mean nothing on a lift — this is why the linear and rotary
    * scaffolds are separate. Too tight and the mechanism never reports ready, so every sequence runs
    * to its timeout instead of proceeding. Too loose and it acts before it has arrived.
+   *
+   * <p>Tunable, because the right value is the one you find by watching the mechanism report ready
+   * against what it is actually doing. It is read live on every {@code isAtPosition()} call, so a
+   * dashboard edit takes effect on the next loop with no re-apply and no CAN traffic.
    */
-  public static final double POSITION_TOLERANCE_INCHES = 0.25;
+  public static final double POSITION_TOLERANCE_INCHES_DEFAULT = 0.25;
+
+  /** How close counts as "at height", in carriage inches. Tunable at runtime. */
+  public static final LoggedTunableNumber POSITION_TOLERANCE_INCHES =
+      new LoggedTunableNumber(NAME + "/PositionToleranceIn", POSITION_TOLERANCE_INCHES_DEFAULT);
 
   // ==========================================================================================
   // ZEROING — how this mechanism learns where it is
@@ -344,11 +440,28 @@ public class ExampleLiftConstants {
   /** Downward creep voltage while seeking the hard stop. Negative is down. */
   public static final Voltage ZEROING_VOLTAGE = Volts.of(-3.0);
 
-  /** Supply current, in amps, that counts as "pushing against the hard stop" while creeping. */
-  public static final double ZEROING_STALL_CURRENT_AMPS = 25.0;
+  /**
+   * Stator current, in amps, that counts as "pushing against the hard stop" while creeping.
+   *
+   * <p>Tunable: this is the single value most likely to be wrong on the first try, and finding it
+   * means creeping into the stop and reading the log. Read live in {@code isAtZeroingStall()}.
+   */
+  public static final double ZEROING_STALL_CURRENT_AMPS_DEFAULT = 25.0;
 
-  /** Drum velocity, in RPM, below which the carriage counts as "not moving" while creeping. */
-  public static final double ZEROING_VELOCITY_THRESHOLD_RPM = 5.0;
+  /** Stall-detection stator current, in amps. Tunable at runtime. */
+  public static final LoggedTunableNumber ZEROING_STALL_CURRENT_AMPS =
+      new LoggedTunableNumber(NAME + "/ZeroingStallAmps", ZEROING_STALL_CURRENT_AMPS_DEFAULT);
+
+  /** Compiled-in default for {@link #ZEROING_VELOCITY_THRESHOLD_RPM}, in drum RPM. */
+  public static final double ZEROING_VELOCITY_THRESHOLD_RPM_DEFAULT = 5.0;
+
+  /**
+   * Drum velocity, in RPM, below which the carriage counts as "not moving" while creeping. Tunable
+   * at runtime, and read live in {@code isAtZeroingStall()}.
+   */
+  public static final LoggedTunableNumber ZEROING_VELOCITY_THRESHOLD_RPM =
+      new LoggedTunableNumber(
+          NAME + "/ZeroingVelocityThresholdRpm", ZEROING_VELOCITY_THRESHOLD_RPM_DEFAULT);
 
   /**
    * How long BOTH conditions must hold before this counts as a real stall.
@@ -356,10 +469,16 @@ public class ExampleLiftConstants {
    * <p>Current alone spikes at the instant the motor breaks static friction, long before the
    * carriage is anywhere near the stop. Requiring high current AND near-zero velocity for a dwell
    * is what tells the two apart.
+   *
+   * <p><b>Not a tunable, deliberately.</b> A {@code Debouncer} reads its dwell once, when it is
+   * constructed in the {@code ExampleLift} constructor, so a dashboard edit would move the logged
+   * number and change nothing about the robot. Same for the timeout below, which {@code
+   * .withTimeout()} captures when the command is built. A knob that appears to work and does not is
+   * worse than no knob — edit these here and redeploy.
    */
   public static final double ZEROING_STALL_DEBOUNCE_SECONDS = 0.1;
 
-  /** Give up and refuse to zero if the stop is never found within this budget. */
+  /** Give up and refuse to zero if the stop is never found within this budget. Not tunable. */
   public static final double ZEROING_TIMEOUT_SECONDS = 3.0;
 
   // ==========================================================================================
@@ -593,11 +712,16 @@ public class ExampleLiftConstants {
     TalonFXConfiguration config = new TalonFXConfiguration();
 
     // ---- Current limits ----
-    config.CurrentLimits.SupplyCurrentLimitEnable = true;
+    // Enforced on the real robot only, the same way the torque clamp below is. WPILib's sim models
+    // total current draw rather than the winding and battery currents these limits govern, so a
+    // limit applied in sim clamps a number that does not mean what the limit means — sim then
+    // behaves unlike both the real robot and the model the gains were tuned against. The limits
+    // stay set either way, so a Tuner X self-test still reads the intended values.
+    config.CurrentLimits.SupplyCurrentLimitEnable = isReal();
     config.CurrentLimits.SupplyCurrentLimit = SUPPLY_CURRENT_LIMIT_AMPS;
     config.CurrentLimits.SupplyCurrentLowerLimit = SUPPLY_CURRENT_LOWER_LIMIT_AMPS;
     config.CurrentLimits.SupplyCurrentLowerTime = SUPPLY_CURRENT_LOWER_TIME.in(Seconds);
-    config.CurrentLimits.StatorCurrentLimitEnable = true;
+    config.CurrentLimits.StatorCurrentLimitEnable = isReal();
     config.CurrentLimits.StatorCurrentLimit = STATOR_CURRENT_LIMIT_AMPS;
 
     // ---- Torque current clamp ----
@@ -650,6 +774,8 @@ public class ExampleLiftConstants {
     config.MotionMagic.MotionMagicAcceleration =
         rpmPerSecToRotationsPerSecSquared(ACCELERATION_RPM_PER_SEC.get());
     config.MotionMagic.MotionMagicCruiseVelocity = rpmToRotationsPerSec(CRUISE_VELOCITY_RPM.get());
+    config.MotionMagic.MotionMagicJerk =
+        rpmPerSecSquaredToRotationsPerSecCubed(JERK_RPM_PER_SEC_SQUARED.get());
 
     return config;
   }

@@ -37,6 +37,15 @@ import org.littletonrobotics.junction.Logger;
  */
 public class ExampleRoller extends SubsystemBase {
 
+  /**
+   * Fraction of the stator limit at which the mechanism counts as saturated.
+   *
+   * <p>Not 1.0: current limiting is a control loop of its own and rides just under the ceiling
+   * rather than pinning to it, so an exact comparison reports saturation far less often than it
+   * happens.
+   */
+  private static final double STATOR_SATURATION_FRACTION = 0.95;
+
   private final ExampleRollerIO io;
   private final ExampleRollerIOInputsAutoLogged inputs;
 
@@ -64,6 +73,7 @@ public class ExampleRoller extends SubsystemBase {
     Logger.recordOutput(ExampleRollerConstants.NAME + "/GoalRpm", goalVelocity.in(RPM));
     Logger.recordOutput(ExampleRollerConstants.NAME + "/VelocityRpm", inputs.motorVelocity.in(RPM));
     Logger.recordOutput(ExampleRollerConstants.NAME + "/AtVelocity", isAtVelocity());
+    Logger.recordOutput(ExampleRollerConstants.NAME + "/AtStatorLimit", isAtStatorLimit());
   }
 
   // ============================================================================================
@@ -106,12 +116,31 @@ public class ExampleRoller extends SubsystemBase {
    */
   public boolean isAtVelocity() {
     return Math.abs(inputs.motorVelocity.in(RPM) - goalVelocity.in(RPM))
-        < ExampleRollerConstants.VELOCITY_TOLERANCE_RPM;
+        < ExampleRollerConstants.VELOCITY_TOLERANCE_RPM.get();
   }
 
   /** Is the motor answering on the bus? Register with {@code FaultMonitor} in RobotContainer. */
   public boolean isConnected() {
     return inputs.connected;
+  }
+
+  /**
+   * True while stator current is sitting at the configured ceiling.
+   *
+   * <p>This is how you tell "the gains are wrong" apart from "the current limit is the constraint",
+   * and those need opposite fixes. The scaffolds ship {@code STATOR_CURRENT_LIMIT_AMPS}
+   * deliberately low, so this flag is what says the limit has been outgrown — raise it, and {@code
+   * PEAK_FORWARD_TORQUE_CURRENT_AMPS} with it, rather than reaching for kP.
+   *
+   * <p>Read it beside {@code closedLoopReference}: reference tracking the goal, measured lagging
+   * behind, and this flag true is saturation. The same lag with this flag false is a gain problem.
+   *
+   * <p>In simulation this stays false — the limits are not enforced there, by design. See the note
+   * in {@code getFXConfig()}.
+   */
+  public boolean isAtStatorLimit() {
+    return inputs.motorStatorAmps.in(Amps)
+        > ExampleRollerConstants.STATOR_CURRENT_LIMIT_AMPS * STATOR_SATURATION_FRACTION;
   }
 
   // ============================================================================================

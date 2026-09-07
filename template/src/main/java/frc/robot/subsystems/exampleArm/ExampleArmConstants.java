@@ -101,8 +101,26 @@ public class ExampleArmConstants {
   /** How long the lower limit may be exceeded — lets the mechanism draw inrush without clamping. */
   public static final Time SUPPLY_CURRENT_LOWER_TIME = Seconds.of(0.1);
 
-  /** Winding current ceiling, in amps. Governs heating and stall torque. */
-  public static final double STATOR_CURRENT_LIMIT_AMPS = 80.0;
+  /**
+   * Winding current ceiling, in amps. Governs heating and stall torque.
+   *
+   * <p><b>40 A is a deliberately weak starting point, not a measurement.</b> A position mechanism
+   * commanded somewhere it cannot reach drives into its own hard stop with everything the limit
+   * allows, and keeps doing it for as long as the setpoint stands. Starting low means the first
+   * wrong setpoint pushes instead of slams — the difference between a bent bracket and a rebuilt
+   * mechanism. {@code exampleRoller} starts at 80 because a velocity mechanism has no hard stop to
+   * find.
+   *
+   * <p>TODO: raise this once the mechanism has moved under load and a log shows what it actually
+   * draws. An arm accelerating its own weight away from stow frequently needs more than 40 A. Too
+   * little current does not fail loudly: the profile saturates and the mechanism never arrives,
+   * which reads as a tuning problem and is not one. Diagnose it from the closed-loop reference
+   * channel — reference tracking the goal with measured lagging behind is the signature — not by
+   * feel.
+   *
+   * <p>Raise this and {@link #PEAK_FORWARD_TORQUE_CURRENT_AMPS} together; see the note there.
+   */
+  public static final double STATOR_CURRENT_LIMIT_AMPS = 40.0;
 
   /**
    * Peak torque current the closed loop may REQUEST, in amps.
@@ -110,11 +128,17 @@ public class ExampleArmConstants {
    * <p>Distinct from the stator limit, and both are needed. Under {@code TorqueCurrentFOC} the
    * control output is itself a current request, so without this clamp the loop can ask for
    * arbitrary current and only the stator limit stops it — after the fact, by saturating.
+   *
+   * <p><b>Keep this at or below {@link #STATOR_CURRENT_LIMIT_AMPS}.</b> A request clamp set above
+   * the stator limit is not a clamp at all: the loop asks for current the device will refuse, which
+   * is precisely the after-the-fact saturation this field exists to prevent. The two move together
+   * — raising the stator limit without raising this one leaves the mechanism just as weak, and
+   * raising this one alone does nothing but re-introduce the saturation.
    */
-  public static final double PEAK_FORWARD_TORQUE_CURRENT_AMPS = 80.0;
+  public static final double PEAK_FORWARD_TORQUE_CURRENT_AMPS = 40.0;
 
-  /** Peak reverse torque current. Negative. */
-  public static final double PEAK_REVERSE_TORQUE_CURRENT_AMPS = -80.0;
+  /** Peak reverse torque current. Negative, and the mirror of the forward clamp. */
+  public static final double PEAK_REVERSE_TORQUE_CURRENT_AMPS = -40.0;
 
   /** Peak forward voltage. 12 V is nominal battery, so this is "no artificial cap". */
   public static final double PEAK_FORWARD_VOLTAGE = 12.0;
@@ -328,6 +352,21 @@ public class ExampleArmConstants {
     return RPM.per(Second).of(rpmPerSec).in(RotationsPerSecondPerSecond);
   }
 
+  /**
+   * Mechanism RPM/sec squared to the rotations/sec cubed Phoenix wants, for jerk.
+   *
+   * <p>The numeric factor is 60 again, so this could have reused the acceleration helper above and
+   * been right. It does not, for the reason stated there: a helper named for the quantity it
+   * converts stays correct when someone changes it, and one borrowed for a quantity it is not named
+   * after does not.
+   */
+  public static double rpmPerSecSquaredToRotationsPerSecCubed(double rpmPerSecSquared) {
+    return RPM.per(Second)
+        .per(Second)
+        .of(rpmPerSecSquared)
+        .in(RotationsPerSecondPerSecond.per(Second));
+  }
+
   // ==========================================================================================
   // THEORETICAL TOP SPEED
   // ==========================================================================================
@@ -387,9 +426,31 @@ public class ExampleArmConstants {
   public static final LoggedTunableNumber ACCELERATION_RPM_PER_SEC =
       new LoggedTunableNumber(NAME + "/AccelRpmPerSec", ACCELERATION_RPM_PER_SEC_DEFAULT);
 
+  /**
+   * Compiled-in default for {@link #JERK_RPM_PER_SEC_SQUARED}, in mechanism RPM per second squared.
+   *
+   * <p>Ten times the acceleration default, which is the usual starting ratio. Jerk bounds how fast
+   * the acceleration itself is allowed to change, so it rounds the corners at the start and the end
+   * of a profile rather than stepping into them. Those two corners are where a mechanism lurches
+   * and where it arrives hardest, which makes this the profile-side companion to the low stator
+   * limit above.
+   *
+   * <p>Too low and it becomes the binding constraint: the profile never reaches the acceleration
+   * you asked for, and every motion is slower than the cruise and acceleration numbers suggest.
+   * That is why the default is expressed as a multiple — retune acceleration and this stays
+   * proportionate instead of quietly taking over. Zero disables jerk limiting entirely, which is
+   * Phoenix's default and what this scaffold used to do.
+   */
+  public static final double JERK_RPM_PER_SEC_SQUARED_DEFAULT =
+      ACCELERATION_RPM_PER_SEC_DEFAULT * 10.0;
+
+  /** Profile jerk, in mechanism RPM per second squared. Tunable at runtime. */
+  public static final LoggedTunableNumber JERK_RPM_PER_SEC_SQUARED =
+      new LoggedTunableNumber(NAME + "/JerkRpmPerSecSq", JERK_RPM_PER_SEC_SQUARED_DEFAULT);
+
   /** Everything re-applied to the Talon when a dashboard profile value moves. */
   public static final LoggedTunableNumber[] TUNABLE_PROFILE = {
-    ACCELERATION_RPM_PER_SEC, CRUISE_VELOCITY_RPM
+    ACCELERATION_RPM_PER_SEC, CRUISE_VELOCITY_RPM, JERK_RPM_PER_SEC_SQUARED
   };
 
   // ==========================================================================================
@@ -401,8 +462,16 @@ public class ExampleArmConstants {
    *
    * <p>Too tight and the mechanism never reports ready, so every sequence runs to its timeout
    * instead of proceeding. Too loose and it acts before it has arrived.
+   *
+   * <p>Tunable, because the right value is the one you find by watching the mechanism report ready
+   * against what it is actually doing. It is read live on every {@code isAtPosition()} call, so a
+   * dashboard edit takes effect on the next loop with no re-apply and no CAN traffic.
    */
-  public static final double POSITION_TOLERANCE_DEGREES = 1.0;
+  public static final double POSITION_TOLERANCE_DEGREES_DEFAULT = 1.0;
+
+  /** How close counts as "at position", in mechanism degrees. Tunable at runtime. */
+  public static final LoggedTunableNumber POSITION_TOLERANCE_DEGREES =
+      new LoggedTunableNumber(NAME + "/PositionToleranceDeg", POSITION_TOLERANCE_DEGREES_DEFAULT);
 
   /**
    * Where horizontal sits, in mechanism degrees.
@@ -420,8 +489,19 @@ public class ExampleArmConstants {
    * <p>Live rather than commented because zero is a real, common answer and a wrong value here is
    * visible immediately during bring-up: the arm sags on one side of its travel and overshoots on
    * the other.
+   *
+   * <p>Tunable, and listed in {@link #TUNABLE_GAINS} rather than {@link #TUNABLE_PROFILE}, because
+   * it is written to {@code Slot0.GravityArmPositionOffset} — it rides the same {@code Slot0}
+   * re-apply as kG, which is the only way a change to it reaches the device. It belongs with the
+   * gains for a second reason too: it and kG are two halves of one measurement, and tuning either
+   * without the other is how an arm ends up with a kG that only holds at one angle.
    */
-  public static final double GRAVITY_HORIZONTAL_OFFSET_DEGREES = 0.0;
+  public static final double GRAVITY_HORIZONTAL_OFFSET_DEGREES_DEFAULT = 0.0;
+
+  /** Where horizontal sits, in mechanism degrees. Tunable at runtime. */
+  public static final LoggedTunableNumber GRAVITY_HORIZONTAL_OFFSET_DEGREES =
+      new LoggedTunableNumber(
+          NAME + "/GravityHorizontalOffsetDeg", GRAVITY_HORIZONTAL_OFFSET_DEGREES_DEFAULT);
 
   // ==========================================================================================
   // VISUALIZATION — display only. Delete with ExampleArmVisualizer if unused.
@@ -535,7 +615,9 @@ public class ExampleArmConstants {
   public static final LoggedTunableNumber KD = new LoggedTunableNumber(NAME + "/kD", 0.0);
 
   /** Every real-robot gain, for the {@code ifChanged} watch list in the IO layer. */
-  public static final LoggedTunableNumber[] TUNABLE_GAINS = {KS, KV, KA, KG, KP, KI, KD};
+  public static final LoggedTunableNumber[] TUNABLE_GAINS = {
+    KS, KV, KA, KG, KP, KI, KD, GRAVITY_HORIZONTAL_OFFSET_DEGREES
+  };
 
   // ==========================================================================================
   // SIMULATION
@@ -662,11 +744,16 @@ public class ExampleArmConstants {
     TalonFXConfiguration config = new TalonFXConfiguration();
 
     // ---- Current limits ----
-    config.CurrentLimits.SupplyCurrentLimitEnable = true;
+    // Enforced on the real robot only, the same way the torque clamp below is. WPILib's sim models
+    // total current draw rather than the winding and battery currents these limits govern, so a
+    // limit applied in sim clamps a number that does not mean what the limit means — sim then
+    // behaves unlike both the real robot and the model the gains were tuned against. The limits
+    // stay set either way, so a Tuner X self-test still reads the intended values.
+    config.CurrentLimits.SupplyCurrentLimitEnable = isReal();
     config.CurrentLimits.SupplyCurrentLimit = SUPPLY_CURRENT_LIMIT_AMPS;
     config.CurrentLimits.SupplyCurrentLowerLimit = SUPPLY_CURRENT_LOWER_LIMIT_AMPS;
     config.CurrentLimits.SupplyCurrentLowerTime = SUPPLY_CURRENT_LOWER_TIME.in(Seconds);
-    config.CurrentLimits.StatorCurrentLimitEnable = true;
+    config.CurrentLimits.StatorCurrentLimitEnable = isReal();
     config.CurrentLimits.StatorCurrentLimit = STATOR_CURRENT_LIMIT_AMPS;
 
     // ---- Torque current clamp ----
@@ -719,7 +806,8 @@ public class ExampleArmConstants {
 
     // Where horizontal is. See GRAVITY_HORIZONTAL_OFFSET_DEGREES — leaving this at zero when zero
     // is the stow position puts the gravity compensation peak in the wrong place.
-    config.Slot0.GravityArmPositionOffset = degreesToRotations(GRAVITY_HORIZONTAL_OFFSET_DEGREES);
+    config.Slot0.GravityArmPositionOffset =
+        degreesToRotations(GRAVITY_HORIZONTAL_OFFSET_DEGREES.get());
 
     // Take the sign of kS from the closed-loop error rather than measured velocity. At rest on a
     // setpoint the velocity is near zero and noisy, so UseVelocitySign flips and the mechanism
@@ -731,6 +819,8 @@ public class ExampleArmConstants {
     config.MotionMagic.MotionMagicAcceleration =
         rpmPerSecToRotationsPerSecSquared(ACCELERATION_RPM_PER_SEC.get());
     config.MotionMagic.MotionMagicCruiseVelocity = rpmToRotationsPerSec(CRUISE_VELOCITY_RPM.get());
+    config.MotionMagic.MotionMagicJerk =
+        rpmPerSecSquaredToRotationsPerSecCubed(JERK_RPM_PER_SEC_SQUARED.get());
 
     return config;
   }

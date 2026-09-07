@@ -37,6 +37,15 @@ import org.littletonrobotics.junction.Logger;
  */
 public class ExampleArm extends SubsystemBase {
 
+  /**
+   * Fraction of the stator limit at which the mechanism counts as saturated.
+   *
+   * <p>Not 1.0: current limiting is a control loop of its own and rides just under the ceiling
+   * rather than pinning to it, so an exact comparison reports saturation far less often than it
+   * happens.
+   */
+  private static final double STATOR_SATURATION_FRACTION = 0.95;
+
   private final ExampleArmIO io;
   private final ExampleArmIOInputsAutoLogged inputs;
 
@@ -71,6 +80,7 @@ public class ExampleArm extends SubsystemBase {
     Logger.recordOutput(
         ExampleArmConstants.NAME + "/PositionDegrees", inputs.motorPosition.in(Degrees));
     Logger.recordOutput(ExampleArmConstants.NAME + "/AtPosition", isAtPosition());
+    Logger.recordOutput(ExampleArmConstants.NAME + "/AtStatorLimit", isAtStatorLimit());
 
     // Degrees in, because the visualizer holds no unit math on purpose — the conversion belongs at
     // the one boundary in ExampleArmConstants, and a second copy is a second place for a factor to
@@ -126,7 +136,7 @@ public class ExampleArm extends SubsystemBase {
    */
   public boolean isAtPosition() {
     return Math.abs(inputs.motorPosition.in(Degrees) - goalPosition.in(Degrees))
-        < ExampleArmConstants.POSITION_TOLERANCE_DEGREES;
+        < ExampleArmConstants.POSITION_TOLERANCE_DEGREES.get();
   }
 
   /** Current mechanism angle. Useful for interpolation tables and for logging call sites. */
@@ -149,5 +159,24 @@ public class ExampleArm extends SubsystemBase {
    */
   public boolean isEncoderConnected() {
     return inputs.encoderConnected;
+  }
+
+  /**
+   * True while stator current is sitting at the configured ceiling.
+   *
+   * <p>This is how you tell "the gains are wrong" apart from "the current limit is the constraint",
+   * and those need opposite fixes. The scaffolds ship {@code STATOR_CURRENT_LIMIT_AMPS}
+   * deliberately low, so this flag is what says the limit has been outgrown — raise it, and {@code
+   * PEAK_FORWARD_TORQUE_CURRENT_AMPS} with it, rather than reaching for kP.
+   *
+   * <p>Read it beside {@code closedLoopReference}: reference tracking the goal, measured lagging
+   * behind, and this flag true is saturation. The same lag with this flag false is a gain problem.
+   *
+   * <p>In simulation this stays false — the limits are not enforced there, by design. See the note
+   * in {@code getFXConfig()}.
+   */
+  public boolean isAtStatorLimit() {
+    return inputs.motorStatorAmps.in(Amps)
+        > ExampleArmConstants.STATOR_CURRENT_LIMIT_AMPS * STATOR_SATURATION_FRACTION;
   }
 }

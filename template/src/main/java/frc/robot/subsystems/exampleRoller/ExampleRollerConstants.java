@@ -107,7 +107,19 @@ public class ExampleRollerConstants {
   /** How long the lower limit may be exceeded — lets a mechanism draw inrush without clamping. */
   public static final Time SUPPLY_CURRENT_LOWER_TIME = Seconds.of(0.1);
 
-  /** Winding current ceiling, in amps. Governs heating and stall torque. */
+  /**
+   * Winding current ceiling, in amps. Governs heating and stall torque.
+   *
+   * <p>80 A here where {@code exampleArm} and {@code exampleLift} start at 40, and the difference
+   * is not caution — it is that a roller has nowhere to slam. A position mechanism given a setpoint
+   * it cannot reach drives into its own hard stop with everything the limit allows and holds there;
+   * a roller given a velocity it cannot reach simply spins slower. So the position scaffolds start
+   * weak on purpose and this one starts at a useful working value.
+   *
+   * <p>A roller that CAN stall — an intake or feeder against a game piece — has that risk covered
+   * by the jam detector below rather than by a low limit, because a limit low enough to protect the
+   * mechanism is also too low to pick up a game piece.
+   */
   public static final double STATOR_CURRENT_LIMIT_AMPS = 80.0;
 
   /**
@@ -250,8 +262,16 @@ public class ExampleRollerConstants {
    * instead of proceeding. Too loose and it acts before it has spun up. 120 RPM is a starting point
    * for a flywheel in the low thousands; scale it to the mechanism, then check it against a real
    * log rather than leaving it at whatever was copied.
+   *
+   * <p>Tunable, because the right value is the one you find by watching the mechanism report ready
+   * against what it is actually doing. It is read live on every {@code isAtVelocity()} call, so a
+   * dashboard edit takes effect on the next loop with no re-apply and no CAN traffic.
    */
-  public static final double VELOCITY_TOLERANCE_RPM = 120.0;
+  public static final double VELOCITY_TOLERANCE_RPM_DEFAULT = 120.0;
+
+  /** How close counts as "at velocity", in mechanism RPM. Tunable at runtime. */
+  public static final LoggedTunableNumber VELOCITY_TOLERANCE_RPM =
+      new LoggedTunableNumber(NAME + "/VelocityToleranceRpm", VELOCITY_TOLERANCE_RPM_DEFAULT);
 
   // ==========================================================================================
   // JAM DETECTION — keep this if the mechanism can stall against a game piece
@@ -269,22 +289,34 @@ public class ExampleRollerConstants {
   // the same reason GEAR_RATIO is: a plausible-looking wrong threshold compiles and produces a
   // detector that either cries wolf every match or never fires at all.
   //
+  // Three of the four are tunables, because separating a jam from a hard pickup is exactly the
+  // job you do with the mechanism in front of you, jamming it on purpose and watching where the
+  // thresholds land. They are read live in isJammed(), so an edit applies on the next loop.
+  //
+  // JAM_DEBOUNCE_SECONDS is NOT a tunable: it is consumed by a Debouncer built once in the
+  // ExampleRoller constructor, so a dashboard edit would change the logged number and nothing
+  // else. A knob that moves without changing behaviour is worse than no knob.
+  //
   //   /** Stator current, in amps, above which the mechanism counts as "working hard". Sits
   //    * BELOW STATOR_CURRENT_LIMIT_AMPS — a jam that already saturated the limit has been a
   //    * jam for a while. */
-  //   public static final double JAM_STATOR_CURRENT_AMPS = 55.0;
+  //   public static final LoggedTunableNumber JAM_STATOR_CURRENT_AMPS =
+  //       new LoggedTunableNumber(NAME + "/JamStatorAmps", 55.0);
   //
   //   /** Measured velocity below this FRACTION of commanded counts as "not turning". A
   //    * fraction, not an absolute RPM, so one threshold works at every setpoint. */
-  //   public static final double JAM_VELOCITY_FRACTION = 0.25;
+  //   public static final LoggedTunableNumber JAM_VELOCITY_FRACTION =
+  //       new LoggedTunableNumber(NAME + "/JamVelocityFraction", 0.25);
   //
   //   /** How long all conditions must hold. MUST EXCEED SPIN-UP TIME — see the note in
-  //    * ExampleRoller. Raise it if ACCELERATION_RPM_PER_SEC ever drops. */
+  //    * ExampleRoller. Raise it if ACCELERATION_RPM_PER_SEC ever drops. Static: the Debouncer
+  //    * reads it once, at construction. */
   //   public static final double JAM_DEBOUNCE_SECONDS = 0.5;
   //
   //   /** Commanded RPM below which the check is skipped, so a stopped mechanism does not
   //    * trivially satisfy "measured is below 25% of commanded". */
-  //   public static final double JAM_MIN_COMMANDED_RPM = 100.0;
+  //   public static final LoggedTunableNumber JAM_MIN_COMMANDED_RPM =
+  //       new LoggedTunableNumber(NAME + "/JamMinCommandedRpm", 100.0);
 
   // ==========================================================================================
   // GAINS — REAL ROBOT
@@ -450,11 +482,16 @@ public class ExampleRollerConstants {
     TalonFXConfiguration config = new TalonFXConfiguration();
 
     // ---- Current limits ----
-    config.CurrentLimits.SupplyCurrentLimitEnable = true;
+    // Enforced on the real robot only, the same way the torque clamp below is. WPILib's sim models
+    // total current draw rather than the winding and battery currents these limits govern, so a
+    // limit applied in sim clamps a number that does not mean what the limit means — sim then
+    // behaves unlike both the real robot and the model the gains were tuned against. The limits
+    // stay set either way, so a Tuner X self-test still reads the intended values.
+    config.CurrentLimits.SupplyCurrentLimitEnable = isReal();
     config.CurrentLimits.SupplyCurrentLimit = SUPPLY_CURRENT_LIMIT_AMPS;
     config.CurrentLimits.SupplyCurrentLowerLimit = SUPPLY_CURRENT_LOWER_LIMIT_AMPS;
     config.CurrentLimits.SupplyCurrentLowerTime = SUPPLY_CURRENT_LOWER_TIME.in(Seconds);
-    config.CurrentLimits.StatorCurrentLimitEnable = true;
+    config.CurrentLimits.StatorCurrentLimitEnable = isReal();
     config.CurrentLimits.StatorCurrentLimit = STATOR_CURRENT_LIMIT_AMPS;
 
     // ---- Torque current clamp ----

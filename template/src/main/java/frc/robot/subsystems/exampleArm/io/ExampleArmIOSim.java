@@ -94,7 +94,7 @@ public class ExampleArmIOSim implements ExampleArmIO {
       // sim and hardware disagreeing about where gravity peaks.
       double angleFromHorizontalRadians =
           sim.getAngleRads()
-              + Units.degreesToRadians(ExampleArmConstants.GRAVITY_HORIZONTAL_OFFSET_DEGREES);
+              + Units.degreesToRadians(ExampleArmConstants.GRAVITY_HORIZONTAL_OFFSET_DEGREES.get());
 
       appliedVolts =
           feedforward.calculate(angleFromHorizontalRadians, 0.0)
