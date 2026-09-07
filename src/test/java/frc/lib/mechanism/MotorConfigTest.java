@@ -250,6 +250,22 @@ class MotorConfigTest {
   }
 
   @Test
+  void anOutOfRangeCanIdIsRejectedWhereItIsWritten() {
+    // Phoenix throws for this too, but from inside a device constructor and without naming the
+    // mechanism — so a robot with a dozen of them reports only that some device somewhere is bad.
+    // Catching it here names the file to open.
+    IllegalArgumentException thrown =
+        assertThrows(IllegalArgumentException.class, () -> validRoller().canId(70, BUS));
+    assertTrue(thrown.getMessage().contains("70"), thrown.getMessage());
+    assertTrue(thrown.getMessage().contains("TestRoller"), thrown.getMessage());
+
+    assertThrows(IllegalArgumentException.class, () -> validRoller().follower(99, false));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> validRoller().encoder(Feedback.FUSED_CANCODER, 63, 0.0, 1.0));
+  }
+
+  @Test
   void requestingAnEncoderWithTheInternalSourceIsRejected() {
     assertThrows(
         IllegalArgumentException.class,
