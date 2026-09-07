@@ -505,9 +505,30 @@ public final class MotorConfig {
      * documented reason. See {@code .claude/rules/02-hardware.md}.
      */
     public Builder canId(int canId, CANBus bus) {
+      requireValidCanId(canId, "canId");
       this.canId = canId;
       this.bus = bus;
       return this;
+    }
+
+    /**
+     * Rejects an out-of-range CAN ID here rather than letting Phoenix reject it later.
+     *
+     * <p>Phoenix throws the same class of error, but from inside a device constructor and without
+     * naming the mechanism — so a robot with a dozen mechanisms reports only that some device
+     * somewhere has a bad ID. Checking at the point the number is written names the file to open.
+     */
+    private void requireValidCanId(int id, String field) {
+      if (id < 0 || id > 62) {
+        throw new IllegalArgumentException(
+            "CAN ID "
+                + id
+                + " for '"
+                + name
+                + "' ("
+                + field
+                + ") is out of range. Valid IDs are 0-62.");
+      }
     }
 
     /**
@@ -518,6 +539,7 @@ public final class MotorConfig {
      * will cook a gearbox. Verify at low output before running closed-loop.
      */
     public Builder follower(int canId, boolean opposed) {
+      requireValidCanId(canId, "follower");
       followers.add(new Follower(canId, opposed));
       return this;
     }
@@ -553,6 +575,7 @@ public final class MotorConfig {
         throw new IllegalArgumentException(
             "Feedback.INTERNAL means no encoder. Omit the encoder() call instead.");
       }
+      requireValidCanId(encoderCanId, "encoder");
       this.feedback = source;
       this.encoderCanId = encoderCanId;
       this.magnetOffsetRotations = magnetOffsetRotations;
