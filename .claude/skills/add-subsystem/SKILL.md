@@ -1,6 +1,6 @@
 ---
 name: add-subsystem
-description: Scaffold a new mechanism subsystem end to end — the six files, CAN IDs, setpoints, RobotContainer wiring in all three modes, and operator triggers. Use when adding any new mechanism (intake, elevator, arm, shooter, climber, hood, feeder). Produces code that compiles and runs in sim, with everything unmeasured clearly marked.
+description: Scaffold a new mechanism subsystem end to end — the two files, CAN IDs, setpoints, RobotContainer wiring in all three modes, and operator triggers. Use when adding any new mechanism (intake, elevator, arm, shooter, climber, hood, feeder). Produces code that compiles and runs in sim, with everything unmeasured clearly marked.
 ---
 
 # Add a Subsystem
@@ -164,7 +164,7 @@ defaults to `0.5`; leave it there unless you can say where this mechanism travel
 
 ---
 
-## Step 2 — Generate the six files
+## Step 2 — Generate the two files
 
 Copy **the scaffold that matches the mechanism** — not a generic one:
 
@@ -172,8 +172,7 @@ Copy **the scaffold that matches the mechanism** — not a generic one:
 | Mechanism pivots to an angle | `template/src/main/java/frc/robot/subsystems/exampleArm/` |
 | Mechanism travels in a line | `template/src/main/java/frc/robot/subsystems/exampleLift/` |
 
-plus the matching `template/src/main/java/frc/robot/commands/Example*Commands.java`. Read the
-files first — they carry the current conventions, and they are kept up to date.
+Read the files first — they carry the current conventions, and they are kept up to date.
 
 Each one is complete and internally consistent: there is nothing to delete and no commented-out
 branch to choose. If you find yourself deleting a block to make a scaffold fit, you probably
@@ -181,37 +180,36 @@ picked the wrong scaffold.
 
 ```
 subsystems/<name>/
-├── io/<Name>IO.java          interface + @AutoLog inputs
-├── io/<Name>IOReal.java      every Phoenix call, and only here
-├── io/<Name>IOSim.java       physics sim against the same interface
-├── <Name>.java               logic; zero hardware imports
-├── <Name>Constants.java      gains, ratios, limits, getFXConfig()
-└── <Name>Visualizer.java     OPTIONAL — position mechanisms only
-
-commands/<Name>Commands.java  static factories, all .withName()'d
+├── <Name>.java               extends RollerSubsystem / RotarySubsystem / LinearSubsystem
+└── <Name>Constants.java      NAME, the MotorConfig, the settings, the sim model
 ```
 
-**Generate the visualizer for position mechanisms; skip it for velocity ones.** It draws the
-mechanism as a `LoggedMechanism2d` and publishes a `Pose3d` for the AdvantageScope 3D model,
-which is how an inverted sense, a wrong gear ratio or a wrong zero become visible — each of
-those produces perfectly plausible numbers in a position plot. A spinning roller has no
-position worth drawing, so the file is dead weight there.
+**Do not write an IO layer.** `frc/lib/mechanism/` already has it: `MotorIO` and its one shared
+`@AutoLog` schema, `MotorIOTalonFX` for hardware, `MotorIOTalonFXSim` for simulation, the
+visualizers, and `RollerCommands` / `RotaryCommands` / `LinearCommands` for the verbs every
+mechanism of that kind shares. Generating a per-mechanism copy of any of those is the mistake this
+library exists to prevent — through 2026 every subsystem carried one, and the differences between
+the copies were accidents more often than decisions.
 
-Copy `ExampleArmVisualizer` or `ExampleLiftVisualizer` — each already has just the one `update()`
-for its kind, and the soft-limit bound markers already live rather than commented. Copy the
-`Visualization` block from the matching constants file with it, and tell the user which values need
-CAD numbers: `PIVOT_OFFSET` / `PIVOT_ROTATION` on the arm, `CARRIAGE_OFFSET` on the lift.
-Everything else in that block is cosmetic and can be nudged by eye while watching AdvantageScope.
+**Write a `commands/<Name>Commands.java` only when the mechanism has verbs of its own.** A scoring
+sequence, an interlock, anything game-specific. "Run at a velocity", "move to an angle", "hold
+where it is", "zero against the hard stop" are already there.
+
+**Do not write a visualizer.** `RotaryVisualizer` and `LinearVisualizer` are built by the mechanism
+from its own soft limits and geometry, so the picture cannot disagree with the mechanism. There is
+deliberately none for a roller: a ligament turning at 6000 RPM sampled at 50 Hz aliases into a bar
+that appears to drift backward, and the velocity plot answers the question better.
 
 Non-negotiables, each of which has burned this team or is load-bearing for replay:
 
-- `Logger.processInputs()` in `periodic()`. Removing it breaks log replay.
-- Hardware imports appear in `<Name>IOReal` only. A `TalonFX` import in the subsystem
-  class ends replay.
-- `PhoenixUtil.tryUntilOk(5, ...)` around every config apply. CTRE silently ignores config
-  when the bus is busy at startup, and the motor then boots with no current limits.
-- Log **both** motors of a follower pair. A follower that has quietly died looks exactly
-  like a leader that is underpowered.
+- **No hardware imports in the subsystem or its constants.** A `TalonFX` import in either ends
+  replay. The constants file describes the motor; `MotorIOTalonFX` talks to it.
+- **State every value `MotorConfig` asks for.** It throws at startup naming the mechanism and every
+  missing one, so the failure is loud — but do not satisfy it with a guess. A current limit nobody
+  chose is how 2026 logged hundreds of brownouts across one event.
+- **A follower is one line in the config**, `.follower(id, opposed)`. It is then configured, logged
+  as its own group with its own sticky faults, counted in the battery report and counted in the
+  simulation gearbox. Do not hand-roll one.
 - Register status signals for both motors at 50 Hz **before** `optimizeBusUtilization()`,
   or the unregistered ones drop to 4 Hz and read stale.
 - Torque current is logged whenever the control mode is any `*TorqueCurrentFOC` — it is the
@@ -259,11 +257,12 @@ Real-robot gains and the Motion Magic profile are `LoggedTunableNumber`s so they
 without a redeploy; sim gains stay plain doubles. Gear ratio and `MAX_SPEED_RPM` are static —
 they describe the machine, not a knob.
 
-If the mechanism is closed-loop, include the `updateTunedConfig()` block from the scaffold's
-`*IOReal`. It must apply **both** `config.Slot0` and `config.MotionMagic`:
-the gains are in the first, cruise and acceleration in the second, and applying only Slot0
-leaves the profile knobs moving on the dashboard while the mechanism ignores them. See
-`docs/tunables.md`.
+Live tuning is automatic and needs no code in the mechanism. `Mechanism` builds a
+`LoggedTunableNumber` for every gain and every profile value from the `MotorConfig`, watches them
+together, and pushes both `Slot0` and `MotionMagic` when one moves — gains are in the first, cruise
+and acceleration in the second, and pushing only the gains leaves the profile knobs moving on the
+dashboard while the mechanism ignores them. All of it is inert unless `Constants.tuningMode` is
+true. See `docs/tunables.md`.
 
 **`RobotContainer` must end up with no bare numbers in it.** If a unit import is still
 needed there, a setpoint was left behind.
@@ -272,9 +271,13 @@ needed there, a setpoint was left behind.
 
 ## Step 4 — Wire it up
 
-**`RobotContainer`** — construct in all three branches of the mode switch. The replay
-branch needs an anonymous `<Name>IO() {}`; without it the logged inputs are not replayed
-and the whole point of AdvantageKit is lost for that mechanism.
+**`RobotContainer`** — construct in all three branches of the mode switch, using
+`<Kind>Mechanism.real(...)`, `.sim(...)` and `.replay(...)`. The replay branch matters: without it
+the logged inputs are not replayed and the whole point of AdvantageKit is lost for that mechanism.
+
+Then call `registerFaultMonitors()` on it. That is what puts a motor that has dropped off the bus,
+rebooted mid-match or overheated in front of the pit crew instead of only in the log, and each
+device is registered separately so a dead CANcoder is distinguishable from a dead motor.
 
 **`Triggers.java`** — every controller button accessor. `RobotContainer` never touches a
 controller object, and never constructs a `Trigger`. Name accessors for the action, not the
@@ -318,9 +321,13 @@ See [docs/testing.md](../../../docs/testing.md).
 - Pure logic — interpolation tables, readiness bands, zone math. Use
   `.claude/prompts/write-test.md`; known-correct cases come from measurement, not from the
   code.
-- A sim convergence test for any closed-loop mechanism, shaped like `DriveToPoseSimTest`.
-  This requires a physics `IOSim` — if the scaffold left it as stubs, say so rather than
-  writing a test that asserts against fiction.
+- A sim convergence test for any closed-loop mechanism, shaped like
+  `RollerMechanismSimTest` or `RotaryMechanismSimTest` in `src/test/java/frc/lib/mechanism/`.
+  Those run the configured gains against a simulated Talon, so a passing test means something.
+  Two harness details are load-bearing and are commented in those files: the test must let
+  wall-clock time pass, because Phoenix's device simulation does not advance on the FPGA sim
+  clock; and it must wait for a condition to hold rather than run a fixed loop count, or it
+  races how loaded the machine is.
 
 Then state plainly:
 

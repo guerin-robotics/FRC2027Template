@@ -47,14 +47,24 @@ than a new harness. `DriveToPoseSimTest` and `JoystickDriveAtAngleSimTest` are t
 convergence-check pattern to copy for a closed-loop command.
 
 The harness must:
-- Drive the mechanism's `IOSim` (or the physics sim) through the test motion
+- Drive the mechanism's simulation — `<Kind>Mechanism.sim(...)` — through the test motion
 - Record setpoint vs. measurement over time
 - Compute the metrics: rise time, settling time, overshoot %, steady-state
   error, oscillation (count zero-crossings of the error after first reach)
 
-If the mechanism's `IOSim` is stubs with no physics, say so — tuning against
-stubs is meaningless. Offer to add a simple physics model (e.g., WPILib
-`FlywheelSim` / `SingleJointedArmSim`) as a separate reviewed change first.
+A mechanism built on `frc/lib/mechanism` always has physics: `RollerMechanismSim`,
+`RotaryMechanismSim` and `LinearMechanismSim` wrap `FlywheelSim`, `SingleJointedArmSim` and
+`ElevatorSim` respectively, and — the part that makes tuning here worth anything — the configured
+gains and Motion Magic profile run on a **simulated Talon**, not in a second roboRIO-side
+controller with its own gains. A gain found in sim transfers.
+
+What it still cannot tell you: whether the inertia or mass in the sim model is right, whether the
+mechanism binds, or how it behaves with a game piece in it. Say which of your conclusions depend on
+those.
+
+Two harness details, both commented in `src/test/java/frc/lib/mechanism/`: the loop must let
+wall-clock time pass, because Phoenix's device simulation does not advance on the FPGA sim clock;
+and it must wait for a condition to hold rather than run a fixed loop count.
 
 ## Step 3 — Iterate
 
