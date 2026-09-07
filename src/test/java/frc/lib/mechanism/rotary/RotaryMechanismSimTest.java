@@ -47,7 +47,11 @@ class RotaryMechanismSimTest {
   private static final Angle TOLERANCE = Degrees.of(2);
 
   private static final long LOOP_PERIOD_MILLIS = 20;
-  private static final int SETTLE_LOOPS = 120;
+  /** Generous cap. Settling normally takes well under half of this. */
+  private static final int MAX_SETTLE_LOOPS = 300;
+
+  /** How many consecutive loops at goal count as settled rather than passing through. */
+  private static final int HOLD_LOOPS = 10;
 
   @BeforeAll
   static void initializeHal() {
@@ -95,13 +99,39 @@ class RotaryMechanismSimTest {
   private static void run(RotaryMechanismSim arm, int loops) {
     for (int i = 0; i < loops; i++) {
       arm.periodic();
-      try {
-        Thread.sleep(LOOP_PERIOD_MILLIS);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IllegalStateException("interrupted while stepping the simulation", e);
+      sleepOneLoop();
+    }
+  }
+
+  private static void sleepOneLoop() {
+    try {
+      Thread.sleep(LOOP_PERIOD_MILLIS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("interrupted while stepping the simulation", e);
+    }
+  }
+
+  /**
+   * Runs until the arm has been at its goal for {@link #HOLD_LOOPS} consecutive loops.
+   *
+   * <p>See {@code RollerMechanismSimTest.settles} for why this waits on a condition rather than
+   * running a fixed loop count: the physics steps a fixed 20 ms while Phoenix's device simulation
+   * advances on wall-clock time, so a fixed count is a race against how loaded the machine is.
+   *
+   * @return true if it settled within the budget
+   */
+  private static boolean settles(RotaryMechanismSim arm) {
+    int consecutive = 0;
+    for (int i = 0; i < MAX_SETTLE_LOOPS; i++) {
+      arm.periodic();
+      sleepOneLoop();
+      consecutive = arm.isAtPosition() ? consecutive + 1 : 0;
+      if (consecutive >= HOLD_LOOPS) {
+        return true;
       }
     }
+    return false;
   }
 
   @Test
@@ -121,14 +151,14 @@ class RotaryMechanismSimTest {
   void aCommandedAngleIsReachedAndHeld() {
     RotaryMechanismSim arm = newArm(22);
     arm.setPosition(TARGET);
-    run(arm, SETTLE_LOOPS);
+    boolean settled = settles(arm);
 
     System.out.println("********** Rotary Sim: move to 60 deg **********");
     System.out.println("\tmeasured " + arm.getPosition().in(Degrees) + " deg");
     System.out.println("\ttorque   " + arm.getTorqueCurrent());
 
     assertTrue(
-        arm.isAtPosition(),
+        settled,
         "arm should reach "
             + TARGET.in(Degrees)
             + " deg; measured "
@@ -159,7 +189,7 @@ class RotaryMechanismSimTest {
         1e-6,
         "a goal past the forward bound should be clamped to it");
 
-    run(arm, SETTLE_LOOPS);
+    settles(arm);
     assertTrue(
         arm.getPosition().in(Degrees) < FORWARD_LIMIT.in(Degrees) + 2.0,
         "the arm must not travel past its forward bound; measured "
@@ -172,13 +202,11 @@ class RotaryMechanismSimTest {
     // overshoots on the way down and can oscillate. Worth exercising both directions.
     RotaryMechanismSim arm = newArm(24);
     arm.setPosition(Degrees.of(80));
-    run(arm, SETTLE_LOOPS);
-    assertTrue(arm.isAtPosition(), "precondition: should have reached 80 deg");
+    assertTrue(settles(arm), "precondition: should have reached 80 deg");
 
     arm.setPosition(Degrees.of(10));
-    run(arm, SETTLE_LOOPS);
     assertTrue(
-        arm.isAtPosition(),
+        settles(arm),
         "arm should come back down to 10 deg; measured " + arm.getPosition().in(Degrees));
   }
 
