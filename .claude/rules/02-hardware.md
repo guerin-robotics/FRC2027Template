@@ -323,10 +323,21 @@ The swerve drive and steer motors already do this; see `ModuleIOTalonFX` for the
 Every other mechanism gets it from `frc/lib/mechanism/MotorIOTalonFX`, which registers torque
 current in the 50 Hz group for you — there is no per-mechanism IO class to get it right in.
 
-**Do not populate torque current in a sim IO.** WPILib's sim classes model total current
-draw, not the torque-producing component, so any value written there is fiction that looks
-real in a log. Leave the field at zero — the schema is shared through the generated
-`*AutoLogged` class, so real and sim still match.
+**Do not populate torque current from a WPILib sim class.** `FlywheelSim`, `ElevatorSim` and
+`SingleJointedArmSim` model total current draw, not the torque-producing component, so a value
+taken from one of those and written to the torque-current field is fiction that looks real in a
+log. Leave the field at zero there — the schema is shared through the generated `*AutoLogged`
+class, so real and sim still match.
+
+**`MotorIOTalonFXSim` is the exception, and it does populate it.** Phoenix's device simulation
+computes stator, supply and torque current from its own motor model given the rotor state it is
+handed, so torque current in simulation is the same quantity it is on the robot — modelled rather
+than measured, but not invented. The rule above is about where the number comes from, not about
+simulation as such.
+
+Treat the magnitudes as indicative. A simulated torque current says the loop is asking for roughly
+the right amount of effort; it does not tell you what the mechanism will actually draw with a game
+piece in it, and it is not a substitute for a real log.
 
 ---
 

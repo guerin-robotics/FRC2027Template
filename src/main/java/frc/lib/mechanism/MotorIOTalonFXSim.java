@@ -38,16 +38,15 @@ import edu.wpi.first.wpilibj.RobotController;
  *
  * <h2>Torque current in simulation</h2>
  *
- * <p>{@code .claude/rules/02-hardware.md} says not to populate torque current in a sim IO. That
- * rule is about hand-written sim IOs built on WPILib's simulation classes, which model <i>total
- * current draw</i> rather than the torque-producing component, so anything written there is fiction
- * that looks real in a log.
+ * <p>This class populates torque current, and {@code .claude/rules/02-hardware.md} names it as the
+ * exception to the rule against doing so. That rule is about values taken from WPILib's simulation
+ * classes, which model <i>total current draw</i> rather than the torque-producing component.
+ * Phoenix's device simulation computes stator, supply and torque current from its own motor model
+ * given the rotor state we hand it, so the number here is the same quantity it is on the robot —
+ * modelled rather than measured, but not invented.
  *
- * <p>It does not apply here, and the value is populated. Phoenix's device simulation computes
- * stator, supply and torque current from its own motor model given the rotor state we hand it, so
- * torque current in simulation is the same quantity it is on the robot — modelled rather than
- * measured, but not invented. Treat the magnitudes as indicative, not as a substitute for a real
- * log.
+ * <p>Treat the magnitudes as indicative. It says the loop is asking for roughly the right effort;
+ * it does not say what the mechanism will draw with a game piece in it.
  */
 public class MotorIOTalonFXSim extends MotorIOTalonFX {
 
