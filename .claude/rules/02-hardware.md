@@ -48,6 +48,8 @@ When adding a CAN device:
 ## TalonFX Configuration Rules
 
 Always use `PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config))`.
+`MotorIOTalonFX` already does this for every mechanism built on `frc/lib/mechanism`; the rule
+applies to any device configured outside it.
 
 **Why:** CTRE devices silently ignore configuration if the CAN bus is busy at startup.
 `tryUntilOk` retries until the config sticks. Without it, motors boot with default
@@ -69,8 +71,8 @@ feedback.withFeedbackRemoteSensorID(ENCODER_ID);
 feedback.withFeedbackSensorSource(FeedbackSensorSourceValue.FusedCANcoder);
 motor.getConfigurator().apply(feedback);       // ...and now they are on the device
 
-// CORRECT — build the complete config in getFXConfig(), apply it once
-PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(MyMechConstants.getFXConfig()));
+// CORRECT — build the complete config once, apply it once
+PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.toTalonFXConfiguration()));
 ```
 
 **This shipped on the 2026 intake pivot** (`Rebuilt2026`, `IntakePivotIOReal.configurePivotMotor`)
@@ -81,8 +83,9 @@ how the rotor extends the absolute reading, so the fusion ends up wrong by the w
 while every config call reports success.
 
 Applying a sub-config is fine when the object came from a fully-built config — that is what
-`updateTunedConfig()` does with `config.Slot0` and `config.MotionMagic`. The rule is not "never
-apply a sub-config", it is **never apply one you hand-built**.
+`MotorIOTalonFX.setGains` and `setMotionProfile` do with `config.Slot0` and `config.MotionMagic`,
+mutating the numbers in the config they already hold rather than building a fresh block. The rule
+is not "never apply a sub-config", it is **never apply one you hand-built**.
 
 Always set:
 
@@ -316,9 +319,9 @@ frame as `StatorCurrent`. If stator current is already registered at 50 Hz — a
 be — requesting torque current adds no periodic frame. Still worth confirming against bus
 utilization in Tuner X on the first real deploy.
 
-The swerve drive and steer motors already do this; see `ModuleIOTalonFX` for the pattern,
-and any of the three scaffold IO classes for a copyable version —
-`template/src/.../exampleRoller/io/ExampleRollerIOReal.java` is the shortest.
+The swerve drive and steer motors already do this; see `ModuleIOTalonFX` for the pattern.
+Every other mechanism gets it from `frc/lib/mechanism/MotorIOTalonFX`, which registers torque
+current in the 50 Hz group for you — there is no per-mechanism IO class to get it right in.
 
 **Do not populate torque current in a sim IO.** WPILib's sim classes model total current
 draw, not the torque-producing component, so any value written there is fiction that looks
@@ -394,9 +397,15 @@ rather than by choice, and the data looked present while being a quarter second 
 harder to spot than data that is missing. Either register them explicitly or write down that
 4 Hz is intended.
 
-See the commented follower block at the bottom of any scaffold's `*IOReal.java` for the full
-pattern. All three carry it; `exampleLift` is the one worth reading, since a two-motor lift is
-the common case and its block covers how a follower interacts with the zeroing routine.
+`MotorConfig.Builder.follower(id, opposed)` is the whole pattern now: the follower is configured
+identically, given the `Follower` request with the right alignment, logged as its own group with
+its own `connected` and its own sticky faults, counted in the battery report, and counted in the
+simulation gearbox. `.followerSignalHz(hz)` is how you choose its rate deliberately; it defaults to
+4 Hz, which is a fine rate arrived at on purpose rather than by omission.
+
+See the commented follower block at the bottom of `ExampleLiftConstants` for the worked case — a
+two-motor lift is the common one, and that block covers how a follower interacts with the zeroing
+routine.
 
 ---
 

@@ -461,23 +461,25 @@ generation all work.
 
 ```
 subsystems/myMechanism/
-├── io/
-│   ├── MyMechanismIO.java     ← interface + @AutoLog inputs class
-│   ├── MyMechanismIOReal.java ← TalonFX code lives HERE and only here
-│   └── MyMechanismIOSim.java  ← physics sim (or stubs), same interface
-├── MyMechanism.java           ← logic only, zero hardware imports
-commands/
-└── MyMechanismCommands.java   ← static command factories, all .withName()'d
+├── MyMechanism.java           ← extends the library subsystem for its kind; no hardware
+└── MyMechanismConstants.java  ← the MotorConfig, the settings, the sim model
+
+frc/lib/mechanism/             ← the IO layer, shared by every mechanism
+├── MotorIO.java               ← one interface, one @AutoLog schema
+├── MotorIOTalonFX.java        ← TalonFX code lives HERE and only here
+├── MotorIOTalonFXSim.java     ← the same config against a simulated device
+└── roller/ rotary/ linear/    ← the three kinds, with their commands and simulations
 ```
 
-Three scaffolds of these six files live in `template/src/` — `exampleRoller` for anything
+Three scaffolds of these two files live in `template/src/` — `exampleRoller` for anything
 that spins, `exampleArm` for anything that pivots to an angle, `exampleLift` for anything
 that travels in a line. Copy the one that matches and rename it; see
 [template/GUIDE.md](../template/GUIDE.md) for how they differ.
-`subsystems/vision/` in `src/` is the same pattern in production form.
+`subsystems/vision/` in `src/` shows the same IO pattern written by hand, for a subsystem
+whose hardware is not a motor.
 
 **The one rule that matters:** hardware objects (`TalonFX`, `CANcoder`,
-`Pigeon2`…) exist ONLY inside `IOReal` classes. A motor import in a subsystem
+`Pigeon2`…) exist ONLY inside IO classes. A motor import in a subsystem
 file breaks log replay for the whole robot — and log replay is how we've
 caught real match bugs.
 

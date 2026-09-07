@@ -136,20 +136,17 @@ across scaffolds is how an arm ends up with 30x the acceleration it should have:
 
 Then, for each mechanism:
 
-- [ ] `subsystems/myMechanism/io/MyMechanismIO.java`
-- [ ] `subsystems/myMechanism/io/MyMechanismIOReal.java`
-- [ ] `subsystems/myMechanism/io/MyMechanismIOSim.java`
-- [ ] `subsystems/myMechanism/MyMechanism.java`
+- [ ] `subsystems/myMechanism/MyMechanism.java` — extends the library subsystem for its kind
 - [ ] `subsystems/myMechanism/MyMechanismConstants.java`
-- [ ] `subsystems/myMechanism/MyMechanismVisualizer.java` — position mechanisms only
-- [ ] `commands/MyMechanismCommands.java`
+- [ ] `commands/MyMechanismCommands.java` — **only** if the mechanism has verbs the library's
+      `RollerCommands` / `RotaryCommands` / `LinearCommands` do not already cover
 - [ ] Wire real/sim/replay in `RobotContainer` — all three branches
-- [ ] Confirm `Logger.processInputs()` is called in `periodic()`
-- [ ] Confirm `Robot.batteryLogger.reportCurrentUsage()` is called in `periodic()`
-- [ ] Add stator-current jam detection if the mechanism can stall — uncomment the block in
-      `ExampleRoller` and measure its four thresholds (2026 had none, so jams were silent)
-- [ ] If it has no absolute encoder, run `ExampleLiftCommands.zero()`'s routine before trusting
-      any reported position
+- [ ] Call `registerFaultMonitors()` on it in `RobotContainer`, so a device that drops off the
+      bus, reboots mid-match or overheats reaches the pit rather than only the log
+- [ ] Add jam detection if the mechanism can stall — `RollerSettings.withJamDetection(...)`, and
+      measure its four thresholds (2026 had none, so jams were silent)
+- [ ] If it has no absolute encoder, run `LinearCommands.zeroAtHardStop(...)` before trusting any
+      reported position
 - [ ] Verify the logs appear in AdvantageScope
 
 ## Tuning — Mechanisms and Vision
@@ -172,7 +169,7 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
       already exists and is what `/pid-tune` drives — it sweeps gains against the physics sim
       and reports rise time, overshoot and steady-state error, the same way the 2026 season
       found its PathPlanner gains without touching the robot. Point it at the new mechanism's
-      `IOSim` rather than building a harness from scratch
+      library's `*Mechanism.sim(...)` rather than building a harness from scratch
 - [ ] Build any distance → setpoint interpolation tables against the real field element
 - [ ] Validate vision std dev scaling against real AprilTag observations
 - [ ] Re-validate the vision rejection thresholds against 2027 logs (they're 2026-derived)
