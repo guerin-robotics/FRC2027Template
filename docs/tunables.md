@@ -273,6 +273,27 @@ one.
 The dividing line: **tunable if you would change it while watching the mechanism, static if
 changing it would invalidate what you already measured.**
 
+### The second test: is it read live?
+
+A value only qualifies if something reads it *again* after the dashboard changes it. Two shapes
+fail that, and both fail silently — the dashboard knob moves, the logged number moves, and the
+robot does not:
+
+| Shape | Why the knob does nothing |
+|---|---|
+| Captured in a constructor | `new Debouncer(DWELL, ...)` reads the dwell once, when the subsystem is built |
+| Captured at command-build time | `.withTimeout(BUDGET)` bakes the number into the command object |
+
+Device-side gains look like this too and are the exception that proves the rule: they are read
+once per `apply()`, which is why Pattern B exists to re-apply them. There is no equivalent for a
+`Debouncer` — short of rebuilding it every loop, which throws away the debounce state that is
+the entire point.
+
+So either make it read live, or leave it a plain `double` and say in the Javadoc that it is not
+tunable and why. `ExampleLiftConstants.ZEROING_STALL_DEBOUNCE_SECONDS` and
+`ZEROING_TIMEOUT_SECONDS` are the worked examples. A knob that appears to work and does not is
+worse than no knob, because it costs a tuning session before anyone suspects the knob.
+
 ---
 
 ## Why writing back is manual
