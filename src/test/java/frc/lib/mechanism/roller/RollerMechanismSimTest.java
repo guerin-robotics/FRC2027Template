@@ -43,8 +43,11 @@ class RollerMechanismSimTest {
   /** Matches the fixed physics step in {@link RollerMechanismSim} and the real 50 Hz loop. */
   private static final long LOOP_PERIOD_MILLIS = 20;
 
-  /** Two seconds. Long enough for this inertia to reach speed with room to spare. */
-  private static final int SPIN_UP_LOOPS = 100;
+  /** Generous cap. Spin-up normally takes well under half of this. */
+  private static final int MAX_SPIN_UP_LOOPS = 250;
+
+  /** How many consecutive loops at speed count as settled rather than passing through. */
+  private static final int HOLD_LOOPS = 10;
 
   @BeforeAll
   static void initializeHal() {
@@ -97,20 +100,51 @@ class RollerMechanismSimTest {
   private static void run(RollerMechanismSim roller, int loops) {
     for (int i = 0; i < loops; i++) {
       roller.periodic();
-      try {
-        Thread.sleep(LOOP_PERIOD_MILLIS);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IllegalStateException("interrupted while stepping the simulation", e);
+      sleepOneLoop();
+    }
+  }
+
+  private static void sleepOneLoop() {
+    try {
+      Thread.sleep(LOOP_PERIOD_MILLIS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("interrupted while stepping the simulation", e);
+    }
+  }
+
+  /**
+   * Runs until the mechanism has been at its goal for {@link #HOLD_LOOPS} consecutive loops.
+   *
+   * <p>Waiting on a condition rather than running a fixed number of loops is necessary, not tidier.
+   * The physics steps a fixed 20 ms per call while Phoenix's device simulation advances on
+   * wall-clock time, so how much control the device gets per physics step depends on how loaded the
+   * machine is. A fixed loop count that passes on an idle laptop fails on a busy CI runner, and the
+   * failure reads as a mechanism that cannot reach its setpoint.
+   *
+   * <p>Requiring several consecutive loops is what makes this an arrival test rather than a
+   * pass-through test, since a mechanism overshooting is momentarily at its goal on the way past.
+   *
+   * @return true if it settled within the budget
+   */
+  private static boolean settles(RollerMechanismSim roller) {
+    int consecutive = 0;
+    for (int i = 0; i < MAX_SPIN_UP_LOOPS; i++) {
+      roller.periodic();
+      sleepOneLoop();
+      consecutive = roller.isAtVelocity() ? consecutive + 1 : 0;
+      if (consecutive >= HOLD_LOOPS) {
+        return true;
       }
     }
+    return false;
   }
 
   @Test
   void aCommandedVelocityIsReached() {
     RollerMechanismSim roller = newRoller(40);
     roller.setVelocity(TARGET);
-    run(roller, SPIN_UP_LOOPS);
+    boolean settled = settles(roller);
 
     System.out.println("********** Roller Sim: spin-up **********");
     System.out.println("\tgoal " + TARGET.in(RPM) + " RPM");
@@ -118,7 +152,7 @@ class RollerMechanismSimTest {
     System.out.println("\tstator " + roller.getStatorCurrent());
 
     assertTrue(
-        roller.isAtVelocity(),
+        settled,
         "Roller should reach "
             + TARGET.in(RPM)
             + " RPM within "
@@ -143,8 +177,7 @@ class RollerMechanismSimTest {
   void stoppingClearsTheGoalAndSpinsDown() {
     RollerMechanismSim roller = newRoller(42);
     roller.setVelocity(TARGET);
-    run(roller, SPIN_UP_LOOPS);
-    assertTrue(roller.isAtVelocity(), "precondition: should have reached speed");
+    assertTrue(settles(roller), "precondition: should have reached speed");
 
     roller.stop();
     assertTrue(
@@ -164,7 +197,7 @@ class RollerMechanismSimTest {
     // real robot, where the first symptom is a game piece going the wrong way.
     RollerMechanismSim roller = newRoller(43);
     roller.setVelocity(TARGET.unaryMinus());
-    run(roller, SPIN_UP_LOOPS);
+    settles(roller);
 
     assertTrue(
         roller.getVelocity().in(RPM) < -1000.0,
@@ -176,7 +209,7 @@ class RollerMechanismSimTest {
   void aMechanismWithNoJamDetectionNeverReportsAJam() {
     RollerMechanismSim roller = newRoller(44);
     roller.setVelocity(TARGET);
-    run(roller, SPIN_UP_LOOPS);
+    settles(roller);
 
     // RollerSettings.of() configures no jam detection, and "this cannot jam" has to mean the
     // detector is absent rather than merely quiet.
