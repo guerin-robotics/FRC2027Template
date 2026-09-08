@@ -32,6 +32,11 @@ import java.util.Optional;
  * caps, torque-current clamps derived from the stator limit so the two cannot disagree, the gravity
  * model and static-feedforward sign implied by the kind of mechanism.
  *
+ * <p>One of those defaults is an assumption rather than a house answer: the arm gravity offset is
+ * zero, which says <b>mechanism zero is horizontal</b>. It very often is not. See {@link
+ * Builder#gravityOffset(Angle)} — the failure is silent, and reads in a log as a badly tuned {@code
+ * kG}.
+ *
  * <p>Six things have no defensible default, and {@link Builder#build()} throws naming every one
  * that is missing rather than filling it in:
  *
@@ -179,6 +184,7 @@ public final class MotorConfig {
   private final Gains gains;
   private final MotionProfile profile;
   private final Gravity gravity;
+  private final double gravityOffsetRotations;
   private final StaticFeedforwardSignValue staticFeedforwardSign;
 
   // ---- Logging ----
@@ -219,6 +225,7 @@ public final class MotorConfig {
     this.gains = b.gains;
     this.profile = b.profile;
     this.gravity = b.gravity == null ? defaultGravity(b.kind) : b.gravity;
+    this.gravityOffsetRotations = b.gravityOffsetRotations;
     this.staticFeedforwardSign =
         b.staticFeedforwardSign == null ? defaultStaticSign(b.kind) : b.staticFeedforwardSign;
     this.followerSignalHz = b.followerSignalHz;
@@ -316,6 +323,11 @@ public final class MotorConfig {
     return profile;
   }
 
+  /** Where the mechanism is level, relative to its zero. Zero on anything but an arm. */
+  public Angle gravityOffset() {
+    return Rotations.of(gravityOffsetRotations);
+  }
+
   public boolean inverted() {
     return inverted;
   }
@@ -385,6 +397,7 @@ public final class MotorConfig {
         gravity == Gravity.ARM_COSINE
             ? GravityTypeValue.Arm_Cosine
             : GravityTypeValue.Elevator_Static;
+    config.Slot0.GravityArmPositionOffset = gravityOffsetRotations;
     config.Slot0.StaticFeedforwardSign = staticFeedforwardSign;
 
     applyProfile(config, profile);
@@ -489,6 +502,7 @@ public final class MotorConfig {
     private boolean continuousWrap = false;
 
     private Gravity gravity;
+    private double gravityOffsetRotations = 0.0;
     private StaticFeedforwardSignValue staticFeedforwardSign;
 
     private double followerSignalHz = 4.0;
@@ -705,6 +719,53 @@ public final class MotorConfig {
       return this;
     }
 
+    /**
+     * Where the arm is <b>level</b>, expressed in mechanism coordinates.
+     *
+     * <p>{@code Arm_Cosine} scales {@code kG} by the cosine of the position it is handed, so it
+     * assumes gravity peaks at a cosine argument of zero. Mechanism zero is very often the stow
+     * position instead, and then the compensation peaks in the wrong place: too little hold current
+     * where gravity is strongest, too much where there is none. Nothing errors, and the symptom
+     * reads as a badly tuned {@code kG} rather than a wrong reference.
+     *
+     * <p>Pass the angle at which the arm is horizontal. It is negated on the way to Phoenix, whose
+     * field is the offset <i>added</i> to the position before the cosine is taken — so an arm level
+     * at 20° gets {@code gravityOffset(Degrees.of(20))} and Phoenix receives -20°.
+     *
+     * <p>Leave it out when zero already is horizontal, which is the case worth stating explicitly
+     * in the constants file either way.
+     *
+     * @param levelPosition Where the arm is level. Phoenix bounds the resulting offset to ±0.25
+     *     rotations, so this must be within ±90° of zero
+     * @throws IllegalArgumentException if the offset is outside what Phoenix accepts, or if this
+     *     mechanism's gravity model is not {@code ARM_COSINE} — a constant-gravity mechanism has no
+     *     angle at which its load is smaller, so an offset on one is always a mistake
+     */
+    public Builder gravityOffset(Angle levelPosition) {
+      double rotations = levelPosition.in(Rotations);
+      if (Math.abs(rotations) > 0.25) {
+        throw new IllegalArgumentException(
+            "gravityOffset for '"
+                + name
+                + "' is "
+                + rotations
+                + " rot; Phoenix accepts ±0.25 rot (±90°). An arm level further than a quarter"
+                + " turn from its zero means the zero is in the wrong place.");
+      }
+      Gravity resolved = gravity == null ? defaultGravity(kind) : gravity;
+      if (resolved != Gravity.ARM_COSINE) {
+        throw new IllegalArgumentException(
+            "gravityOffset for '"
+                + name
+                + "' has no meaning under "
+                + resolved
+                + ". Only ARM_COSINE varies kG with position; a constant-gravity mechanism fights"
+                + " the same weight everywhere.");
+      }
+      this.gravityOffsetRotations = -rotations;
+      return this;
+    }
+
     /** Overrides the static-feedforward sign convention implied by the mechanism kind. */
     public Builder staticFeedforwardSign(StaticFeedforwardSignValue sign) {
       this.staticFeedforwardSign = sign;
@@ -760,6 +821,18 @@ public final class MotorConfig {
       }
       if (feedback != Feedback.INTERNAL && Double.isNaN(magnetOffsetRotations)) {
         missing.add("encoder(...) magnetOffsetRotations");
+      }
+
+      // Re-checked here as well as at the call site, because gravity() may be called after
+      // gravityOffset() and would otherwise silently leave an offset on a constant-gravity model.
+      Gravity resolvedGravity = gravity == null ? defaultGravity(kind) : gravity;
+      if (gravityOffsetRotations != 0.0 && resolvedGravity != Gravity.ARM_COSINE) {
+        throw new IllegalStateException(
+            "MotorConfig for '"
+                + name
+                + "' carries a gravityOffset but its gravity model is "
+                + resolvedGravity
+                + ". Only ARM_COSINE varies kG with position.");
       }
 
       if (!missing.isEmpty()) {

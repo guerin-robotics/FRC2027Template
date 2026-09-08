@@ -122,6 +122,18 @@ public final class ExampleArmConstants {
           // of the angle without anything further being said here.
           .gains(Gains.zero())
 
+          // WHERE IS THE ARM LEVEL? Answer it before tuning kG.
+          //
+          // Arm_Cosine scales kG by the cosine of the position it is handed, so it assumes gravity
+          // peaks at zero. The soft limits above put this scaffold's zero at horizontal, which is
+          // why there is no offset here. If your zero is the stow position instead, uncomment:
+          //
+          //   .gravityOffset(Degrees.of(20))   // the angle at which the arm is level
+          //
+          // Left wrong, nothing errors: the pivot gets too little hold current where gravity is
+          // strongest and too much where there is none, and it reads in a log as a badly tuned kG
+          // rather than as a wrong reference.
+
           // Slow. An arm's profile is the difference between a smooth move and a mechanism that
           // slams into its own travel limits; start conservative and raise it deliberately.
           .motionProfile(

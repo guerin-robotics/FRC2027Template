@@ -271,4 +271,89 @@ class MotorConfigTest {
         IllegalArgumentException.class,
         () -> validRoller().encoder(Feedback.INTERNAL, 31, 0.0, 1.0));
   }
+
+  @Test
+  void anArmWhoseZeroIsNotLevelCarriesAGravityOffset() {
+    // Arm_Cosine assumes gravity peaks at a cosine argument of zero. When mechanism zero is the
+    // stow position instead, the offset is what moves the peak back to horizontal — and Phoenix's
+    // field is ADDED to the position before the cosine, so it is the negative of where level is.
+    var arm =
+        MotorConfig.builder("StowedArm", MechanismKind.ROTARY)
+            .canId(21, BUS)
+            .sensorToMechanismRatio(60.0)
+            .softLimits(Degrees.of(0), Degrees.of(90))
+            .supplyCurrentLimit(40.0)
+            .statorCurrentLimit(40.0)
+            .gains(Gains.zero())
+            .gravityOffset(Degrees.of(20))
+            .motionProfile(
+                MotionProfile.of(RotationsPerSecond.of(1.0), RotationsPerSecondPerSecond.of(2.0)))
+            .build()
+            .toTalonFXConfiguration();
+
+    assertEquals(-20.0 / 360.0, arm.Slot0.GravityArmPositionOffset, 1e-9);
+  }
+
+  @Test
+  void anArmThatIsLevelAtZeroNeedsNoOffsetAndGetsNone() {
+    var arm =
+        MotorConfig.builder("LevelArm", MechanismKind.ROTARY)
+            .canId(21, BUS)
+            .sensorToMechanismRatio(60.0)
+            .softLimits(Degrees.of(-5), Degrees.of(95))
+            .supplyCurrentLimit(40.0)
+            .statorCurrentLimit(40.0)
+            .gains(Gains.zero())
+            .motionProfile(
+                MotionProfile.of(RotationsPerSecond.of(1.0), RotationsPerSecondPerSecond.of(2.0)))
+            .build()
+            .toTalonFXConfiguration();
+
+    assertEquals(0.0, arm.Slot0.GravityArmPositionOffset);
+  }
+
+  @Test
+  void aGravityOffsetBeyondWhatPhoenixAcceptsIsRejected() {
+    // Phoenix bounds the field to +/-0.25 rot and silently clamps out of range. An arm level more
+    // than a quarter turn from its zero has its zero in the wrong place.
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            MotorConfig.builder("TooFar", MechanismKind.ROTARY)
+                .canId(21, BUS)
+                .gravityOffset(Degrees.of(120)));
+  }
+
+  @Test
+  void aGravityOffsetOnAConstantGravityMechanismIsRejected() {
+    // An elevator fights the same weight at every height, so an offset on one is always a mistake.
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            MotorConfig.builder("Lift", MechanismKind.LINEAR)
+                .canId(23, BUS)
+                .gravityOffset(Degrees.of(20)));
+  }
+
+  @Test
+  void aGravityOffsetSurvivesAGravityModelSetAfterwardsOnlyIfItStillMeansSomething() {
+    // gravity() may be called after gravityOffset(), so build() re-checks rather than trusting the
+    // order the builder happened to be called in.
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            MotorConfig.builder("Reordered", MechanismKind.ROTARY)
+                .canId(21, BUS)
+                .sensorToMechanismRatio(60.0)
+                .softLimits(Degrees.of(0), Degrees.of(90))
+                .supplyCurrentLimit(40.0)
+                .statorCurrentLimit(40.0)
+                .gains(Gains.zero())
+                .gravityOffset(Degrees.of(20))
+                .gravity(MotorConfig.Gravity.ELEVATOR_STATIC)
+                .motionProfile(
+                    MotionProfile.of(
+                        RotationsPerSecond.of(1.0), RotationsPerSecondPerSecond.of(2.0)))
+                .build());
+  }
 }

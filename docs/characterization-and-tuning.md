@@ -600,9 +600,10 @@ sequence from a log without it.
    `GravityType`:
    - `Elevator_Static` — constant force regardless of position
    - `Arm_Cosine` — force varies with `cos(angle)`, so **the cosine reference must be
-     horizontal**. When mechanism zero is the stow position instead, set
-     `Slot0.GravityArmPositionOffset` to the negative of the angle at which the arm is level
-     rather than redefining zero. Get the
+     horizontal**. When mechanism zero is the stow position instead, pass the angle at which
+     the arm is level to `MotorConfig.Builder.gravityOffset(...)` rather than redefining zero;
+     it negates it into Phoenix's `Slot0.GravityArmPositionOffset`, which is added to the
+     position before the cosine is taken. Get the
      sensor offset right or `kG` fights you through the range of motion
 2. **kS** — additional current to break static friction, beyond `kG`
 3. **kP** — amps per **mechanism rotation** of error. Remember the scale: if your mechanism
