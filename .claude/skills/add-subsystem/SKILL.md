@@ -153,10 +153,15 @@ profile stops being followed, which looks like bad tuning rather than an impossi
 
 **Gravity reference on a pivot.** `GravityTypeValue.Arm_Cosine` scales kG by
 `cos(position + offset)` and assumes the peak — arm horizontal — lands at a cosine argument of
-zero. Mechanism zero is usually the *stow* position instead, so set
-`Slot0.GravityArmPositionOffset` to the negative of the angle at which the arm is level. Left at
+zero. Mechanism zero is usually the *stow* position instead, so pass the angle at which the arm is
+level to `MotorConfig.Builder.gravityOffset(...)` — it negates it on the way to Phoenix's
+`Slot0.GravityArmPositionOffset`, which is added to the position before the cosine is taken. Left at
 zero, the pivot gets too little hold current where gravity is strongest and too much where there
 is none. Ask for the horizontal angle; do not assume zero.
+
+Never write that Phoenix field directly. The subsystem's two files do not touch a
+`TalonFXConfiguration`, and the builder rejects the offset on a constant-gravity mechanism, where
+it would be meaningless.
 
 **CANcoder discontinuity point.** `1.0` looks like the natural default and is usually wrong: it
 puts the reading's wrap at 0, which is where the mechanism sits most of the match, so the value
