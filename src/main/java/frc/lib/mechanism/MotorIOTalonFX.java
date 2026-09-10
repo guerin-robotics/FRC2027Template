@@ -4,8 +4,10 @@ import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 
 import com.ctre.phoenix6.BaseStatusSignal;
+import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.configs.TalonFXConfigurator;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.MotionMagicVelocityTorqueCurrentFOC;
@@ -23,6 +25,7 @@ import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Temperature;
 import edu.wpi.first.units.measure.Voltage;
 import frc.lib.util.PhoenixUtil;
+import java.util.function.Function;
 
 /**
  * The real hardware implementation: one TalonFX leader, any number of followers, and an optional
@@ -428,18 +431,43 @@ public class MotorIOTalonFX implements MotorIO {
   @Override
   public void setGains(Gains gains) {
     MotorConfig.applyGains(config, gains);
-    PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.Slot0));
+    applyToAll(configurator -> configurator.apply(config.Slot0));
   }
 
   @Override
   public void setMotionProfile(MotionProfile profile) {
     MotorConfig.applyProfile(config, profile);
-    PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.MotionMagic));
+    applyToAll(configurator -> configurator.apply(config.MotionMagic));
   }
 
   @Override
   public void setSupplyCurrentLimit(Current limit) {
     config.CurrentLimits.SupplyCurrentLimit = limit.in(Amps);
-    PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.CurrentLimits));
+    applyToAll(configurator -> configurator.apply(config.CurrentLimits));
+  }
+
+  /**
+   * Applies a sub-config to the leader and to every follower.
+   *
+   * <p>The constructor hands each follower the leader's whole config, and every path that changes a
+   * config afterwards has to keep that true. The supply limit is the one that bites: it is enforced
+   * per device, so a limit applied to the leader alone leaves a two-motor mechanism free to draw
+   * twice the number that was typed — on a robot whose 2026 season logged hundreds of brownouts.
+   * Nothing reports the discrepancy, because both devices are obeying the limit they were given.
+   *
+   * <p>Gains and the motion profile are inert on a device in follower mode, which mirrors the
+   * leader's output rather than running a loop of its own. They are pushed anyway, so that the two
+   * devices never disagree about which numbers are live — a follower still showing last week's kP
+   * in Tuner X is a confusing thing to find halfway through a tuning session.
+   *
+   * <p>Sub-configs only, and only ones taken from the config this class already holds. {@code
+   * apply()} writes the whole sub-group, so a hand-built block silently resets every field it does
+   * not mention.
+   */
+  private void applyToAll(Function<TalonFXConfigurator, StatusCode> apply) {
+    PhoenixUtil.tryUntilOk(5, () -> apply.apply(motor.getConfigurator()));
+    for (TalonFX follower : followers) {
+      PhoenixUtil.tryUntilOk(5, () -> apply.apply(follower.getConfigurator()));
+    }
   }
 }
