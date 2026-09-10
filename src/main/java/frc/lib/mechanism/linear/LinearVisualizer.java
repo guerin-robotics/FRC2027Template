@@ -51,6 +51,16 @@ class LinearVisualizer {
 
   private final String name;
   private final LoggedMechanism2d mechanism;
+
+  /**
+   * The bottom of travel, in canvas coordinates.
+   *
+   * <p>The root sits here and the ligaments grow from it, so what they draw is travel above the
+   * bottom rather than height above the floor. An elevator whose travel starts at 14 inches would
+   * otherwise draw its first 14 inches twice and run its bar off the top of the frame.
+   */
+  private final double minHeightMeters;
+
   private final LoggedMechanismLigament2d measured;
   private final LoggedMechanismLigament2d goal;
 
@@ -67,8 +77,11 @@ class LinearVisualizer {
     double minHeight = geometry.distanceFor(Rotations.of(limits.reverseRotations())).in(Meters);
     double maxHeight = geometry.distanceFor(Rotations.of(limits.forwardRotations())).in(Meters);
     double travel = maxHeight - minHeight;
+    this.minHeightMeters = minHeight;
 
-    // Canvas sized from the travel, so it frames any elevator from a 6-inch extension upward.
+    // The canvas is sized in absolute height, not travel, because the root is placed at the bottom
+    // of travel — a canvas only as tall as the travel would clip the frame off the top of any
+    // mechanism that does not start at zero.
     double canvasHeight = maxHeight * 1.2;
     double canvasWidth = Math.max(travel * 0.5, 0.2);
 
@@ -113,8 +126,8 @@ class LinearVisualizer {
     if (!MechanismVisualization.ENABLED) {
       return;
     }
-    measured.setLength(Math.max(height.in(Meters), MIN_DRAWN_METERS));
-    goal.setLength(Math.max(goalHeight.in(Meters), MIN_DRAWN_METERS));
+    measured.setLength(Math.max(height.in(Meters) - minHeightMeters, MIN_DRAWN_METERS));
+    goal.setLength(Math.max(goalHeight.in(Meters) - minHeightMeters, MIN_DRAWN_METERS));
     measured.setColor(atGoal ? COLOR_MEASURED : COLOR_GOAL);
     Logger.recordOutput(name + "/Visualizer", mechanism);
   }
