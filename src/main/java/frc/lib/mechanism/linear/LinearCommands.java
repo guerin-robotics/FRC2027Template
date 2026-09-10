@@ -2,6 +2,7 @@ package frc.lib.mechanism.linear;
 
 import static edu.wpi.first.units.Units.InchesPerSecond;
 
+import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Time;
@@ -93,13 +94,12 @@ public final class LinearCommands {
    * that was from the bottom. This is the routine that fixes it. A mechanism with a fused CANcoder
    * does not need it.
    *
-   * <h2>The voltage has to be small, and the stator limit is not the guard you want</h2>
+   * <h2>Why torque current rather than voltage</h2>
    *
-   * <p>A voltage produces whatever current the mechanism's impedance allows, and at stall against a
-   * hard stop that is as much as the configured stator limit permits. That limit is sized for the
-   * mechanism doing its real job, not for a gentle push into a stop. Find this value by driving the
-   * carriage down on a bench and taking the smallest voltage that still moves it against friction,
-   * then watch stator current in the log the first few times it runs.
+   * <p>Under {@code TorqueCurrentFOC} the commanded current <i>is</i> the force. A small negative
+   * current is a small, bounded push into the stop, whatever the mechanism's impedance happens to
+   * be. A voltage produces whatever current the mechanism allows, which at stall against a hard
+   * stop is a great deal more than intended.
    *
    * <h2>Three guards, all necessary</h2>
    *
@@ -111,7 +111,7 @@ public final class LinearCommands {
    *   <li><b>A timeout on the stall wait.</b> Mandatory, per the command rules. A carriage that
    *       never stalls is one whose rope has come off, and hanging forever on it costs the match.
    *   <li><b>A stop on the way out.</b> {@code finallyDo}, so an interrupted zeroing routine does
-   *       not leave the motor driving into the hard stop.
+   *       not leave current driving into the hard stop.
    * </ul>
    *
    * <p>Run this once at robot startup, or bind it to a pit button. It should <b>not</b> run
@@ -119,7 +119,7 @@ public final class LinearCommands {
    * is never fast.
    *
    * @param linear The mechanism to zero
-   * @param zeroingVoltage Voltage to drive with. Negative, small — enough to move the carriage
+   * @param zeroingCurrent Current to drive with. Negative, small — enough to move the carriage
    *     against friction and no more
    * @param settleTime How long to drive before the stall check is allowed to succeed. Must exceed
    *     the time it takes the carriage to start moving
@@ -130,13 +130,13 @@ public final class LinearCommands {
    */
   public static Command zeroAtHardStop(
       LinearSubsystem linear,
-      Voltage zeroingVoltage,
+      Current zeroingCurrent,
       Time settleTime,
       LinearVelocity stallVelocity,
       Time timeout,
       Distance heightAtStop) {
     return Commands.sequence(
-            Commands.runOnce(() -> linear.setVoltage(zeroingVoltage), linear),
+            Commands.runOnce(() -> linear.setTorqueCurrent(zeroingCurrent), linear),
             Commands.waitTime(settleTime),
             Commands.waitUntil(
                     () ->

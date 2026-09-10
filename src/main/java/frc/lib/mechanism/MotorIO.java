@@ -234,6 +234,9 @@ public interface MotorIO {
   /** Open-loop voltage. Bring-up and characterization; match logic should close a loop. */
   default void setVoltage(Voltage volts) {}
 
+  /** Open-loop torque current. The honest open-loop mode under FOC. */
+  default void setTorqueCurrent(Current amps) {}
+
   /** Closed-loop velocity through the Motion Magic velocity profile. */
   default void setVelocity(AngularVelocity velocity) {}
 
