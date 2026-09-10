@@ -8,6 +8,7 @@ import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Voltage;
@@ -158,6 +159,12 @@ public class LinearMechanism extends Mechanism {
   public void setVoltage(Voltage volts) {
     closedLoop = false;
     super.setVoltage(volts);
+  }
+
+  @Override
+  public void setTorqueCurrent(Current amps) {
+    closedLoop = false;
+    super.setTorqueCurrent(amps);
   }
 
   @Override
