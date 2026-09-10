@@ -131,7 +131,7 @@ LoggedTunableNumber.ifChanged(
     allTunables);
 ```
 
-Five things in that are deliberate.
+Six things in that are deliberate.
 
 **`apply(config.Slot0)`, not `apply(config)`.** The Slot0 overload writes only the gain block.
 Applying a whole `TalonFXConfiguration` would also rewrite current limits, soft limits, inversion
