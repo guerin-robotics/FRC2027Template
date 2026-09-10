@@ -104,9 +104,9 @@ rotations across full travel = full travel / travel per sensor rotation
 Under one turn, fit the encoder. Over one turn, you have three options: gear the sensor down so
 its full range covers the travel, accept a relative encoder and establish zero another way, or
 add a limit switch. **A relative encoder needs a zeroing routine**, and
-`LinearCommands.zeroAtHardStop(...)` is it — do not write one. It drives into the stop on torque
-current, waits out a settle time, waits for the carriage to stop moving, and declares that position
-to be a height you supply; on timeout it gives up without zeroing, because a zero taken at an
+`LinearCommands.zeroAtHardStop(...)` is it — do not write one. It drives into the stop on a small
+open-loop voltage, waits out a settle time, waits for the carriage to stop moving, and declares that
+position to be a height you supply; on timeout it gives up without zeroing, because a zero taken at an
 unknown position is worse than no zero. Pick its arguments per
 [docs/new-mechanism-bringup.md](../../../docs/new-mechanism-bringup.md), which also covers the
 hardware check — simulation cannot verify the answer, only that the routine runs.

@@ -117,19 +117,6 @@ public class RotaryMechanism extends Mechanism {
     io.setPosition(goalPosition);
   }
 
-  /**
-   * Drives to an angle with no motion profile.
-   *
-   * <p>For short corrective moves where the profile costs more than it buys. Not a way to make the
-   * mechanism faster — a profile that is too slow is fixed by raising its acceleration, which stays
-   * inside the limits the mechanism was characterized against.
-   */
-  public void setUnprofiledPosition(Angle position) {
-    goalPosition = clampToLimits(position);
-    closedLoop = true;
-    io.setUnprofiledPosition(goalPosition);
-  }
-
   private Angle clampToLimits(Angle requested) {
     double rotations = requested.in(Rotations);
     double clamped =
