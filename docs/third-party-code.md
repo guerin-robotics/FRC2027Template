@@ -14,21 +14,21 @@ copy-paste.
 
 | File | Origin | Licence | Notes |
 |---|---|---|---|
-| `frc/lib/LoggedTrigger.java` | FRC 3467 (Windham Windup) | **GPLv3** | Header intact. Load-bearing — required by `.claude/rules/01-architecture.md` |
-| `frc/lib/ThrowingRunnable.java` | FRC 3467 (Windham Windup) | **GPLv3** | Header intact |
-| `frc/lib/LoggedTunableProfiledPID.java` | FRC 3467 | WPILib BSD | Their file carries the WPILib BSD header, not their GPL one |
-| `frc/lib/LoggedTunableNumber.java` | FRC 6328 (Mechanical Advantage) | MIT-style | The `hasChanged(int id)` design is 6328's. 3467 ships a copy under GPL; ours descends from the MIT original |
-| `frc/lib/LoggedTunableBoolean.java` | FRC 6328 pattern | MIT-style | Same lineage as above |
-| `frc/lib/BatteryLogger.java` | FRC 6328 | MIT-style | Attributed in the file |
-| `frc/lib/AllianceFlipUtil.java` | FRC 6328 | MIT-style | Attributed in the file |
-| `frc/lib/FieldConstants.java` | FRC 6328 | MIT-style | Attributed in the file |
-| `frc/lib/GeomUtil.java` | FRC 6328 | MIT-style | 3467 ships a copy too; common ancestor is 6328 |
-| `frc/lib/LocalADStarAK.java` | FRC 6328 / PathPlanner | MIT-style | Required for PathPlanner replay |
-| `frc/lib/ContinuousConditionalCommand.java` | FRC 6328 | MIT-style | Attributed in the file |
-| `frc/lib/PhoenixUtil.java` | FRC 6328 | MIT-style | Attributed in the file |
-| `frc/lib/Elastic.java` | Gold87 / Elastic dashboard | MIT | Vendor-published helper |
-| `frc/lib/PointInPolygon.java` | Ours | — | Ray-casting crossing-number. 3467 has a GPL file of the same name using `java.awt.geom.Path2D`; unrelated implementation |
-| `frc/lib/MotorSpecs.java` | Ours | — | Reads free speeds from WPILib `DCMotor` |
+| `frc/lib/util/LoggedTrigger.java` | FRC 3467 (Windham Windup) | **GPLv3** | Header intact. Load-bearing — required by `.claude/rules/01-architecture.md` |
+| `frc/lib/util/ThrowingRunnable.java` | FRC 3467 (Windham Windup) | **GPLv3** | Header intact |
+| `frc/lib/util/LoggedTunableProfiledPID.java` | FRC 3467 | WPILib BSD | Their file carries the WPILib BSD header, not their GPL one |
+| `frc/lib/util/LoggedTunableNumber.java` | FRC 6328 (Mechanical Advantage) | MIT-style | The `hasChanged(int id)` design is 6328's. 3467 ships a copy under GPL; ours descends from the MIT original |
+| `frc/lib/util/LoggedTunableBoolean.java` | FRC 6328 pattern | MIT-style | Same lineage as above |
+| `frc/lib/util/BatteryLogger.java` | FRC 6328 | MIT-style | Attributed in the file |
+| `frc/lib/util/AllianceFlipUtil.java` | FRC 6328 | MIT-style | Attributed in the file |
+| `frc/lib/util/FieldConstants.java` | FRC 6328 | MIT-style | Attributed in the file |
+| `frc/lib/util/GeomUtil.java` | FRC 6328 | MIT-style | 3467 ships a copy too; common ancestor is 6328 |
+| `frc/lib/util/LocalADStarAK.java` | FRC 6328 / PathPlanner | MIT-style | Required for PathPlanner replay |
+| `frc/lib/util/ContinuousConditionalCommand.java` | FRC 6328 | MIT-style | Attributed in the file |
+| `frc/lib/util/PhoenixUtil.java` | FRC 6328 | MIT-style | Attributed in the file |
+| `frc/lib/util/Elastic.java` | Gold87 / Elastic dashboard | MIT | Vendor-published helper |
+| `frc/lib/util/PointInPolygon.java` | Ours | — | Ray-casting crossing-number. 3467 has a GPL file of the same name using `java.awt.geom.Path2D`; unrelated implementation |
+| `frc/lib/util/MotorSpecs.java` | Ours | — | Reads free speeds from WPILib `DCMotor` |
 | `subsystems/drive/`, `Robot`, `RobotContainer` | AdvantageKit swerve template | BSD | Littleton Robotics |
 
 ---

@@ -127,12 +127,13 @@ not your code reads it. Delete the annotation when a method loses its last calle
 
 ## Utility (shared, no owner)
 
-All shared utilities live in `frc/lib/`. There is no `frc/robot/util/` — utilities either
-belong to every robot, in which case they go here, or they belong to a subsystem, in which
-case they go in that subsystem's package.
+All shared utilities live in `frc/lib/` — the general-purpose helpers under
+`frc/lib/util/`, the mechanism library under `frc/lib/mechanism/`. There is no
+`frc/robot/util/` — utilities either belong to every robot, in which case they go here, or
+they belong to a subsystem, in which case they go in that subsystem's package.
 
 ```
-frc/lib/
+frc/lib/util/
 ├── Field and alliance
 │   ├── AllianceFlipUtil.java        alliance mirroring, cached per loop
 │   ├── FieldConstants.java          ← game-specific; extend each season

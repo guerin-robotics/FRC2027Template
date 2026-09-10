@@ -51,7 +51,7 @@ import org.littletonrobotics.junction.AutoLogOutput;
  *       not your code uses it. Do not annotate expensive methods, and delete annotations on methods
  *       that lose their callers — that was a measurable chunk of loop time in 2026.
  *   <li>Never call {@code DriverStation.getAlliance()} here. Use {@link
- *       frc.lib.AllianceFlipUtil#shouldFlip()}, which is cached once per loop.
+ *       frc.lib.util.AllianceFlipUtil#shouldFlip()}, which is cached once per loop.
  * </ol>
  *
  * <p><b>Odometry updates:</b> Drive calls {@link #updateModuleStates} during its periodic loop.

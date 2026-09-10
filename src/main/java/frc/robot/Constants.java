@@ -74,7 +74,7 @@ public final class Constants {
 
   /**
    * Set true to skip DriverStation/HAL access in unit tests. Read by {@link
-   * frc.lib.AllianceFlipUtil#refresh()}.
+   * frc.lib.util.AllianceFlipUtil#refresh()}.
    */
   public static boolean disableHAL = false;
 

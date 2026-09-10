@@ -183,8 +183,8 @@ These apply to every task you take on:
 | Swerve drivetrain, odometry, PathPlanner wiring | `src/main/java/frc/robot/subsystems/drive/Drive.java` |
 | Vision filtering and pose fusion | `src/main/java/frc/robot/subsystems/vision/Vision.java` |
 | Swerve config — CAN IDs, geometry, gains (generated) | `src/main/java/frc/robot/generated/TunerConstants.java` |
-| Field dimensions and AprilTag layout | `src/main/java/frc/lib/FieldConstants.java` |
-| Alliance coordinate flipping | `src/main/java/frc/lib/AllianceFlipUtil.java` |
+| Field dimensions and AprilTag layout | `src/main/java/frc/lib/util/FieldConstants.java` |
+| Alliance coordinate flipping | `src/main/java/frc/lib/util/AllianceFlipUtil.java` |
 | Game state triggers | `src/main/java/frc/robot/Triggers.java` (may not exist yet) |
 | CAN IDs for non-swerve hardware | `src/main/java/frc/robot/Constants.java` (`CanIds`) |
 | The subsystem pattern to copy | `template/src/` and `docs/robot-spec.md` |

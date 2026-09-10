@@ -46,34 +46,35 @@ degrees, linear positions in inches:
 - Put these in Constants.Setpoints, not in the subsystem constants file and not
   in RobotContainer. Guess reasonable starting values and mark them as unmeasured.
 
-Follow the AdvantageKit IO pattern used by the vision subsystem
-(subsystems/vision/Vision.java + io/VisionIO.java + io/VisionIOPhotonVision.java).
-Create:
-1. subsystems/[name]/io/[Name]IO.java
-2. subsystems/[name]/io/[Name]IOReal.java
-3. subsystems/[name]/io/[Name]IOSim.java
-4. subsystems/[name]/[Name].java
-5. subsystems/[name]/[Name]Constants.java
-6. commands/[Name]Commands.java
+Build it on frc.lib.mechanism — do not write a new IO layer. Create:
+1. subsystems/[name]/[Name].java — extends RollerSubsystem, RotarySubsystem or
+   LinearSubsystem depending on the kind
+2. subsystems/[name]/[Name]Constants.java — NAME, the MotorConfig, the settings,
+   the sim model
+
+Add a commands/[Name]Commands.java ONLY if this mechanism has verbs that
+RollerCommands / RotaryCommands / LinearCommands do not already cover.
 
 Wire the real and sim implementations in RobotContainer under the existing
-real/sim/replay switch — all three branches. Add the CAN IDs to Constants.CanIds,
+real/sim/replay switch — all three branches — and call registerFaultMonitors(). Add the CAN IDs to Constants.CanIds,
 with a // CANivore or // RIO CAN comment on each line, and the setpoints above to
 Constants.Setpoints. RobotContainer should end up with no bare numbers in it.
-Run ./gradlew compileJava before reporting complete.
+Run ./gradlew build before reporting complete, and ./gradlew simulateJava if you
+claim the mechanism works end to end.
 ```
 
 ---
 
 ## What Claude Will Do
 
-1. Create the six files from the matching scaffold in `template/src/` — `exampleRoller`
+1. Create the two files from the matching scaffold in `template/src/` — `exampleRoller`
    if it spins, `exampleArm` if it pivots to an angle, `exampleLift` if it travels in a
-   line. `subsystems/vision/` is the same IO pattern in production form
+   line. The IO layer, simulation, visualizer and common commands come from
+   `frc/lib/mechanism/`; there is nothing to copy for those
 2. Add the CAN IDs to `Constants.CanIds`, with the bus in a comment on each line
 3. Add the setpoints to `Constants.Setpoints` — never inline in `RobotContainer`,
    never as a private field there, never in the subsystem's own constants file
-4. Add real/sim/replay wiring to `RobotContainer`
+4. Add real/sim/replay wiring to `RobotContainer`, and call `registerFaultMonitors()`
 5. Provide a compile check
 
 ## What Claude Will Not Do Without Asking

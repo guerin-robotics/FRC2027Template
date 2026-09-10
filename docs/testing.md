@@ -74,7 +74,7 @@ deliberate: the values were earned from real 2026 match logs and are the source 
 | `commands/JoystickDriveAtAngleSimTest` | Heading hold converges |
 | `subsystems/drive/DriveOdometrySimTest` | Odometry integrates correctly |
 | `subsystems/drive/DrivePeriodicBudgetTest` | `Drive.periodic()` staying inside the loop budget |
-| `frc/lib/LoopTimeMonitorTest` | The watchdog that reports an over-budget loop |
+| `frc/lib/util/LoopTimeMonitorTest` | The watchdog that reports an over-budget loop |
 | `frc/robot/GainSweepTest` | The gain-sweep harness `/pid-tune` drives |
 
 `LoopTimeMonitorTest` drives timing with `SimHooks.pauseTiming()`/`stepTiming()`, so its
@@ -110,18 +110,57 @@ thing standing between the codebase and these regressions. Read it before mergin
 
 ## Adding a mechanism — what to write
 
-`/add-subsystem` scaffolds the six files. Tests are yours:
+`/add-subsystem` scaffolds the two files. Tests are yours:
 
 1. **CAN IDs** — nothing to write. `CanIdUniquenessTest` picks up new IDs automatically.
 2. **Wiring** — nothing to write. `RobotContainerSmokeTest` reflects over `RobotContainer`'s
    fields, so a new subsystem is covered the moment it is wired in.
-3. **Closed-loop mechanisms get a sim convergence test.** Copy `DriveToPoseSimTest`'s shape,
-   and point `GainSweepTest` at the new mechanism when you tune it. Both need a physics
-   `IOSim` — testing or tuning against stub IO is meaningless.
+3. **Closed-loop mechanisms get a sim convergence test.** Copy the one for the matching kind
+   in `src/test/java/frc/lib/mechanism/` — `RollerMechanismSimTest`, `RotaryMechanismSimTest` or
+   `LinearMechanismSimTest` — rather than `DriveToPoseSimTest`, which is a different harness. A
+   mechanism built on `frc/lib/mechanism` always has physics, and the configured gains run on a
+   simulated Talon, so what the test measures is what the robot will do. See the harness rules
+   below before you write one; two of them will otherwise waste an afternoon.
 4. **Pure logic gets a unit test only when it is worth one** — an interpolation table, a
    readiness band, zone math. Use `.claude/prompts/write-test.md`; the known-correct cases come
    from measurement, not from reading the code. A test that just restates the implementation is
    worse than none.
+
+### Sim tests on a Phoenix device — two rules
+
+These apply to any test that drives a mechanism from `frc/lib/mechanism`. Both failures look
+exactly like broken physics, which is why they are written down rather than left to be rediscovered.
+
+**Let wall-clock time pass; do not step the FPGA clock.** Phoenix's device simulation advances on
+real time. `SimHooks.stepTiming()` does nothing for it, so a tight loop leaves the simulated
+Talon's control loop never ticking and the mechanism sits at exactly zero. Sleep the loop period
+each iteration:
+
+```java
+mechanism.periodic();
+Thread.sleep(20);
+```
+
+`ModuleIOSim` needs none of this because it models everything in Java and never touches a Phoenix
+device. That is the difference to look for: if your test constructs a `*MechanismSim`, it needs to
+sleep.
+
+**Wait for a condition to hold; do not run a fixed number of loops.** The physics steps a fixed
+20 ms per call while the device advances on wall-clock time, so how much control the device gets
+per physics step depends on how loaded the machine is. A fixed loop count that passes on an idle
+laptop fails on a busy CI runner. Copy the `settles()` helper from any of the three tests — it
+requires the condition to hold for ten consecutive loops, which also stops a mechanism overshooting
+its goal from counting as having arrived.
+
+**If the test schedules commands, point the time source at the FPGA clock first:**
+
+```java
+RobotController.setTimeSource(RobotController::getFPGATime);
+```
+
+WPILib's `Timer` reads `RobotController.getTime()`, which `IterativeRobotBase` advances once per
+loop. There is no robot base in a unit test, so without this every `WaitCommand` and every
+`withTimeout` waits forever — `LinearMechanismSimTest` does it for the zeroing routine.
 
 ### The cleanup rule for sim tests
 

@@ -1,35 +1,27 @@
 package frc.robot.subsystems.exampleRoller;
 
+import static edu.wpi.first.units.Units.KilogramSquareMeters;
 import static edu.wpi.first.units.Units.RPM;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
-import static edu.wpi.first.units.Units.Second;
 import static edu.wpi.first.units.Units.Seconds;
 
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.units.measure.Time;
-import frc.lib.LoggedTunableNumber;
-import frc.lib.MotorSpecs;
+import frc.lib.mechanism.Gains;
+import frc.lib.mechanism.MotionProfile;
+import frc.lib.mechanism.MotorConfig;
+import frc.lib.mechanism.MotorConfig.MechanismKind;
+import frc.lib.mechanism.roller.RollerSettings;
+import frc.lib.mechanism.roller.RollerSimModel;
+import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
 
 /**
- * Constants and motor configuration for a <b>VELOCITY-CONTROLLED</b> mechanism.
- *
- * <p>Copy this scaffold for a roller, flywheel, feeder, transport or intake — anything that spins
- * and where the question is "how fast is it turning", never "where is it". In 2026 that covered the
- * flywheel, the prestage, both feeders, the transport and the intake roller.
- *
- * <p><b>If the mechanism has to reach a position and hold it, this is the wrong scaffold.</b> Copy
- * {@code exampleArm} for anything that pivots, {@code exampleLift} for anything that travels in a
- * line.
+ * Everything that describes how this <b>velocity-controlled</b> mechanism is built.
  *
  * <h2>THIS FILE DOES NOT COMPILE ON PURPOSE</h2>
  *
  * <p>Two values cannot be guessed, so their <i>declarations</i> are commented out while the code
- * below still <i>assigns</i> them. The compiler then names each one, once, as an error:
+ * below still <i>uses</i> them. The compiler then names each one, once, as an error:
  *
  * <pre>
  * Constants.CanIds.EXAMPLE_ROLLER_MOTOR   the CAN ID, added to Constants.CanIds
@@ -38,503 +30,140 @@ import frc.robot.Constants;
  *
  * <p>Expect exactly those two and nothing else. Anything more is rot in the scaffold.
  *
- * <p>Commenting out the <i>assignments</i> instead would compile, and would be worse. Phoenix
- * defaults {@code SensorToMechanismRatio} to 1.0, so a config that silently skips it reports motor
- * rotations while every setpoint, tolerance and gain in this file assumes mechanism rotations. That
- * is a confidently wrong robot, which is much harder to notice than one that refuses to build.
+ * <p>Commenting out the <i>uses</i> instead would compile, and would be worse. Phoenix defaults
+ * {@code SensorToMechanismRatio} to 1.0, so a config that silently skipped it would report motor
+ * rotations while every setpoint, tolerance and gain here assumed mechanism rotations. That is a
+ * confidently wrong robot, which is much harder to notice than one that refuses to build.
  *
- * <p>Everything else here has a defensible default. Those are safe starting points, not
- * measurements.
+ * <p>Everything else has a defensible default. Those are safe starting points, not measurements.
  *
  * <h2>What does NOT go in this file</h2>
  *
- * <p><b>Setpoints.</b> This file describes how the mechanism is <i>built</i> — gains, gear ratio,
- * current limits, tolerance, the sim model. What it is <i>commanded to</i> — target velocities,
- * voltages — belongs in {@code Constants.Setpoints}, together with every other mechanism's.
+ * <p><b>Setpoints.</b> This file says how the mechanism is <i>built</i> — ratio, limits, gains, the
+ * sim model, how close counts as at speed. What it is <i>commanded to</i> — target velocities —
+ * belongs in {@code Constants.Setpoints}, with every other mechanism's.
  *
  * <p>The test is whether a driver might ask you to change it between matches. "Run the intake a
- * little faster" should send you to one file, not on a hunt across every subsystem package. Note
- * that a <i>tolerance</i> stays here — how close counts as "at speed" is a property of the
- * mechanism, not a knob the drive team turns.
+ * little faster" should send you to one file, not on a hunt across every subsystem package. A
+ * <i>tolerance</i> stays here: how close counts as "at speed" is a property of the mechanism, not a
+ * knob the drive team turns.
  *
  * <p><b>CAN IDs.</b> {@code Constants.CanIds}, so every ID on the robot is visible in one table.
  *
- * <p>Command factories take setpoints as parameters, and {@code RobotContainer} supplies them from
- * {@code Constants.Setpoints}. See {@code .claude/rules/03-commands.md}.
+ * <h2>Units</h2>
  *
- * <h2>The config lives here, not in the IO</h2>
- *
- * <p>{@link #getFXConfig()} returns a fully-built {@link TalonFXConfiguration}, setting the same
- * blocks in the same order every mechanism does:
- *
- * <pre>
- * CurrentLimits -&gt; TorqueCurrent -&gt; Voltage -&gt; MotorOutput -&gt; SoftwareLimitSwitch
- *   -&gt; Feedback -&gt; Slot0 -&gt; MotionMagic
- * </pre>
- *
- * <p>That uniformity is the point. When every mechanism's config reads the same, a reviewer
- * comparing two of them sees only the differences that matter. The IO implementation shrinks to one
- * line and holds no numbers at all.
- *
- * <p><b>UNITS:</b> under {@code *TorqueCurrentFOC} the gains are in <b>AMPS</b>, not volts. See
- * {@code docs/characterization-and-tuning.md}.
+ * <p>Gains are in <b>amps</b>, not volts — every closed loop here runs {@code *TorqueCurrentFOC}.
+ * Read {@code docs/characterization-and-tuning.md} before touching one.
  */
-public class ExampleRollerConstants {
+public final class ExampleRollerConstants {
 
   private ExampleRollerConstants() {}
 
-  /** Log key and alert prefix. One name used everywhere, so a grep finds all of it. */
+  /** Log key, alert prefix and tunable prefix. One name everywhere, so one grep finds all of it. */
   public static final String NAME = "ExampleRoller";
 
-  // ==========================================================================================
-  // CURRENT AND OUTPUT LIMITS — the defaults here are deliberate, not arbitrary
-  // ==========================================================================================
-  //
-  // Safety limits, not tuning knobs (.claude/rules/00-safety.md). These are a conservative
-  // starting point for a Kraken on a mechanism whose loading is not yet known.
-  //
-  // SUPPLY vs STATOR are different measurements and are not interchangeable:
-  //   Supply — current drawn from the battery. Bounds brownout risk.
-  //   Stator — current through the windings. Bounds heating and torque.
-  // At low speed under load, supply is a fraction of stator.
-
-  /** Steady-state supply current ceiling, in amps. */
-  public static final double SUPPLY_CURRENT_LIMIT_AMPS = 40.0;
-
-  /** Supply current allowed briefly before the limit engages. */
-  public static final double SUPPLY_CURRENT_LOWER_LIMIT_AMPS = 40.0;
-
-  /** How long the lower limit may be exceeded — lets a mechanism draw inrush without clamping. */
-  public static final Time SUPPLY_CURRENT_LOWER_TIME = Seconds.of(0.1);
-
-  /**
-   * Winding current ceiling, in amps. Governs heating and stall torque.
-   *
-   * <p>80 A here where {@code exampleArm} and {@code exampleLift} start at 40, and the difference
-   * is not caution — it is that a roller has nowhere to slam. A position mechanism given a setpoint
-   * it cannot reach drives into its own hard stop with everything the limit allows and holds there;
-   * a roller given a velocity it cannot reach simply spins slower. So the position scaffolds start
-   * weak on purpose and this one starts at a useful working value.
-   *
-   * <p>A roller that CAN stall — an intake or feeder against a game piece — has that risk covered
-   * by the jam detector below rather than by a low limit, because a limit low enough to protect the
-   * mechanism is also too low to pick up a game piece.
-   */
-  public static final double STATOR_CURRENT_LIMIT_AMPS = 80.0;
-
-  /**
-   * Peak torque current the closed loop may REQUEST, in amps.
-   *
-   * <p>Distinct from the stator limit, and both are needed. Under {@code TorqueCurrentFOC} the
-   * control output is itself a current request, so without this clamp the loop can ask for
-   * arbitrary current and only the stator limit stops it — after the fact, by saturating. Clamping
-   * the request keeps the controller operating in a range it can actually deliver.
-   */
-  public static final double PEAK_FORWARD_TORQUE_CURRENT_AMPS = 80.0;
-
-  /** Peak reverse torque current. Negative. */
-  public static final double PEAK_REVERSE_TORQUE_CURRENT_AMPS = -80.0;
-
-  /** Peak forward voltage. 12 V is nominal battery, so this is "no artificial cap". */
-  public static final double PEAK_FORWARD_VOLTAGE = 12.0;
-
-  /** Peak reverse voltage. Negative. */
-  public static final double PEAK_REVERSE_VOLTAGE = -12.0;
-
-  // ==========================================================================================
-  // MECHANICAL
-  // ==========================================================================================
-
-  /** True if the motor is mounted so positive output produces negative mechanism motion. */
-  public static final boolean INVERTED = false;
-
-  // TODO: supply the gearing, then uncomment.
-  //
-  // GEAR_RATIO is the TOTAL reduction: motor rotations per mechanism rotation, end to end. It is
-  // the number that sets top speed, and the one to state when someone asks "what is the ratio".
-  //
-  // public static final double GEAR_RATIO = ;
-
-  /**
-   * Encoder rotations per mechanism rotation.
-   *
-   * <p>For a velocity mechanism this is always the whole reduction, because the sensor is always
-   * the motor's own rotor. A roller has no position worth measuring absolutely, so there is no
-   * CANcoder, and nothing sits between the rotor and the gearbox input.
-   *
-   * <p>That is why this scaffold has no {@code ROTOR_TO_SENSOR_RATIO} to get wrong. A position
-   * mechanism has to split the total reduction at wherever the encoder physically sits; see {@code
-   * ExampleArmConstants} for that decision and the three cases it breaks into.
-   */
-  public static final double SENSOR_TO_MECHANISM_RATIO = GEAR_RATIO;
-
-  // ==========================================================================================
-  // UNIT CONVERSION — the boundary between team units and Phoenix units
-  // ==========================================================================================
-  //
-  // We declare in RPM and RPM/sec because those are the units a person can reason about with the
-  // robot in front of them. Phoenix works in rotations and rotations per second, always.
-  //
-  // Every conversion lives here so there is exactly one place to check, and each is written with
-  // WPILib units rather than a bare /60.0. An inverted magic number is a factor-of-60 error that
-  // compiles, deploys, and moves the mechanism — just not the way anyone expected.
-
-  /** Mechanism RPM to the rotations/sec Phoenix wants. */
-  public static double rpmToRotationsPerSec(double rpm) {
-    return RPM.of(rpm).in(RotationsPerSecond);
-  }
-
-  /**
-   * Mechanism RPM/sec to the rotations/sec squared Phoenix wants.
-   *
-   * <p>Typed as an angular <i>acceleration</i>, not an angular velocity. The numeric factor is the
-   * same 60 either way, so writing this with {@code RPM.of(...)} would give the right answer today
-   * — and would quietly stop being right the moment someone reused the helper for something that is
-   * not a per-second rate.
-   */
-  public static double rpmPerSecToRotationsPerSecSquared(double rpmPerSec) {
-    return RPM.per(Second).of(rpmPerSec).in(RotationsPerSecondPerSecond);
-  }
-
-  // ==========================================================================================
-  // THEORETICAL TOP SPEED
-  // ==========================================================================================
-
-  /** Which motor drives this mechanism. Picks the free speed and the sim model together. */
+  /** Drives the speed arithmetic below and the simulation model, so the two cannot disagree. */
   public static final MotorSpecs MOTOR = MotorSpecs.KRAKEN_X60_FOC;
 
-  /** How many motors, leader and followers together. Torque scales with this; speed does not. */
-  public static final int MOTOR_COUNT = 1;
+  // TODO: supply the total reduction from motor to mechanism, then uncomment.
+  // A 3:1 followed by a 2:1 is 6.0. Greater than 1 means the mechanism turns slower than the motor.
+  //
+  // public static final double GEAR_RATIO = 6.0;
 
   /**
-   * Theoretical top speed at the mechanism, in RPM. Computed, never typed in.
+   * How the motor group is configured.
    *
-   * <p>This is a ceiling, not a target. Free speed is the motor with nothing attached; load,
-   * friction and the current limit all take a share. A commanded velocity above this does not fail
-   * loudly — the motor simply saturates and never reports at-speed, so every sequence waiting on it
-   * runs to its timeout instead. That reads as a tuning problem and is not one.
-   *
-   * <p>It is also the sanity check on the gear ratio. If this number is nowhere near what the
-   * mechanism has to do, the ratio is wrong, and catching that here beats catching it on the
-   * practice field.
+   * <p>{@link MotorConfig} refuses to build without the values that have no safe default, so the
+   * absence of a current limit here would be a startup exception naming this mechanism rather than
+   * a motor that quietly boots with no protection.
    */
-  public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(GEAR_RATIO);
+  public static final MotorConfig CONFIG =
+      MotorConfig.builder(NAME, MechanismKind.ROLLER)
+          // TODO: add the ID to Constants.CanIds and pick the bus deliberately. RIO_BUS here, or
+          // TunerConstants.kCANBus for the CANivore — swerve owns that one, and anything else
+          // placed there needs a documented reason.
+          .canId(Constants.CanIds.EXAMPLE_ROLLER_MOTOR, Constants.CanIds.RIO_BUS)
+          .sensorToMechanismRatio(GEAR_RATIO)
 
-  // ==========================================================================================
-  // MOTION PROFILE
-  // ==========================================================================================
-  //
-  // A velocity mechanism has NO cruise velocity: the commanded velocity IS the cruise. Only
-  // acceleration is profiled, and it exists to keep spin-up from being a current step.
-  //
-  // 9000 RPM/s is close to unlimited on purpose. Spin-up ends up bounded by the current limit and
-  // the mechanism's own inertia rather than by this number, which is what you want on a roller —
-  // there is no hard stop to slam into and no gravity torque to respect. Lower it only if the
-  // current draw at spin-up is causing a brownout, and say so in the commit.
-  //
-  // Tunable, because a profile is the thing you most want to adjust with the mechanism in front
-  // of you, and it is far safer to change than a gain: too slow just wastes time, whereas too
-  // much kP oscillates. See docs/tunables.md.
+          // ---- Current limits ----
+          //
+          // Safety values, not tuning knobs (.claude/rules/00-safety.md). Supply bounds brownout
+          // risk; stator bounds heating and stall torque. At low speed under load supply is only a
+          // fraction of stator, because the controller is chopping.
+          //
+          // 80 A stator here where exampleArm and exampleLift start at 40, and the difference is
+          // not caution — it is that a roller has nowhere to slam. A position mechanism given a
+          // setpoint it cannot reach drives into its own hard stop and holds there; a roller given
+          // a velocity it cannot reach simply spins slower.
+          .supplyCurrentLimit(40.0)
+          .statorCurrentLimit(80.0)
 
-  /** Compiled-in default for {@link #ACCELERATION_RPM_PER_SEC}, in mechanism RPM per second. */
-  public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 9000.0;
+          // Coast. A roller has no stored energy to hold and nothing to fall, so braking it on
+          // disable only fights the hand clearing a jam in the pit. The arm and the lift brake for
+          // exactly the opposite reason.
+          .neutralMode(NeutralModeValue.Coast)
 
-  /** Profile acceleration, in mechanism RPM per second. Tunable at runtime. */
-  public static final LoggedTunableNumber ACCELERATION_RPM_PER_SEC =
-      new LoggedTunableNumber(NAME + "/AccelRpmPerSec", ACCELERATION_RPM_PER_SEC_DEFAULT);
+          // ---- Control ----
+          //
+          // Zero gains are the honest starting point for a mechanism nobody has characterized.
+          // Under TorqueCurrentFOC, kP is amps per rotation-per-second of error.
+          .gains(Gains.zero())
+
+          // Cruise velocity is meaningless under MotionMagicVelocity — the commanded velocity is
+          // the target and this only governs the ramp to it. rampOnly() says that deliberately.
+          // Keep the acceleration honest: the jam detector's dwell has to exceed spin-up time.
+          .motionProfile(MotionProfile.rampOnly(RotationsPerSecondPerSecond.of(50.0)))
+          .build();
 
   /**
-   * Everything re-applied to the Talon when a dashboard value moves.
+   * Theoretical top speed. Not a target — a ceiling.
    *
-   * <p>One entry, because there is no cruise velocity on a velocity mechanism. It stays an array so
-   * the IO layer's {@code ifChanged} watch list reads identically across all three scaffolds.
+   * <p>Free speed is the motor with nothing attached; a real mechanism carries load, friction and a
+   * current limit. 80% is an optimistic working figure. It is also the sanity check on the gear
+   * ratio: if this is nowhere near what the mechanism needs to do, the ratio is wrong, and finding
+   * that here beats finding it on the practice field.
+   *
+   * <p>Read off {@link #CONFIG} rather than off {@code GEAR_RATIO} directly, so this is computed
+   * from the ratio the device was actually given and the two cannot drift apart.
    */
-  public static final LoggedTunableNumber[] TUNABLE_PROFILE = {ACCELERATION_RPM_PER_SEC};
-
-  // ==========================================================================================
-  // TOLERANCE
-  // ==========================================================================================
+  public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(CONFIG.rotorToMechanismRatio());
 
   /**
-   * How close counts as "at velocity", in mechanism RPM.
+   * How this mechanism behaves: what counts as at speed, and what a jam looks like.
    *
-   * <p>Too tight and the mechanism never reports ready, so every sequence runs to its timeout
-   * instead of proceeding. Too loose and it acts before it has spun up. 120 RPM is a starting point
-   * for a flywheel in the low thousands; scale it to the mechanism, then check it against a real
-   * log rather than leaving it at whatever was copied.
-   *
-   * <p>Tunable, because the right value is the one you find by watching the mechanism report ready
-   * against what it is actually doing. It is read live on every {@code isAtVelocity()} call, so a
-   * dashboard edit takes effect on the next loop with no re-apply and no CAN traffic.
+   * <p>Delete the jam detection for a flywheel spinning in free air — it has no jam signature to
+   * look for, and "this cannot jam" should mean the detector is absent rather than merely quiet.
+   * Keep it for anything that can stall against a game piece: a roller, feeder, intake or
+   * transport. 2026 ran its rollers open-loop with no feedback and jams were <b>silent</b>.
    */
-  public static final double VELOCITY_TOLERANCE_RPM_DEFAULT = 120.0;
-
-  /** How close counts as "at velocity", in mechanism RPM. Tunable at runtime. */
-  public static final LoggedTunableNumber VELOCITY_TOLERANCE_RPM =
-      new LoggedTunableNumber(NAME + "/VelocityToleranceRpm", VELOCITY_TOLERANCE_RPM_DEFAULT);
-
-  // ==========================================================================================
-  // JAM DETECTION — keep this if the mechanism can stall against a game piece
-  // ==========================================================================================
-  //
-  // Rollers, feeders, intakes and transports can all jam. A flywheel spinning in free air cannot
-  // — delete this block and the matching one in ExampleRoller if that is what you are building.
-  //
-  // 2026 ran its rollers open-loop with no feedback, so jams were SILENT: the mechanism stopped
-  // working and nothing in the log said why. This is the cheapest instrumentation on the list and
-  // it is the one that was missing. See GUIDE.md section D.3.
-  //
-  // NONE OF THESE ARE GUESSABLE. They come from logging stator current during a real jam AND
-  // during a normal pickup, because telling those two apart is the entire job. Left commented for
-  // the same reason GEAR_RATIO is: a plausible-looking wrong threshold compiles and produces a
-  // detector that either cries wolf every match or never fires at all.
-  //
-  // Three of the four are tunables, because separating a jam from a hard pickup is exactly the
-  // job you do with the mechanism in front of you, jamming it on purpose and watching where the
-  // thresholds land. They are read live in isJammed(), so an edit applies on the next loop.
-  //
-  // JAM_DEBOUNCE_SECONDS is NOT a tunable: it is consumed by a Debouncer built once in the
-  // ExampleRoller constructor, so a dashboard edit would change the logged number and nothing
-  // else. A knob that moves without changing behaviour is worse than no knob.
-  //
-  //   /** Stator current, in amps, above which the mechanism counts as "working hard". Sits
-  //    * BELOW STATOR_CURRENT_LIMIT_AMPS — a jam that already saturated the limit has been a
-  //    * jam for a while. */
-  //   public static final LoggedTunableNumber JAM_STATOR_CURRENT_AMPS =
-  //       new LoggedTunableNumber(NAME + "/JamStatorAmps", 55.0);
-  //
-  //   /** Measured velocity below this FRACTION of commanded counts as "not turning". A
-  //    * fraction, not an absolute RPM, so one threshold works at every setpoint. */
-  //   public static final LoggedTunableNumber JAM_VELOCITY_FRACTION =
-  //       new LoggedTunableNumber(NAME + "/JamVelocityFraction", 0.25);
-  //
-  //   /** How long all conditions must hold. MUST EXCEED SPIN-UP TIME — see the note in
-  //    * ExampleRoller. Raise it if ACCELERATION_RPM_PER_SEC ever drops. Static: the Debouncer
-  //    * reads it once, at construction. */
-  //   public static final double JAM_DEBOUNCE_SECONDS = 0.5;
-  //
-  //   /** Commanded RPM below which the check is skipped, so a stopped mechanism does not
-  //    * trivially satisfy "measured is below 25% of commanded". */
-  //   public static final LoggedTunableNumber JAM_MIN_COMMANDED_RPM =
-  //       new LoggedTunableNumber(NAME + "/JamMinCommandedRpm", 100.0);
-
-  // ==========================================================================================
-  // GAINS — REAL ROBOT
-  // ==========================================================================================
-  //
-  // Placeholders. Measure them in this order for a velocity loop: kS -> kV -> kA -> kP. Never
-  // start with kP. See docs/characterization-and-tuning.md Part 3.
-  //
-  // THERE IS NO kG HERE. A roller's mass is balanced about its axis, so gravity does no net work
-  // on it and a gravity feedforward has nothing to compensate. exampleArm and exampleLift both
-  // have one, and both need it.
-  //
-  // These are LoggedTunableNumbers so a tuning session does not need a redeploy per iteration.
-  // With Constants.tuningMode off they return the defaults below and cost nothing — no dashboard
-  // entry is even created.
-  //
-  // The default in each constructor is what the robot runs in competition. The dashboard value
-  // lives only in NetworkTables and is gone at the next reboot, so a session that ends without
-  // writing the numbers back into this file and committing them accomplished nothing.
-  //
-  // These are the gains the TALON runs, on the device. Changing one means a CAN write, which is
-  // why ExampleRollerIOReal re-applies Slot0 only when a value actually moves rather than every
-  // loop. See docs/tunables.md.
-
-  /** Static friction feedforward — output needed to break the mechanism loose. */
-  public static final LoggedTunableNumber KS = new LoggedTunableNumber(NAME + "/kS", 0.0);
-
-  /** Velocity feedforward — output per unit of steady-state velocity. Does most of the work. */
-  public static final LoggedTunableNumber KV = new LoggedTunableNumber(NAME + "/kV", 0.0);
-
-  /** Acceleration feedforward — output per unit of acceleration. Governs spin-up. */
-  public static final LoggedTunableNumber KA = new LoggedTunableNumber(NAME + "/kA", 0.0);
-
-  /** Proportional gain. Corrects what feedforward misses — it should not be doing the work. */
-  public static final LoggedTunableNumber KP = new LoggedTunableNumber(NAME + "/kP", 0.0);
-
-  /** Integral gain. Leave at zero unless you can explain its behavior during a stall. */
-  public static final LoggedTunableNumber KI = new LoggedTunableNumber(NAME + "/kI", 0.0);
+  public static final RollerSettings SETTINGS =
+      RollerSettings.of(RPM.of(100))
+          .withJamDetection(
+              new RollerSettings.JamDetection(
+                  // Below this the mechanism is idle and cannot be jammed.
+                  RPM.of(500),
+                  // Fraction of the commanded speed below which it counts as "not turning".
+                  0.2,
+                  // Stator, not supply — at the low-speed high-load condition that defines a jam,
+                  // supply sits much closer to the noise floor.
+                  edu.wpi.first.units.Units.Amps.of(45),
+                  // MUST exceed spin-up time. During a normal spin-up the command is high, the
+                  // measurement is low and the current is high — exactly the jam signature — so a
+                  // shorter dwell fires on every single start. Check it against the acceleration
+                  // above, and raise it if that ever drops.
+                  Seconds.of(0.5)));
 
   /**
-   * Derivative gain.
+   * The physics simulation obeys.
    *
-   * <p>Usually zero on a velocity loop. Velocity is already a derivative of the sensor, so kD
-   * differentiates it a second time and turns encoder noise into output chatter. It damps overshoot
-   * on a position loop, which is a different scaffold.
+   * <p>The gearbox is sized from {@link #CONFIG} so a two-motor mechanism is simulated as two
+   * motors; simulated as one it reaches half the acceleration and every gain found against it is
+   * wrong.
+   *
+   * <p>The moment of inertia wants a CAD mass-properties number. A guess makes the mechanism spin
+   * up at the wrong rate and nothing else — fine for checking command logic, useless for tuning, so
+   * know which one you are doing.
    */
-  public static final LoggedTunableNumber KD = new LoggedTunableNumber(NAME + "/kD", 0.0);
-
-  /** Every real-robot gain, for the {@code ifChanged} watch list in the IO layer. */
-  public static final LoggedTunableNumber[] TUNABLE_GAINS = {KS, KV, KA, KP, KI, KD};
-
-  // ==========================================================================================
-  // SIMULATION
-  // ==========================================================================================
-
-  /**
-   * Simulation constants, deliberately nested and deliberately separate from the real gains.
-   *
-   * <p><b>Why sim needs its own gains.</b> The sim model is not the robot. No backlash, no belt
-   * stretch, no friction beyond what the model declares, and an inertia that is usually a guess.
-   * Gains that behave well against that model are frequently wrong on hardware, and gains measured
-   * on hardware often will not converge in sim. One shared set means one of the two is lying.
-   *
-   * <p>Nested rather than flattened so {@code Sim.KP} beside {@code KP} in a diff makes it obvious
-   * which one is being edited.
-   *
-   * <p><b>Sim gains are plain doubles, not tunables, on purpose.</b> Tunables exist to avoid the
-   * two-minute edit-build-deploy-enable cycle. Sim has no deploy step — restarting it is seconds —
-   * so a dashboard knob buys nothing and only adds a second set of numbers that can disagree with
-   * the file. Edit these here and re-run.
-   */
-  public static class Sim {
-
-    private Sim() {}
-
-    /** The motor(s) driving this mechanism, for the sim model. */
-    public static final DCMotor MOTOR = ExampleRollerConstants.MOTOR.gearbox(MOTOR_COUNT);
-
-    /**
-     * Moment of inertia in kg-m squared, at the mechanism.
-     *
-     * <p>Sets how fast the simulated mechanism accelerates, so a wrong value makes sim-tuned gains
-     * meaningless. For a flywheel it is essentially the whole model — worth a CAD number rather
-     * than a guess.
-     */
-    public static final double MOI = 0.001;
-
-    public static final double KS = 0.0;
-    public static final double KV = 0.0;
-    public static final double KA = 0.0;
-    public static final double KP = 1.0;
-    public static final double KI = 0.0;
-    public static final double KD = 0.0;
-  }
-
-  // ==========================================================================================
-  // MODE-AWARE GAIN ACCESSORS
-  // ==========================================================================================
-  //
-  // Use these rather than reading KP / Sim.KP directly, so no caller has to know which mode it is
-  // in. REPLAY resolves to the REAL gains, which is correct — replay re-runs recorded hardware
-  // inputs and should behave like the real robot.
-
-  private static boolean isSim() {
-    return Constants.currentMode == Constants.Mode.SIM;
-  }
-
-  private static boolean isReal() {
-    return Constants.currentMode == Constants.Mode.REAL;
-  }
-
-  public static double getKS() {
-    return isSim() ? Sim.KS : KS.get();
-  }
-
-  public static double getKV() {
-    return isSim() ? Sim.KV : KV.get();
-  }
-
-  public static double getKA() {
-    return isSim() ? Sim.KA : KA.get();
-  }
-
-  public static double getKP() {
-    return isSim() ? Sim.KP : KP.get();
-  }
-
-  public static double getKI() {
-    return isSim() ? Sim.KI : KI.get();
-  }
-
-  public static double getKD() {
-    return isSim() ? Sim.KD : KD.get();
-  }
-
-  // ==========================================================================================
-  // MOTOR CONFIG
-  // ==========================================================================================
-
-  /**
-   * The one config for this mechanism, applied at construction and re-applied piecewise when a
-   * tunable moves.
-   *
-   * <p>Four things differ from the position scaffolds, and all four follow from "a roller has no
-   * position":
-   *
-   * <ol>
-   *   <li><b>No external encoder.</b> Feedback comes off the motor's internal rotor. Nothing needs
-   *       to know where a roller <i>is</i>, only how fast it is turning, so there is no CANcoder to
-   *       configure and no absolute position to recover at boot.
-   *   <li><b>Soft limits off.</b> A roller has no travel to bound, and a soft limit on one silently
-   *       stops it once accumulated position drifts past the threshold — a mechanism that works for
-   *       two minutes and then quietly refuses to spin.
-   *   <li><b>Coast, not brake.</b> A roller that brakes on every release grinds game pieces and
-   *       throws away spin-up energy. Nothing falls when it coasts.
-   *   <li><b>Acceleration only.</b> The commanded velocity is the cruise, so there is no cruise
-   *       velocity to set.
-   * </ol>
-   *
-   * @return a fully-built config, ready for {@code PhoenixUtil.tryUntilOk(5, ...)}
-   */
-  public static TalonFXConfiguration getFXConfig() {
-    TalonFXConfiguration config = new TalonFXConfiguration();
-
-    // ---- Current limits ----
-    // Enforced on the real robot only, the same way the torque clamp below is. WPILib's sim models
-    // total current draw rather than the winding and battery currents these limits govern, so a
-    // limit applied in sim clamps a number that does not mean what the limit means — sim then
-    // behaves unlike both the real robot and the model the gains were tuned against. The limits
-    // stay set either way, so a Tuner X self-test still reads the intended values.
-    config.CurrentLimits.SupplyCurrentLimitEnable = isReal();
-    config.CurrentLimits.SupplyCurrentLimit = SUPPLY_CURRENT_LIMIT_AMPS;
-    config.CurrentLimits.SupplyCurrentLowerLimit = SUPPLY_CURRENT_LOWER_LIMIT_AMPS;
-    config.CurrentLimits.SupplyCurrentLowerTime = SUPPLY_CURRENT_LOWER_TIME.in(Seconds);
-    config.CurrentLimits.StatorCurrentLimitEnable = isReal();
-    config.CurrentLimits.StatorCurrentLimit = STATOR_CURRENT_LIMIT_AMPS;
-
-    // ---- Torque current clamp ----
-    // Sim does not model torque current, so applying the clamp there only confuses the model.
-    if (isReal()) {
-      config.TorqueCurrent.PeakForwardTorqueCurrent = PEAK_FORWARD_TORQUE_CURRENT_AMPS;
-      config.TorqueCurrent.PeakReverseTorqueCurrent = PEAK_REVERSE_TORQUE_CURRENT_AMPS;
-    }
-
-    // ---- Voltage clamp ----
-    config.Voltage.PeakForwardVoltage = PEAK_FORWARD_VOLTAGE;
-    config.Voltage.PeakReverseVoltage = PEAK_REVERSE_VOLTAGE;
-
-    // ---- Motor output ----
-    config.MotorOutput.NeutralMode = NeutralModeValue.Coast; // rollers coast
-    config.MotorOutput.Inverted =
-        INVERTED ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
-
-    // ---- Soft limits ----
-    // Explicitly disabled rather than left at the default, so a reader comparing this config
-    // against a position mechanism's sees a decision rather than an omission.
-    config.SoftwareLimitSwitch.ForwardSoftLimitEnable = false;
-    config.SoftwareLimitSwitch.ReverseSoftLimitEnable = false;
-
-    // ---- Feedback ----
-    // Internal rotor only. SensorToMechanismRatio makes velocity read in mechanism units, which
-    // is what every tolerance and setpoint in this file assumes.
-    config.Feedback.RotorToSensorRatio = 1.0;
-    config.Feedback.SensorToMechanismRatio = SENSOR_TO_MECHANISM_RATIO;
-
-    // ---- Gains ----
-    config.Slot0.kS = getKS();
-    config.Slot0.kV = getKV();
-    config.Slot0.kA = getKA();
-    config.Slot0.kP = getKP();
-    config.Slot0.kI = getKI();
-    config.Slot0.kD = getKD();
-
-    // ---- Motion profile ----
-    // Acceleration only. RPM/sec in, rotations/sec^2 out.
-    config.MotionMagic.MotionMagicAcceleration =
-        rpmPerSecToRotationsPerSecSquared(ACCELERATION_RPM_PER_SEC.get());
-
-    return config;
-  }
+  public static final RollerSimModel SIM =
+      new RollerSimModel(MOTOR.gearbox(CONFIG.motorCount()), KilogramSquareMeters.of(0.004));
 }

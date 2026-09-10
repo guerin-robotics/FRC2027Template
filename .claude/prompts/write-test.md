@@ -22,7 +22,7 @@ The test must FAIL on the pre-fix code and PASS on the current code.
 
 Rules:
 - Test goes in src/test/java, mirroring the main package structure
-- No hardware objects — test pure logic, or use the IOSim implementation
+- No hardware objects — test pure logic, or use the mechanism's `sim(...)` implementation
 - Every test method asserts something specific; no smoke-only tests
 - After writing it, prove the test can fail: temporarily break the behavior,
   run the test, show me the failure output, then revert the break

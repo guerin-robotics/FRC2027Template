@@ -114,32 +114,59 @@ Work at low output, 1–2 V, with a hand on disable.
    means nothing until it is established. Power-up assumes the mechanism is at zero, which is
    wrong the moment someone powers on with it raised or moves it by hand while disabled.
 
-   Build a routine that drives into a hard stop and declares that position zero. **The
-   `exampleLift` scaffold ships this working, not commented out** — `ExampleLiftCommands.zero()`
-   plus the zeroing state in `ExampleLift.java` and the `zeroPosition()` primitive in
-   `ExampleLiftIO`. Copy it rather than rewriting it.
+   **Do not write the routine.** `LinearCommands.zeroAtHardStop(...)` is it: it drives into the
+   stop on torque current, waits out a settle time, waits for the carriage to stop moving, and
+   declares that position to be a height you supply. A lift needs this because its travel usually
+   exceeds one sensor rotation; `exampleArm` has none, because a fused CANcoder already knows where
+   it is at boot. Which of those two your mechanism is is the question to answer first.
 
-   A lift needs it because its travel usually exceeds one sensor rotation; `exampleArm` has no
-   zeroing at all, because a fused CANcoder already knows where it is at boot. Which of those two
-   your mechanism is is the question to answer first. Three things make the routine safe:
+   Four things about it matter when you pick its arguments:
 
-   - It is a **command**, not a subsystem method, so it requires the subsystem and the scheduler
-     interrupts it if the operator commands a position mid-run. The subsystem holds only the
-     primitive: "declare the current position to be zero."
-   - It detects the stop with **current high AND velocity near zero**, debounced, so it does not
-     trigger on the inrush current at the instant the motor starts.
-   - On timeout it **gives up without zeroing**. A zero taken at an unknown position is worse
-     than no zero, because the mechanism believes it for the rest of the match — including in
-     its soft limits.
+   - It drives on **torque current, not voltage**. Under FOC the commanded current *is* the force,
+     so a small negative value is a bounded push into the stop whatever the mechanism's impedance
+     is. A voltage produces whatever current stall allows, which is a great deal more.
+   - The **settle time must exceed the time the carriage takes to start moving**. The mechanism
+     starts at zero velocity, so a stall check that ran immediately would zero it wherever it
+     already was — confidently, and wrong by exactly the amount the routine exists to remove.
+   - The **stall wait has a mandatory timeout**. A carriage that never stalls is one whose rope has
+     come off, and hanging on it costs the match.
+   - **With a follower, halve the current.** The follower mirrors the leader in hardware, so the
+     force into the stop doubles.
 
-   Log whether zeroing has happened and register it with `FaultMonitor`, so nobody silently
-   trusts the power-up assumption.
+   **Verify it on the robot; simulation cannot.** The sim tests cover the moving parts — that it
+   travels to the stop, detects the stall and finishes rather than timing out — but not the answer.
+   In simulation the device's position is overwritten from the physics model every loop, and the
+   model is always right about where the carriage is, so there is no offset to correct. On the real
+   robot that offset is the whole point.
 
-7. **Gravity reference**, for rotating mechanisms only. `Arm_Cosine` scales kG by
-   `cos(position + offset)` and expects the peak at horizontal. If mechanism zero is the stow
-   position — it usually is — find the angle at which the arm is level and set
-   `GRAVITY_HORIZONTAL_OFFSET_DEGREES` to its negative. Left at zero, kG peaks where gravity is
-   weakest.
+   - [ ] Move the mechanism well away from the stop by hand
+   - [ ] Run the zeroing routine
+   - [ ] Confirm the reported height matches a **tape measurement**, not merely that it is stable
+   - [ ] Power-cycle and repeat from a different starting position. A routine that works from one
+         position and not another almost always has too short a settle time
+
+   Log whether zeroing has happened and register it with `FaultMonitor`, so nobody silently trusts
+   the power-up assumption.
+
+7. **Gravity reference**, for rotating mechanisms only. `Arm_Cosine` scales kG by the cosine of
+   the position it is handed, so it needs to know where the arm is **level** — that is where
+   gravity's torque is greatest and where kG must be at full strength.
+
+   Left unstated, that reference is mechanism zero, and zero is usually the stow position. Then kG
+   peaks where gravity is weakest and the arm sags in the middle of its travel while holding fine
+   at the ends — which reads as a kP problem and is not one.
+
+   - [ ] Measure the angle, in mechanism coordinates, at which the arm is horizontal
+   - [ ] Pass it to `.gravityOffset(Degrees.of(...))` in the mechanism's config, or write down in
+         the constants file that zero already is level
+   - [ ] Confirm the arm holds at both ends of travel *and* in the middle on kG alone
+
+   Because the reference is stated separately, encoder zero can go wherever is convenient — stow
+   is fine. Phoenix bounds the offset to ±90° from zero, so an arm level more than a quarter turn
+   from its zero needs the magnet offset moved anyway.
+
+   The soft limits follow from wherever zero ends up, so settle that before measuring them. An arm
+   stowed 30° below horizontal has a reverse bound of −30°, not 0.
 
 **Nothing past this point works if Phase 1 is wrong.** Finish it.
 
