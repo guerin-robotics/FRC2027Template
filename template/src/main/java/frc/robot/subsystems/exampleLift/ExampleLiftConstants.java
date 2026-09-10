@@ -148,7 +148,7 @@ public final class ExampleLiftConstants {
   // is that 4 Hz is now a choice: in 2026 the intake roller's follower signals landed there by
   // omission, and the data looked present while being a quarter second old.
   //
-  // ZEROING INTERACTS WITH THIS. LinearCommands.zeroAtHardStop drives the leader with torque
-  // current; the follower mirrors it in hardware, so the force into the hard stop is doubled.
-  // Halve the zeroing current when you add the second motor.
+  // ZEROING INTERACTS WITH THIS. LinearCommands.zeroAtHardStop drives the leader with an
+  // open-loop voltage; the follower mirrors it in hardware, so the same voltage puts roughly twice
+  // the force into the hard stop. Reduce the zeroing voltage when you add the second motor.
 }

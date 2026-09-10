@@ -234,26 +234,11 @@ public interface MotorIO {
   /** Open-loop voltage. Bring-up and characterization; match logic should close a loop. */
   default void setVoltage(Voltage volts) {}
 
-  /** Open-loop torque current. The honest open-loop mode under FOC. */
-  default void setTorqueCurrent(Current amps) {}
-
-  /** Open-loop duty cycle, -1 to 1. */
-  default void setDutyCycle(double fraction) {}
-
   /** Closed-loop velocity through the Motion Magic velocity profile. */
   default void setVelocity(AngularVelocity velocity) {}
 
   /** Closed-loop position through the Motion Magic position profile. */
   default void setPosition(Angle position) {}
-
-  /**
-   * Closed-loop position with no profile at all.
-   *
-   * <p>For short corrective moves where the profile costs more than it buys. Do not reach for this
-   * to make a mechanism faster — a profile that is too slow is fixed by raising the acceleration,
-   * which stays inside the limits the mechanism was characterized against.
-   */
-  default void setUnprofiledPosition(Angle position) {}
 
   /** Stop commanding output. Neutral behaviour follows the configured neutral mode. */
   default void stop() {}

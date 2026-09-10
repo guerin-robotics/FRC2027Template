@@ -6,13 +6,10 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.MotionMagicVelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.NeutralOut;
-import com.ctre.phoenix6.controls.PositionTorqueCurrentFOC;
-import com.ctre.phoenix6.controls.TorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
@@ -125,13 +122,9 @@ public class MotorIOTalonFX implements MotorIO {
   // ---- Control requests, built once ----
 
   private final VoltageOut voltageRequest = new VoltageOut(0).withEnableFOC(true);
-  private final TorqueCurrentFOC torqueRequest = new TorqueCurrentFOC(0);
-  private final DutyCycleOut dutyCycleRequest = new DutyCycleOut(0).withEnableFOC(true);
   private final MotionMagicVelocityTorqueCurrentFOC velocityRequest =
       new MotionMagicVelocityTorqueCurrentFOC(0);
   private final MotionMagicTorqueCurrentFOC positionRequest = new MotionMagicTorqueCurrentFOC(0);
-  private final PositionTorqueCurrentFOC unprofiledPositionRequest =
-      new PositionTorqueCurrentFOC(0);
   private final NeutralOut neutralRequest = new NeutralOut();
 
   @SuppressWarnings("unchecked")
@@ -393,16 +386,6 @@ public class MotorIOTalonFX implements MotorIO {
   }
 
   @Override
-  public void setTorqueCurrent(Current amps) {
-    motor.setControl(torqueRequest.withOutput(amps.in(Amps)));
-  }
-
-  @Override
-  public void setDutyCycle(double fraction) {
-    motor.setControl(dutyCycleRequest.withOutput(fraction));
-  }
-
-  @Override
   public void setVelocity(AngularVelocity velocity) {
     motor.setControl(velocityRequest.withVelocity(velocity.in(RotationsPerSecond)));
   }
@@ -410,11 +393,6 @@ public class MotorIOTalonFX implements MotorIO {
   @Override
   public void setPosition(Angle position) {
     motor.setControl(positionRequest.withPosition(position));
-  }
-
-  @Override
-  public void setUnprofiledPosition(Angle position) {
-    motor.setControl(unprofiledPositionRequest.withPosition(position));
   }
 
   @Override

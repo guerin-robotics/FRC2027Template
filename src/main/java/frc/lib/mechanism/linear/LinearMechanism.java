@@ -128,13 +128,6 @@ public class LinearMechanism extends Mechanism {
     io.setPosition(geometry.rotationsFor(goalPosition));
   }
 
-  /** Drives to a height with no motion profile. For short corrective moves only. */
-  public void setUnprofiledPosition(Distance height) {
-    goalPosition = clampToLimits(height);
-    closedLoop = true;
-    io.setUnprofiledPosition(geometry.rotationsFor(goalPosition));
-  }
-
   private Distance clampToLimits(Distance requested) {
     double rotations = geometry.rotationsFor(requested).in(Rotations);
     double clamped =
