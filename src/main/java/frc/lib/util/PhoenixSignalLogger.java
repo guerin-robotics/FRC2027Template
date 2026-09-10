@@ -1,4 +1,4 @@
-package frc.lib;
+package frc.lib.util;
 
 import com.ctre.phoenix6.SignalLogger;
 import edu.wpi.first.wpilibj.Alert;

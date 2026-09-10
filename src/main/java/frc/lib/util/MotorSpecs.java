@@ -1,4 +1,4 @@
-package frc.lib;
+package frc.lib.util;
 
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;

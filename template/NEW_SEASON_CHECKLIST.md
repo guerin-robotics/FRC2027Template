@@ -26,7 +26,7 @@ they're listed so you know they're handled, not so you redo them.
 
 ## Kickoff Week — Game Modeling
 
-- [ ] Add 2027 field geometry to `frc/lib/FieldConstants.java` (scoring elements, zones, lines)
+- [ ] Add 2027 field geometry to `frc/lib/util/FieldConstants.java` (scoring elements, zones, lines)
 - [ ] Add scoring targets and any zone classification to `RobotState`
 - [ ] Fill in `Constants.CanIds` as devices are assigned — one constants file, no `HardwareConstants`
 - [ ] **Delete `CanIds.EXAMPLE_MOTOR` / `EXAMPLE_FOLLOWER` / `EXAMPLE_ENCODER`** once the first

@@ -1,4 +1,4 @@
-package frc.lib;
+package frc.lib.util;
 
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;

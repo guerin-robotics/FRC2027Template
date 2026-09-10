@@ -6,8 +6,8 @@ import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Voltage;
-import frc.lib.FaultMonitor;
-import frc.lib.LoggedTunableNumber;
+import frc.lib.util.FaultMonitor;
+import frc.lib.util.LoggedTunableNumber;
 import frc.robot.Robot;
 import org.littletonrobotics.junction.Logger;
 

@@ -301,7 +301,7 @@ competition seasons. Don't rewrite them; extend them.
 | All mechanism subsystems | New mechanisms every year |
 | `Constants.CanIds` / `.Setpoints` / `.Waits` / `.Thresholds` | New IDs, setpoints and timeouts every year — sections exist, fill them in |
 | `Triggers.java` | Button and state triggers. Exists with the drive bindings; add an accessor per robot function |
-| Game geometry in `FieldConstants` | Field elements change completely — see `frc/lib/ExampleFieldConstants.java` in this directory for the tag-pose-derived pattern to copy, and `docs/target-alignment.md` for how it plugs into `driveToPose` |
+| Game geometry in `FieldConstants` | Field elements change completely — see `frc/lib/util/ExampleFieldConstants.java` in this directory for the tag-pose-derived pattern to copy, and `docs/target-alignment.md` for how it plugs into `driveToPose` |
 | Scoring targets and zone logic in `RobotState` | Field coordinates change |
 | A sequences file (2026 had `ShootSequences` / `SpitSequences`) | The scoring pipeline is the game |
 | PathPlanner `.auto` files and paths | Field-specific |
@@ -404,7 +404,8 @@ src/main/java/frc/robot/
 │   ├── DriveCommands.java    ← carried over; add game alignment commands here
 │   └── [new commands]/       ← only for verbs the mechanism library does not already have
 
-frc/lib/                      ← ALL shared utilities: field/alliance, hardware helpers,
+frc/lib/
+├── util/                     ← ALL shared utilities: field/alliance, hardware helpers,
 │                                health monitors, tuning. Carried over; add to it,
 │                                don't rewrite it. There is no frc/robot/util.
 └── mechanism/                ← the motor abstraction and the three mechanism kinds.

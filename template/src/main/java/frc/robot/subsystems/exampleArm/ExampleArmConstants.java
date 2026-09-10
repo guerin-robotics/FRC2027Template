@@ -6,7 +6,6 @@ import static edu.wpi.first.units.Units.Pounds;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 
-import frc.lib.MotorSpecs;
 import frc.lib.mechanism.Gains;
 import frc.lib.mechanism.MotionProfile;
 import frc.lib.mechanism.MotorConfig;
@@ -14,6 +13,7 @@ import frc.lib.mechanism.MotorConfig.Feedback;
 import frc.lib.mechanism.MotorConfig.MechanismKind;
 import frc.lib.mechanism.rotary.RotarySettings;
 import frc.lib.mechanism.rotary.RotarySimModel;
+import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
 
 /**

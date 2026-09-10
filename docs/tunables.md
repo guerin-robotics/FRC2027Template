@@ -73,7 +73,7 @@ For a *profiled* controller, do not hand-roll this — use `LoggedTunableProfile
 
 ### `LoggedTunableProfiledPID`
 
-For a profiled controller, `frc.lib.LoggedTunableProfiledPID` bundles the five tunables — kP, kI,
+For a profiled controller, `frc.lib.util.LoggedTunableProfiledPID` bundles the five tunables — kP, kI,
 kD, max velocity, max acceleration — so the declarations and the `ifChanged` wiring are not
 rewritten per mechanism:
 

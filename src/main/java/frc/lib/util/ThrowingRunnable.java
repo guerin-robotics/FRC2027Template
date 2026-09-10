@@ -13,7 +13,7 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-package frc.lib;
+package frc.lib.util;
 
 /**
  * Functional interface for runnables that can throw checked exceptions. Useful for lambda

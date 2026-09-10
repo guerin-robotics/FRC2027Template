@@ -33,7 +33,7 @@ drives anything, these must be revisited:
 |---|---|---|
 | Swerve CAN IDs, encoder offsets, geometry, gains | `generated/TunerConstants.java` | Regenerate with CTRE Tuner X against the real robot |
 | Camera names and `robotToCameraN` transforms | `subsystems/vision/VisionConstants.java` | Identity placeholders — measure on the real robot |
-| AprilTag layout | `frc/lib/FieldConstants.java` | Points at the 2026 field; update when WPILib ships 2027 |
+| AprilTag layout | `frc/lib/util/FieldConstants.java` | Points at the 2026 field; update when WPILib ships 2027 |
 | PathPlanner robot config (mass, MOI, wheel COF) | `subsystems/drive/Drive.java` | `ROBOT_MASS_KG`, `ROBOT_MOI`, `WHEEL_COF` are 2026 values |
 | Heading-hold gains | `commands/DriveCommands.java` | `ANGLE_KP` / `ANGLE_KD` tuned on the 2026 chassis |
 | Team number | `.wpilib/wpilib_preferences.json` | Verify |

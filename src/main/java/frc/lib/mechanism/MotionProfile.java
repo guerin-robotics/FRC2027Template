@@ -5,7 +5,7 @@ import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 
 import edu.wpi.first.units.measure.AngularAcceleration;
 import edu.wpi.first.units.measure.AngularVelocity;
-import frc.lib.LoggedTunableNumber;
+import frc.lib.util.LoggedTunableNumber;
 
 /**
  * The Motion Magic profile a mechanism moves along: how fast it may travel, how hard it may

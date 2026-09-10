@@ -6,7 +6,6 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 
 import edu.wpi.first.units.measure.Distance;
-import frc.lib.MotorSpecs;
 import frc.lib.mechanism.Gains;
 import frc.lib.mechanism.MotionProfile;
 import frc.lib.mechanism.MotorConfig;
@@ -14,6 +13,7 @@ import frc.lib.mechanism.MotorConfig.MechanismKind;
 import frc.lib.mechanism.linear.LinearGeometry;
 import frc.lib.mechanism.linear.LinearSettings;
 import frc.lib.mechanism.linear.LinearSimModel;
+import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
 
 /**

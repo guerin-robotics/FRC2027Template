@@ -104,11 +104,11 @@ game-specific problem, and 6328 (Mechanical Advantage) solves it the same way ev
 scoring/pickup poses from `AprilTagFieldLayout` tag poses rather than hand-measuring field
 coordinates.
 
-`frc/lib/FieldConstants.java` already tells you to do this in its start-of-season checklist
+`frc/lib/util/FieldConstants.java` already tells you to do this in its start-of-season checklist
 ("Add game-element geometry ... following the 2026 pattern: dimensions first, then reference
 points derived from tag poses"). The 2026 content that checklist refers to was stripped for the
 template, so **the worked example now lives at
-[`template/src/main/java/frc/lib/ExampleFieldConstants.java`](../template/src/main/java/frc/lib/ExampleFieldConstants.java)**
+[`template/src/main/java/frc/lib/util/ExampleFieldConstants.java`](../template/src/main/java/frc/lib/util/ExampleFieldConstants.java)**
 — a fictional 4-face structure showing the full pattern end to end, including a `faceScoringPose`
 method that returns exactly the `Pose2d` `driveToPose` wants.
 
@@ -125,7 +125,7 @@ Three rules, in more detail in that file's javadoc:
 
 When the 2027 game is known, do not edit `ExampleFieldConstants.java` in place. Copy the pattern
 into a real, game-named class (2025's was `Reef`, 2024's was `Speaker`) inside
-`src/main/java/frc/lib/FieldConstants.java`, per its own instructions.
+`src/main/java/frc/lib/util/FieldConstants.java`, per its own instructions.
 
 ---
 
@@ -160,7 +160,7 @@ the failure classes `.claude/rules/00-safety.md` calls out as high-risk and hard
 A new alignment command runs `angleController` (and maybe `driveController`) every cycle, so it
 adds to the 20 ms budget. Two tests guard that budget from opposite ends:
 
-- [`LoopTimeMonitorTest`](../src/test/java/frc/lib/LoopTimeMonitorTest.java) — pins down the
+- [`LoopTimeMonitorTest`](../src/test/java/frc/lib/util/LoopTimeMonitorTest.java) — pins down the
   watchdog itself: that a sustained ~33 ms loop (the 2026 robot's actual rate) is reported, that a
   startup spike is not, that the deliberate gap between the 20 ms budget and the 25 ms alert
   threshold is preserved, and that the alert clears on recovery. Timing is controlled with

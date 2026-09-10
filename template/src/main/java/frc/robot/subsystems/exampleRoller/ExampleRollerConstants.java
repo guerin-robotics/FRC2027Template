@@ -5,13 +5,13 @@ import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 import static edu.wpi.first.units.Units.Seconds;
 
-import frc.lib.MotorSpecs;
 import frc.lib.mechanism.Gains;
 import frc.lib.mechanism.MotionProfile;
 import frc.lib.mechanism.MotorConfig;
 import frc.lib.mechanism.MotorConfig.MechanismKind;
 import frc.lib.mechanism.roller.RollerSettings;
 import frc.lib.mechanism.roller.RollerSimModel;
+import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
 
 /**

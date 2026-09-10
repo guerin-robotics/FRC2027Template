@@ -1,4 +1,4 @@
-package frc.lib;
+package frc.lib.util;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -10,8 +10,8 @@ import edu.wpi.first.math.util.Units;
  * Worked example of the pattern 6328 (Mechanical Advantage) rebuilds every season in their real
  * {@code FieldConstants.java} — see their 2025 ({@code Reef}/{@code CoralStation}/{@code
  * branchPositions}) and 2026 repos for the actual thing this is modeled on. {@code
- * frc.lib.FieldConstants} already tells you to follow this shape in its start-of-season checklist;
- * this file is what "the 2026 pattern" in that comment means, worked out in full.
+ * frc.lib.util.FieldConstants} already tells you to follow this shape in its start-of-season
+ * checklist; this file is what "the 2026 pattern" in that comment means, worked out in full.
  *
  * <p>TEMPLATE INSTRUCTIONS: 1. Rename {@code ExampleFieldConstants} → whatever this year's
  * structure is called (2025 called it {@code Reef}, 2024 called it {@code Speaker}) 2. Replace

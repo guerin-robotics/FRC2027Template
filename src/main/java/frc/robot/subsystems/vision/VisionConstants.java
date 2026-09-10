@@ -11,7 +11,7 @@ import static edu.wpi.first.math.util.Units.inchesToMeters;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.math.geometry.Transform3d;
-import frc.lib.FieldConstants;
+import frc.lib.util.FieldConstants;
 import org.littletonrobotics.junction.Logger;
 
 public class VisionConstants {
