@@ -148,18 +148,25 @@ Work at low output, 1–2 V, with a hand on disable.
    Log whether zeroing has happened and register it with `FaultMonitor`, so nobody silently trusts
    the power-up assumption.
 
-7. **Gravity reference**, for rotating mechanisms only. `Arm_Cosine` scales kG by
-   `cos(mechanism position)`, so it assumes **mechanism zero is horizontal** — that is where
-   gravity's torque on the arm is greatest and where kG must be at full strength. Phoenix has no
-   separate offset for this; the reference is wherever you put mechanism zero.
+7. **Gravity reference**, for rotating mechanisms only. `Arm_Cosine` scales kG by the cosine of
+   the position it is handed, so it needs to know where the arm is **level** — that is where
+   gravity's torque is greatest and where kG must be at full strength.
 
-   So put it there. On a fused CANcoder, mechanism zero is set by the magnet offset from the Tuner
-   X wizard: zero the encoder with the arm level rather than stowed. If zero ends up at the stow
-   position instead, kG peaks where gravity is weakest and the arm sags in the middle of its travel
-   while holding fine at the ends — which reads as a kP problem and is not one.
+   Left unstated, that reference is mechanism zero, and zero is usually the stow position. Then kG
+   peaks where gravity is weakest and the arm sags in the middle of its travel while holding fine
+   at the ends — which reads as a kP problem and is not one.
 
-   The soft limits then follow from that choice, so settle it before measuring them. An arm stowed
-   30° below horizontal has a reverse bound of −30°, not 0.
+   - [ ] Measure the angle, in mechanism coordinates, at which the arm is horizontal
+   - [ ] Pass it to `.gravityOffset(Degrees.of(...))` in the mechanism's config, or write down in
+         the constants file that zero already is level
+   - [ ] Confirm the arm holds at both ends of travel *and* in the middle on kG alone
+
+   Because the reference is stated separately, encoder zero can go wherever is convenient — stow
+   is fine. Phoenix bounds the offset to ±90° from zero, so an arm level more than a quarter turn
+   from its zero needs the magnet offset moved anyway.
+
+   The soft limits follow from wherever zero ends up, so settle that before measuring them. An arm
+   stowed 30° below horizontal has a reverse bound of −30°, not 0.
 
 **Nothing past this point works if Phase 1 is wrong.** Finish it.
 

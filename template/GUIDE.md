@@ -447,8 +447,8 @@ Note what is *not* on these lists:
   rarely right — it puts the wrap at 0, which is almost always the stow position.
 - **`ENCODER_DIRECTION`** defaults to `CounterClockwise_Positive`, but there is no usual answer —
   the 2026 intake pivot needed `Clockwise_Positive`. Pass `.encoderDirection(...)` to change it.
-- **Current limits** default to 40 A supply everywhere, with a stator ceiling that depends on the
-  scaffold: 80 A on `exampleRoller`, 40 A on the two position scaffolds.
+- **Current limits** are set per scaffold: 40 A supply and an 80 A stator ceiling on
+  `exampleRoller`, 30 A supply and a 40 A ceiling on the two position scaffolds.
 
 That last split is about what a wrong setpoint does. A position mechanism sent somewhere it cannot
 reach drives into its own hard stop with everything the limit allows and holds there, so the two
