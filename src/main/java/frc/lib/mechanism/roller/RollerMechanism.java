@@ -7,6 +7,7 @@ import static edu.wpi.first.units.Units.Seconds;
 
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Voltage;
 import frc.lib.mechanism.Mechanism;
 import frc.lib.mechanism.MotorConfig;
@@ -144,7 +145,7 @@ public class RollerMechanism extends Mechanism {
     return goalVelocity;
   }
 
-  // The open-loop path clears the goal, which the jam detector depends on. Without this it keeps
+  // The open-loop paths clear the goal, which the jam detector depends on. Without this it keeps
   // comparing against a setpoint nobody is commanding any more, and reports a jam the moment an
   // open-loop command runs the mechanism slower than the last closed-loop request.
 
@@ -152,6 +153,12 @@ public class RollerMechanism extends Mechanism {
   public void setVoltage(Voltage volts) {
     goalVelocity = RotationsPerSecond.of(0);
     super.setVoltage(volts);
+  }
+
+  @Override
+  public void setTorqueCurrent(Current amps) {
+    goalVelocity = RotationsPerSecond.of(0);
+    super.setTorqueCurrent(amps);
   }
 
   @Override

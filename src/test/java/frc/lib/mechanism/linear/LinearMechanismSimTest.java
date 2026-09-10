@@ -1,12 +1,12 @@
 package frc.lib.mechanism.linear;
 
+import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.Inches;
 import static edu.wpi.first.units.Units.InchesPerSecond;
 import static edu.wpi.first.units.Units.Pounds;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 import static edu.wpi.first.units.Units.Seconds;
-import static edu.wpi.first.units.Units.Volts;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -240,7 +240,7 @@ class LinearMechanismSimTest {
     Command zeroing =
         LinearCommands.zeroAtHardStop(
             subsystem,
-            Volts.of(-2),
+            Amps.of(-12),
             Seconds.of(0.3),
             InchesPerSecond.of(0.5),
             Seconds.of(4.0),

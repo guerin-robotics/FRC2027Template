@@ -115,25 +115,23 @@ Work at low output, 1–2 V, with a hand on disable.
    wrong the moment someone powers on with it raised or moves it by hand while disabled.
 
    **Do not write the routine.** `LinearCommands.zeroAtHardStop(...)` is it: it drives into the
-   stop on a small open-loop voltage, waits out a settle time, waits for the carriage to stop
-   moving, and declares that position to be a height you supply. A lift needs this because its travel usually
+   stop on torque current, waits out a settle time, waits for the carriage to stop moving, and
+   declares that position to be a height you supply. A lift needs this because its travel usually
    exceeds one sensor rotation; `exampleArm` has none, because a fused CANcoder already knows where
    it is at boot. Which of those two your mechanism is is the question to answer first.
 
    Four things about it matter when you pick its arguments:
 
-   - **The voltage has to be small, and the stator limit is not the guard you want.** A voltage
-     produces whatever current stall allows, capped only by the configured stator limit — and that
-     limit is sized for the mechanism doing its real job, not for a gentle push into a stop. Find
-     the value on a bench: the smallest voltage that still moves the carriage against friction.
-     Then watch stator current in the log the first few times it runs.
+   - It drives on **torque current, not voltage**. Under FOC the commanded current *is* the force,
+     so a small negative value is a bounded push into the stop whatever the mechanism's impedance
+     is. A voltage produces whatever current stall allows, which is a great deal more.
    - The **settle time must exceed the time the carriage takes to start moving**. The mechanism
      starts at zero velocity, so a stall check that ran immediately would zero it wherever it
      already was — confidently, and wrong by exactly the amount the routine exists to remove.
    - The **stall wait has a mandatory timeout**. A carriage that never stalls is one whose rope has
      come off, and hanging on it costs the match.
-   - **With a follower, reduce the voltage.** The follower mirrors the leader in hardware, so the
-     same voltage puts roughly twice the force into the stop.
+   - **With a follower, halve the current.** The follower mirrors the leader in hardware, so the
+     force into the stop doubles.
 
    **Verify it on the robot; simulation cannot.** The sim tests cover the moving parts — that it
    travels to the stop, detects the stall and finishes rather than timing out — but not the answer.

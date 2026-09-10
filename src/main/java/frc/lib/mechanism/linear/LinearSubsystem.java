@@ -1,5 +1,6 @@
 package frc.lib.mechanism.linear;
 
+import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Voltage;
@@ -53,6 +54,17 @@ public class LinearSubsystem extends SubsystemBase {
   /** Open-loop. Bring-up, characterization and the zeroing routine. */
   public void setVoltage(Voltage volts) {
     linear.setVoltage(volts);
+  }
+
+  /**
+   * Open-loop torque current.
+   *
+   * <p>The right mode for driving into a hard stop during zeroing: current is torque, so a small
+   * value is a small, bounded push rather than a voltage that turns into whatever current the
+   * mechanism's impedance allows.
+   */
+  public void setTorqueCurrent(Current amps) {
+    linear.setTorqueCurrent(amps);
   }
 
   /** Tells the mechanism the carriage is currently at {@code height}. */

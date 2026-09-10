@@ -211,6 +211,11 @@ public abstract class Mechanism {
     io.setVoltage(volts);
   }
 
+  /** Open-loop torque current. The honest open-loop mode under FOC. */
+  public void setTorqueCurrent(Current amps) {
+    io.setTorqueCurrent(amps);
+  }
+
   /** Stop commanding output. Neutral behaviour follows the configured neutral mode. */
   public void stop() {
     io.stop();
