@@ -6,6 +6,7 @@ import static edu.wpi.first.units.Units.Rotations;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Voltage;
 import frc.lib.mechanism.Mechanism;
 import frc.lib.mechanism.MotorConfig;
@@ -132,6 +133,12 @@ public class RotaryMechanism extends Mechanism {
   public void setVoltage(Voltage volts) {
     closedLoop = false;
     super.setVoltage(volts);
+  }
+
+  @Override
+  public void setTorqueCurrent(Current amps) {
+    closedLoop = false;
+    super.setTorqueCurrent(amps);
   }
 
   @Override
