@@ -59,7 +59,8 @@ Wire the real and sim implementations in RobotContainer under the existing
 real/sim/replay switch — all three branches — and call registerFaultMonitors(). Add the CAN IDs to Constants.CanIds,
 with a // CANivore or // RIO CAN comment on each line, and the setpoints above to
 Constants.Setpoints. RobotContainer should end up with no bare numbers in it.
-Run ./gradlew compileJava before reporting complete.
+Run ./gradlew build before reporting complete, and ./gradlew simulateJava if you
+claim the mechanism works end to end.
 ```
 
 ---
