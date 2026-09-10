@@ -5,6 +5,7 @@ import static edu.wpi.first.units.Units.Pounds;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 
+import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.units.measure.Distance;
 import frc.lib.mechanism.Gains;
 import frc.lib.mechanism.MotionProfile;
@@ -96,6 +97,9 @@ public final class ExampleLiftConstants {
           // mass behind it than an arm does. Raise these once the mechanism is known to be sane.
           .supplyCurrentLimit(30.0)
           .statorCurrentLimit(40.0)
+
+          // Brake. A coasting carriage drops to the bottom stop the moment the robot disables.
+          .neutralMode(NeutralModeValue.Brake)
 
           // Zero gains, including kG. Find kG the same way as on the arm: bring the carriage up on
           // open-loop current and note what just holds it. MechanismKind.LINEAR has already

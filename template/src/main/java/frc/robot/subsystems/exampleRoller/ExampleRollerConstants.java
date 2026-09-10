@@ -5,6 +5,7 @@ import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 import static edu.wpi.first.units.Units.Seconds;
 
+import com.ctre.phoenix6.signals.NeutralModeValue;
 import frc.lib.mechanism.Gains;
 import frc.lib.mechanism.MotionProfile;
 import frc.lib.mechanism.MotorConfig;
@@ -96,6 +97,11 @@ public final class ExampleRollerConstants {
           // a velocity it cannot reach simply spins slower.
           .supplyCurrentLimit(40.0)
           .statorCurrentLimit(80.0)
+
+          // Coast. A roller has no stored energy to hold and nothing to fall, so braking it on
+          // disable only fights the hand clearing a jam in the pit. The arm and the lift brake for
+          // exactly the opposite reason.
+          .neutralMode(NeutralModeValue.Coast)
 
           // ---- Control ----
           //

@@ -6,6 +6,7 @@ import static edu.wpi.first.units.Units.Pounds;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 
+import com.ctre.phoenix6.signals.NeutralModeValue;
 import frc.lib.mechanism.Gains;
 import frc.lib.mechanism.MotionProfile;
 import frc.lib.mechanism.MotorConfig;
@@ -115,6 +116,9 @@ public final class ExampleArmConstants {
           // docs/new-mechanism-bringup.md.
           .supplyCurrentLimit(30.0)
           .statorCurrentLimit(40.0)
+
+          // Brake. A coasting arm falls under its own weight the moment the robot disables.
+          .neutralMode(NeutralModeValue.Brake)
 
           // Zero gains, including kG. Bring the arm up on open-loop voltage first, find the
           // current that just holds it horizontal, and that is your starting kG — in AMPS.
