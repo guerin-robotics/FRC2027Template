@@ -217,8 +217,11 @@ Non-negotiables, each of which has burned this team or is load-bearing for repla
 - **A follower is one line in the config**, `.follower(id, opposed)`. It is then configured, logged
   as its own group with its own sticky faults, counted in the battery report and counted in the
   simulation gearbox. Do not hand-roll one.
-- Register status signals for both motors at 50 Hz **before** `optimizeBusUtilization()`,
-  or the unregistered ones drop to 4 Hz and read stale.
+- **You do not register signals; the config does.** `MotorIOTalonFX` sets every rate from the
+  `MotorConfig` and calls `optimizeBusUtilization()` last, on every device. A follower's rate is
+  the one dial: `.followerSignalHz(...)`, defaulting to 4 Hz, which is a fine rate arrived at on
+  purpose rather than by omission. Writing signal registration by hand means you have written an
+  IO layer the library exists to prevent.
 - Torque current is logged whenever the control mode is any `*TorqueCurrentFOC` — it is the
   control signal, and stator current is not a substitute.
 - **Closed-loop reference and error are logged on every closed-loop mechanism.** Reference at
