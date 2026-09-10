@@ -160,8 +160,19 @@ public class MotorIOTalonFX implements MotorIO {
       //
       // It presents as a position loop that lags and hunts — nothing that looks like a
       // configuration problem, and nothing that reproduces in simulation.
-      BaseStatusSignal.setUpdateFrequencyForAll(50.0, encoderPosition, encoderVelocity);
-      BaseStatusSignal.setUpdateFrequencyForAll(10.0, encoderAbsolutePosition, encoderMagnetHealth);
+      //
+      // AbsolutePosition is in this group too, per the team standard in
+      // .claude/rules/02-hardware.md, and ModuleIOTalonFX puts the swerve CANcoders' at 50 Hz for
+      // the same reason. It is the channel you scrub to answer whether the magnet offset is right
+      // and whether the fusion was seeded correctly, and that comparison is against the motor's
+      // position — which is at 50 Hz. Two channels sampled at different rates disagree by however
+      // far the mechanism moved between them, which reads as an offset error that is not there.
+      BaseStatusSignal.setUpdateFrequencyForAll(
+          50.0, encoderPosition, encoderVelocity, encoderAbsolutePosition);
+
+      // Magnet health is a slowly-changing diagnostic: it reports whether the magnet is in range,
+      // which is a mounting property, not something that varies as the mechanism moves.
+      BaseStatusSignal.setUpdateFrequencyForAll(10.0, encoderMagnetHealth);
       encoder.optimizeBusUtilization();
     } else {
       encoder = null;

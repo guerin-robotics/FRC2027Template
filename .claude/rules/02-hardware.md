@@ -155,7 +155,11 @@ BaseStatusSignal.setUpdateFrequencyForAll(10.0, deviceTemp, closedLoopError);
 BaseStatusSignal.setUpdateFrequencyForAll(4.0, stickyUndervoltage, /* ... */);
 
 // CANcoder, if the mechanism has one — 50 Hz, same as the motor's position
-BaseStatusSignal.setUpdateFrequencyForAll(50.0, encoderAbsolutePosition);
+BaseStatusSignal.setUpdateFrequencyForAll(
+    50.0, encoderPosition, encoderVelocity, encoderAbsolutePosition);
+
+// Magnet health is a mounting property, not something that varies as the mechanism moves
+BaseStatusSignal.setUpdateFrequencyForAll(10.0, encoderMagnetHealth);
 
 // LAST, on every device
 motor.optimizeBusUtilization();
@@ -173,6 +177,15 @@ Why each lands where it does:
   already at 50 Hz. The channel is a convenience for scrubbing a log, not an input to anything.
 - **Temperature is 10 Hz** because it moves over minutes.
 - **Sticky faults are 4 Hz** because they latch; a fast rate buys nothing.
+- **A CANcoder's position and velocity are 50 Hz** because under fusion the *motor* reads them off
+  the bus, so a slower rate makes the fused position update slower than the loop depending on it —
+  a position loop that lags and hunts, with nothing in the config that looks wrong.
+- **Its absolute position is 50 Hz too**, because it is the channel you scrub against the motor's
+  position to check the magnet offset and the fusion seed. Sampled slower, the two disagree by
+  however far the mechanism moved in between, which reads as an offset error that is not there.
+
+`MotorIOTalonFX` does all of this from the `MotorConfig`, so there is no per-mechanism IO class to
+get it right in. The rule applies to any device configured outside that library.
 
 ### optimizeBusUtilization is mandatory, on every device
 
