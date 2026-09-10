@@ -52,7 +52,8 @@ Versions live in `vendordeps/` — see `docs/hardware-layout.md` for the table.
 ## 3. Package Structure
 
 ```
-frc/lib/                     ALL shared utilities — see docs/subsystem-ownership.md
+frc/lib/util/                ALL shared utilities — see docs/subsystem-ownership.md
+frc/lib/mechanism/           motor abstraction and the three mechanism kinds
 frc/robot/                   Main, Robot, RobotContainer, RobotState, Constants, BuildConstants
 frc/robot/generated/         TunerConstants (Tuner X generated — never hand-edit)
 frc/robot/subsystems/drive/  Drive, Module, Gyro/Module IO, PhoenixOdometryThread

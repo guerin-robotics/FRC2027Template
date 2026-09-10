@@ -1,6 +1,6 @@
 package frc.lib.mechanism;
 
-import frc.lib.LoggedTunableNumber;
+import frc.lib.util.LoggedTunableNumber;
 
 /**
  * One closed-loop gain set: the three PID terms and the four feedforward terms.

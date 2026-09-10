@@ -9,12 +9,12 @@ import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Voltage;
-import frc.lib.LoggedTunableNumber;
 import frc.lib.mechanism.Mechanism;
 import frc.lib.mechanism.MotorConfig;
 import frc.lib.mechanism.MotorConfig.MechanismKind;
 import frc.lib.mechanism.MotorIO;
 import frc.lib.mechanism.MotorIOTalonFX;
+import frc.lib.util.LoggedTunableNumber;
 import org.littletonrobotics.junction.Logger;
 
 /**
