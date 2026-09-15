@@ -168,6 +168,21 @@ class RollerJamDetectionTest {
   }
 
   @Test
+  void aJamIsDetectedJustAsWellRunningInReverse() {
+    // Unjamming runs the roller backwards, and so does any intake reversed to eject. Phoenix signs
+    // stator current with the direction of motor output, so a signed comparison against the
+    // threshold can only ever be true running forward — which made a mechanism that jams while it
+    // is being un-jammed the one case the detector could never report.
+    roller.setVelocity(COMMANDED.unaryMinus());
+    fake.velocity = RPM.of(0);
+    fake.stator = JAM_STATOR.times(-1.5);
+    step(40);
+
+    assertTrue(roller.isJammed(), "which way it is turning does not change whether it is jammed");
+    assertEquals(1, roller.getJamCount());
+  }
+
+  @Test
   void theJamClearsWhenTheConditionDoes() {
     roller.setVelocity(COMMANDED);
     jamConditionPresent();

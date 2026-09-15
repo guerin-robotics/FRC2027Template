@@ -316,7 +316,10 @@ public abstract class Mechanism {
    * false is a gain problem.
    */
   public boolean isAtStatorLimit() {
-    return inputs.statorAmps.in(Amps)
+    // Magnitude, not signed value: Phoenix signs stator current with the direction of motor
+    // output, so a signed comparison against a positive ceiling can only ever be true driving
+    // forward. An elevator saturating on the way down is still saturating.
+    return Math.abs(inputs.statorAmps.in(Amps))
         > config.statorCurrentLimitAmps() * STATOR_SATURATION_FRACTION;
   }
 }

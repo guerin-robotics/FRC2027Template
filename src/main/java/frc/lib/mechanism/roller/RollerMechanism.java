@@ -236,7 +236,7 @@ public class RollerMechanism extends Mechanism {
     }
     boolean notTurning =
         Math.abs(inputs.velocity.in(RPM)) < commandedRpm * jamVelocityFraction.get();
-    boolean workingHard = inputs.statorAmps.in(Amps) > jamStatorAmps.get();
+    boolean workingHard = Math.abs(inputs.statorAmps.in(Amps)) > jamStatorAmps.get();
     return notTurning && workingHard;
   }
 
