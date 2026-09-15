@@ -284,6 +284,16 @@ public final class MotorConfig {
     return feedback != Feedback.INTERNAL;
   }
 
+  /**
+   * The CANcoder's calibrated magnet offset, in rotations.
+   *
+   * <p>Needed by the simulation, which seeds the encoder's <i>raw</i> (pre-offset) position and so
+   * has to subtract what the device is about to add back.
+   */
+  public double magnetOffsetRotations() {
+    return magnetOffsetRotations;
+  }
+
   public double rotorToSensorRatio() {
     return rotorToSensorRatio;
   }

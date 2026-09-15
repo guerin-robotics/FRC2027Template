@@ -1,5 +1,7 @@
 package frc.lib.mechanism;
 
+import static edu.wpi.first.units.Units.Rotations;
+
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.sim.CANcoderSimState;
 import com.ctre.phoenix6.sim.ChassisReference;
@@ -56,6 +58,7 @@ public class MotorIOTalonFXSim extends MotorIOTalonFX {
 
   private final double rotorToMechanism;
   private final double sensorToMechanism;
+  private final Angle magnetOffset;
 
   public MotorIOTalonFXSim(MotorConfig motorConfig) {
     super(motorConfig);
@@ -83,6 +86,8 @@ public class MotorIOTalonFXSim extends MotorIOTalonFX {
 
     rotorToMechanism = motorConfig.rotorToMechanismRatio();
     sensorToMechanism = motorConfig.sensorToMechanismRatio();
+    magnetOffset =
+        hasAbsoluteEncoder() ? Rotations.of(motorConfig.magnetOffsetRotations()) : Rotations.of(0);
   }
 
   /**
@@ -134,10 +139,16 @@ public class MotorIOTalonFXSim extends MotorIOTalonFX {
     }
 
     if (encoderSim != null) {
-      // The CANcoder sits at the sensor location, one reduction short of the mechanism. Its raw
-      // position is pre-magnet-offset; simulation uses an offset of zero, so raw and corrected are
-      // the same number here and the magnet offset only matters on the real robot.
-      encoderSim.setRawPosition(position.times(sensorToMechanism));
+      // The CANcoder sits at the sensor location, one reduction short of the mechanism.
+      //
+      // setRawPosition writes the PRE-offset value, and the simulated encoder carries the same
+      // calibrated MagnetOffset as the real one — MotorIOTalonFX applies the whole CANcoder config
+      // here too, which is the point of extending it. So the offset has to come back out: seed the
+      // raw position with it subtracted and the device adds it again, leaving the reported
+      // position equal to the physics model's. Seeding without this, every mechanism with a real
+      // calibrated offset runs in simulation shifted by a constant — setpoints land in the wrong
+      // place and soft limits trip early or late, while the picture and the Talon disagree.
+      encoderSim.setRawPosition(position.times(sensorToMechanism).minus(magnetOffset));
       encoderSim.setVelocity(velocity.times(sensorToMechanism));
     }
   }
