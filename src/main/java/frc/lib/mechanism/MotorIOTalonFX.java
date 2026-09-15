@@ -426,6 +426,27 @@ public class MotorIOTalonFX implements MotorIO {
   @Override
   public void setEncoderPosition(Angle position) {
     PhoenixUtil.tryUntilOk(5, () -> motor.setPosition(position));
+
+    // The followers' own rotor registers, too, negated for an opposed follower — whose frame runs
+    // backwards relative to the leader's for the same mechanism motion.
+    //
+    // Nothing in this code reads a follower's position: FollowerInputs has no position field, and
+    // followers no longer carry soft limits. This is for the hoot log, where a follower sitting a
+    // whole boot offset away from its leader is a confusing thing to scrub past, and so that
+    // anything added later that does read one starts from the mechanism's frame rather than from
+    // wherever the carriage happened to be at power-on.
+    //
+    // Only under INTERNAL feedback, where each device reads its own rotor and the sign is
+    // unambiguous. Sharing a CANcoder, the followers are fused to the same sensor as the leader,
+    // so seeding them individually is redundant at best.
+    if (motorConfig.hasEncoder()) {
+      return;
+    }
+    for (int i = 0; i < followers.length; i++) {
+      TalonFX follower = followers[i];
+      Angle target = motorConfig.followers().get(i).opposed() ? position.unaryMinus() : position;
+      PhoenixUtil.tryUntilOk(5, () -> follower.setPosition(target));
+    }
   }
 
   // ============================================================================================
