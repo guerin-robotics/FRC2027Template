@@ -422,10 +422,25 @@ harder to spot than data that is missing. Either register them explicitly or wri
 4 Hz is intended.
 
 `MotorConfig.Builder.follower(id, opposed)` is the whole pattern now: the follower is configured
-identically, given the `Follower` request with the right alignment, logged as its own group with
-its own `connected` and its own sticky faults, counted in the battery report, and counted in the
-simulation gearbox. `.followerSignalHz(hz)` is how you choose its rate deliberately; it defaults to
-4 Hz, which is a fine rate arrived at on purpose rather than by omission.
+from the leader's config, given the `Follower` request with the right alignment, logged as its own
+group with its own `connected` and its own sticky faults, counted in the battery report, and counted
+in the simulation gearbox. `.followerSignalHz(hz)` is how you choose its rate deliberately; it
+defaults to 4 Hz, which is a fine rate arrived at on purpose rather than by omission.
+
+**Travel bounds are the one thing a follower does not inherit.**
+`MotorConfig.toFollowerTalonFXConfiguration()` switches the soft limits off, and
+`MotorIOTalonFX` applies that config to every follower.
+
+A follower executes a `Follower` request, not a position loop, and nothing reads its position —
+`FollowerInputs` has no position field. Its soft limits would therefore gate output against a
+register no other part of the code looks at. On an `Opposed` follower that register also runs
+*backwards* relative to the leader's for the same mechanism motion, which is why the simulation
+flips its `ChassisReference`, so the leader's window lands on the wrong half of travel. The failure
+mode is a two-motor mechanism quietly dropping to one motor's torque partway through legal motion
+while both devices report obeying their configured limits.
+
+**The leader owns travel.** It is the one running the loop, against the one position the rest of
+the code reads.
 
 See the commented follower block at the bottom of `ExampleLiftConstants` for the worked case — a
 two-motor lift is the common one, and that block covers how a follower interacts with the zeroing

@@ -140,9 +140,11 @@ public final class ExampleLiftConstants {
   // Three things then happen on their own, which is the point of the follower living in the config
   // rather than in an IO file:
   //
-  //   - the follower is configured identically and logged as its own group, with its own connected
-  //     flag and its own sticky faults, so a dead follower is distinguishable from an underpowered
-  //     leader rather than looking exactly like one
+  //   - the follower is configured from the leader's config and logged as its own group, with its
+  //     own connected flag and its own sticky faults, so a dead follower is distinguishable from
+  //     an underpowered leader rather than looking exactly like one. Travel bounds are the one
+  //     exception: followers do not carry soft limits, because nothing reads a follower's position
+  //     and on an opposed one that register runs backwards. The leader owns travel
   //   - its supply current joins the battery report, so a two-motor mechanism is accounted as two
   //   - MOTOR.gearbox(CONFIG.motorCount()) above becomes a two-motor gearbox, so the simulation
   //     gets the acceleration right without a second edit

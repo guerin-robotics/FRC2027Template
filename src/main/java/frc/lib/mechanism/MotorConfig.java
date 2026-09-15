@@ -448,6 +448,32 @@ public final class MotorConfig {
    *
    * @throws IllegalStateException if this mechanism has no absolute encoder
    */
+  /**
+   * The config a follower gets: the leader's, with travel bounds switched off.
+   *
+   * <p>A follower executes a {@code Follower} request, not a position loop, and nothing reads its
+   * position — {@link MotorIO.FollowerInputs} carries no position field at all. Its soft limits
+   * would therefore gate output against a register no other part of the code looks at. Worse, on an
+   * {@code opposed} follower that register runs backwards relative to the leader's for the same
+   * mechanism motion, which is why {@code MotorIOTalonFXSim} flips its {@code ChassisReference}.
+   * Copying the leader's window onto it describes the wrong half of travel, so the follower can cut
+   * out partway through legal motion — the mechanism quietly down to one motor's torque — while
+   * both devices report obeying their configured limits.
+   *
+   * <p>The leader owns travel. It is the one running the loop, against the one position the rest of
+   * the code reads.
+   *
+   * <p>Built whole and returned whole. Flipping two enable flags on a complete config is not the
+   * same thing as applying a hand-built {@code SoftwareLimitSwitchConfigs}, which would reset every
+   * field in that sub-group it did not mention.
+   */
+  public TalonFXConfiguration toFollowerTalonFXConfiguration() {
+    TalonFXConfiguration config = toTalonFXConfiguration();
+    config.SoftwareLimitSwitch.ForwardSoftLimitEnable = false;
+    config.SoftwareLimitSwitch.ReverseSoftLimitEnable = false;
+    return config;
+  }
+
   public CANcoderConfiguration toCANcoderConfiguration() {
     if (!hasEncoder()) {
       throw new IllegalStateException(

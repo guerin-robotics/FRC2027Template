@@ -231,15 +231,19 @@ public class MotorIOTalonFX implements MotorIO {
     followerStickyOverTemp = new StatusSignal[count];
     followerStickyHardware = new StatusSignal[count];
 
+    // Same current limits, same neutral mode, same inversion convention as the leader — but not
+    // its travel bounds. See MotorConfig.toFollowerTalonFXConfiguration for why a follower must
+    // not carry soft limits, which matters most on an opposed one.
+    TalonFXConfiguration followerConfig = motorConfig.toFollowerTalonFXConfiguration();
+
     for (int i = 0; i < count; i++) {
       MotorConfig.Follower spec = motorConfig.followers().get(i);
       TalonFX follower = new TalonFX(spec.canId(), motorConfig.bus());
       followers[i] = follower;
 
-      // The follower gets the leader's config: same limits, same neutral mode, same inversion
-      // convention. Alignment is expressed through the Follower request below, not by inverting
-      // one of the two configs — doing it in both places cancels out and is a miserable bug.
-      PhoenixUtil.tryUntilOk(5, () -> follower.getConfigurator().apply(config));
+      // Alignment is expressed through the Follower request below, not by inverting one of the two
+      // configs — doing it in both places cancels out and is a miserable bug.
+      PhoenixUtil.tryUntilOk(5, () -> follower.getConfigurator().apply(followerConfig));
 
       // Phoenix 6 2026 replaced Follower(int, boolean) with Follower(int, MotorAlignmentValue).
       // Opposed when the follower faces the other way from the leader, Aligned when it faces the

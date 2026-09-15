@@ -5,6 +5,7 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -196,6 +197,49 @@ class MotorConfigTest {
         () -> assertTrue(config.SoftwareLimitSwitch.ReverseSoftLimitEnable),
         () -> assertEquals(0.5, config.SoftwareLimitSwitch.ForwardSoftLimitThreshold, 1e-9),
         () -> assertEquals(-0.25, config.SoftwareLimitSwitch.ReverseSoftLimitThreshold, 1e-9));
+  }
+
+  @Test
+  void aFollowerGetsTheLeadersConfigWithoutItsTravelBounds() {
+    // The leader owns travel, because it is the one running the loop against the one position
+    // anything reads. A follower carrying the leader's window enforces it against its own rotor
+    // register, which on an opposed follower runs backwards — so the window covers the wrong half
+    // of travel and the follower can cut out partway up while reporting that it obeyed its limits.
+    var built =
+        MotorConfig.builder("Lift", MechanismKind.LINEAR)
+            .canId(22, BUS)
+            .follower(23, true)
+            .sensorToMechanismRatio(12.0)
+            .softLimits(0.0, 50.0)
+            .supplyCurrentLimit(40.0)
+            .statorCurrentLimit(80.0)
+            .gains(Gains.p(5.0))
+            .motionProfile(
+                MotionProfile.of(RotationsPerSecond.of(1.0), RotationsPerSecondPerSecond.of(2.0)))
+            .build();
+
+    var leader = built.toTalonFXConfiguration();
+    var follower = built.toFollowerTalonFXConfiguration();
+
+    assertAll(
+        () -> assertTrue(leader.SoftwareLimitSwitch.ForwardSoftLimitEnable, "leader keeps its own"),
+        () -> assertTrue(leader.SoftwareLimitSwitch.ReverseSoftLimitEnable, "leader keeps its own"),
+        () -> assertFalse(follower.SoftwareLimitSwitch.ForwardSoftLimitEnable),
+        () -> assertFalse(follower.SoftwareLimitSwitch.ReverseSoftLimitEnable),
+        // Everything that is not a travel bound has to be identical, or the two motors on one
+        // gearbox are running different configurations — which is its own miserable afternoon.
+        () ->
+            assertEquals(
+                leader.CurrentLimits.StatorCurrentLimit, follower.CurrentLimits.StatorCurrentLimit),
+        () ->
+            assertEquals(
+                leader.CurrentLimits.SupplyCurrentLimit, follower.CurrentLimits.SupplyCurrentLimit),
+        () -> assertEquals(leader.MotorOutput.NeutralMode, follower.MotorOutput.NeutralMode),
+        () -> assertEquals(leader.MotorOutput.Inverted, follower.MotorOutput.Inverted),
+        () -> assertEquals(leader.Slot0.kP, follower.Slot0.kP),
+        () ->
+            assertEquals(
+                leader.Feedback.SensorToMechanismRatio, follower.Feedback.SensorToMechanismRatio));
   }
 
   @Test
