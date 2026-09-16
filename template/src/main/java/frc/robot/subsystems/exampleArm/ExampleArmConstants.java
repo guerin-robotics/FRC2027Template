@@ -35,9 +35,10 @@ import frc.robot.Constants;
  * REVERSE_SOFT_LIMIT                      travel bound
  * </pre>
  *
- * <p>Expect exactly those seven values. {@code REVERSE_SOFT_LIMIT} is named twice, because the
- * simulation also starts the arm there; every other one is named once. It used to be eight — the
- * total gear ratio is now derived from the two ratios by {@code
+ * <p>Expect exactly those seven values, and one import — {@code Angle}, which the two soft limits
+ * need and which Spotless will not let the scaffold carry unused. {@code REVERSE_SOFT_LIMIT} is
+ * named twice, because the simulation also starts the arm there; every other one is named once. It
+ * used to be eight — the total gear ratio is now derived from the two ratios by {@code
  * MotorConfig.rotorToMechanismRatio()}, so there is no longer a third number that has to agree with
  * the other two.
  *
@@ -92,6 +93,11 @@ public final class ExampleArmConstants {
   // TODO: measure the travel bounds on the real mechanism, then uncomment.
   // These are where the arm physically stops, minus a margin. Zero is wherever the encoder
   // calibration put it — usually horizontal, but that is a decision you make, not a given.
+  //
+  // Uncomment the import with them. Nothing live in this file is typed Angle, and Spotless runs
+  // removeUnusedImports, so it cannot be left in place waiting for you:
+  //
+  // import edu.wpi.first.units.measure.Angle;
   //
   // public static final Angle REVERSE_SOFT_LIMIT = Degrees.of(-5);
   // public static final Angle FORWARD_SOFT_LIMIT = Degrees.of(95);

@@ -362,11 +362,17 @@ public class MotorIOTalonFX implements MotorIO {
 
   @Override
   public void updateEncoderInputs(EncoderInputs inputs) {
+    // Magnet health is refreshed, but kept out of the status below. refreshAll returns the worst
+    // status of everything handed to it, and magnet health is registered at 10 Hz in a different
+    // status frame from position — so folding it in lets a slow or dropped diagnostic frame report
+    // a working CANcoder as disconnected while position and velocity keep arriving at 50 Hz. The
+    // leader path above splits the two for exactly this reason.
+    BaseStatusSignal.refreshAll(encoderMagnetHealth);
+
     // A separate device gets a separate status. A CANcoder can drop off the bus while its motor
     // stays perfectly healthy, and that is exactly the failure worth catching.
     var status =
-        BaseStatusSignal.refreshAll(
-            encoderPosition, encoderVelocity, encoderAbsolutePosition, encoderMagnetHealth);
+        BaseStatusSignal.refreshAll(encoderPosition, encoderVelocity, encoderAbsolutePosition);
     inputs.connected = encoderConnectedDebounce.calculate(status.isOK());
 
     inputs.absolutePosition = encoderAbsolutePosition.getValue();

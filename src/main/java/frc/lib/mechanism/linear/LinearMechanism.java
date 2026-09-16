@@ -88,9 +88,13 @@ public class LinearMechanism extends Mechanism {
     return new LinearMechanism(config, settings, new MotorIOTalonFX(config));
   }
 
-  /** Log replay. The IO does nothing; AdvantageKit feeds the inputs class from the log. */
+  /**
+   * Log replay. The IO does nothing; AdvantageKit feeds the inputs classes from the log.
+   *
+   * <p>It still reports the group's shape, so the follower and encoder channels are replayed too.
+   */
   public static LinearMechanism replay(MotorConfig config, LinearSettings settings) {
-    return new LinearMechanism(config, settings, new MotorIO() {});
+    return new LinearMechanism(config, settings, MotorIO.replay(config));
   }
 
   /** Physics simulation, with the real gains running on a simulated Talon. */

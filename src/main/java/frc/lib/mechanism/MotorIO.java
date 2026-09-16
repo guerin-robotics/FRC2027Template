@@ -217,6 +217,31 @@ public interface MotorIO {
   /** Called every loop when {@link #hasAbsoluteEncoder()} is true. */
   default void updateEncoderInputs(EncoderInputs inputs) {}
 
+  /**
+   * The IO a mechanism replays a log through.
+   *
+   * <p>It reads nothing and writes nothing — AdvantageKit feeds the inputs classes from the log —
+   * but it has to agree with the real one about the <i>shape</i> of the motor group, because that
+   * is what decides which input groups get fed at all. A bare {@code new MotorIO() {}} takes the
+   * defaults below: no followers, no encoder. Replay a two-motor lift through that and the
+   * follower's logged channels are never read back, so {@code isConnected()} answers true in replay
+   * for a follower that was dead on the field, and any logic gated on it takes the other branch.
+   * The bug then does not reproduce — which is the one thing replay exists to do.
+   */
+  static MotorIO replay(MotorConfig config) {
+    return new MotorIO() {
+      @Override
+      public int followerCount() {
+        return config.followers().size();
+      }
+
+      @Override
+      public boolean hasAbsoluteEncoder() {
+        return config.hasEncoder();
+      }
+    };
+  }
+
   /** How many followers this motor group has. The leader is not counted. */
   default int followerCount() {
     return 0;
