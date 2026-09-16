@@ -162,6 +162,16 @@ public final class ExampleArmConstants {
    * <p>Set the last argument false for a mechanism that turns in a horizontal plane. A turret has
    * an angle but no gravity load, and simulating one teaches a {@code kG} that does not exist.
    */
+  // TODO: MEASURE FOR SIMULATION — the arm's mass, its length (in SETTINGS above), and where its
+  // centre of mass actually sits. Weigh the assembly; take the length from CAD to the centre of
+  // mass, not to the tip. Together these three set the gravity torque the loop spends most of its
+  // effort fighting, so a guess scales every kG the simulation teaches you by the same factor. It
+  // will not look wrong — the arm will reach its setpoints in sim and sag on the robot.
+  //
+  // TODO: MEASURE THE LEVEL POSITION and pass it to .gravityOffset(...) in CONFIG above whenever
+  // this arm's zero is not horizontal — a stow-referenced zero, which is the normal case. The
+  // simulation applies gravity about that angle now, so leaving it at the default tells the sim
+  // the arm is level at its zero and peaks the torque in the wrong place.
   public static final RotarySimModel SIM =
       new RotarySimModel(
           MOTOR.gearbox(CONFIG.motorCount()), Pounds.of(8), REVERSE_SOFT_LIMIT, true);

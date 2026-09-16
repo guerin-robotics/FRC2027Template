@@ -122,6 +122,11 @@ public final class ExampleLiftConstants {
    * simulation a two-motor elevator without anything else being changed. That matters: simulated as
    * one motor it reaches half the acceleration and every gain found against it is wrong.
    */
+  // TODO: MEASURE FOR SIMULATION — the carriage mass, including everything it carries at its
+  // heaviest, and the drum pitch diameter in GEOMETRY above. Mass decides how hard the loop works
+  // on the way up and how fast the carriage falls when it stops working. Drum diameter converts
+  // every rotation into inches, so an error there is not confined to simulation: it scales every
+  // setpoint, every tolerance and both travel bounds on the real robot too.
   public static final LinearSimModel SIM =
       new LinearSimModel(MOTOR.gearbox(CONFIG.motorCount()), Pounds.of(15), MIN_HEIGHT, true);
 

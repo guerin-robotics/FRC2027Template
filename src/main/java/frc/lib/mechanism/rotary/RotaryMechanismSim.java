@@ -8,6 +8,7 @@ import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.Volts;
 
 import edu.wpi.first.math.system.plant.LinearSystemId;
+import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 import frc.lib.mechanism.MotorConfig;
 import frc.lib.mechanism.MotorIOTalonFXSim;
@@ -35,9 +36,26 @@ public class RotaryMechanismSim extends RotaryMechanism {
   private final MotorIOTalonFXSim simIO;
   private final SingleJointedArmSim sim;
 
+  /**
+   * Where the mechanism is level, as the offset that converts between the two frames.
+   *
+   * <p>{@code SingleJointedArmSim} applies gravity torque as the cosine of <i>its own</i> angle, so
+   * its gravity peaks at its zero. The Talon computes {@code cos(position +
+   * GravityArmPositionOffset)}, so its compensation peaks at the level position. Those are the same
+   * place only when the mechanism's zero is level.
+   *
+   * <p>Set {@code .gravityOffset(Degrees.of(20))} — a stow-referenced zero, which the arm scaffold
+   * actively invites — and without this the simulated arm fights gravity that peaks twenty degrees
+   * from where the compensation peaks. A {@code kG} found in that simulation is wrong on the robot,
+   * and nothing reports the disagreement: it reads as a badly tuned {@code kG}, which is exactly
+   * what {@code gravityOffset} exists to stop happening.
+   */
+  private final Angle gravityOffset;
+
   RotaryMechanismSim(MotorConfig config, RotarySettings settings, RotarySimModel model) {
     super(config, settings, new MotorIOTalonFXSim(config));
     this.simIO = (MotorIOTalonFXSim) io;
+    this.gravityOffset = config.gravityOffset();
 
     double armLengthMeters = settings.armLength().in(Meters);
     double gearing = config.rotorToMechanismRatio();
@@ -50,10 +68,12 @@ public class RotaryMechanismSim extends RotaryMechanism {
             model.gearbox(),
             gearing,
             armLengthMeters,
-            Rotations.of(limits().reverseRotations()).in(Radians),
-            Rotations.of(limits().forwardRotations()).in(Radians),
+            // Travel bounds and the starting angle cross into the sim's frame with everything
+            // else, or the arm would be bounded in one frame and pulled on in another.
+            Rotations.of(limits().reverseRotations()).plus(gravityOffset).in(Radians),
+            Rotations.of(limits().forwardRotations()).plus(gravityOffset).in(Radians),
             model.simulateGravity(),
-            model.startingAngle().in(Radians));
+            model.startingAngle().plus(gravityOffset).in(Radians));
 
     // Seed the device with where the mechanism actually starts. Without this the Talon reads zero
     // while the physics model sits at the hard stop, and the first commanded move is wrong by the
@@ -71,7 +91,10 @@ public class RotaryMechanismSim extends RotaryMechanism {
 
     // SingleJointedArmSim carries position directly, so unlike the roller there is nothing to
     // integrate and no accumulated integration error to worry about.
+    // Back into the mechanism's frame before the device sees it. Velocity needs no correction —
+    // the two frames differ by a constant, so they share a derivative.
     simIO.setMechanismState(
-        Radians.of(sim.getAngleRads()), RadiansPerSecond.of(sim.getVelocityRadPerSec()));
+        Radians.of(sim.getAngleRads()).minus(gravityOffset),
+        RadiansPerSecond.of(sim.getVelocityRadPerSec()));
   }
 }

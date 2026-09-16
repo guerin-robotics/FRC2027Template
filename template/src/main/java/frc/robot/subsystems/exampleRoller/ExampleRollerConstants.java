@@ -164,6 +164,10 @@ public final class ExampleRollerConstants {
    * up at the wrong rate and nothing else — fine for checking command logic, useless for tuning, so
    * know which one you are doing.
    */
+  // TODO: MEASURE FOR SIMULATION — the moment of inertia of everything that spins, taken from CAD
+  // about the axis of rotation. It is the only thing separating a flywheel that takes two seconds
+  // to spin up from one that takes a quarter of one, so it decides every kV and kA the simulation
+  // teaches, and whether a recovery time found in sim means anything on the robot.
   public static final RollerSimModel SIM =
       new RollerSimModel(MOTOR.gearbox(CONFIG.motorCount()), KilogramSquareMeters.of(0.004));
 }
