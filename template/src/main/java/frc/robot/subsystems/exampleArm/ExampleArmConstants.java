@@ -7,6 +7,9 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 
 import com.ctre.phoenix6.signals.NeutralModeValue;
+// Uncomment with REVERSE_SOFT_LIMIT and FORWARD_SOFT_LIMIT below. It cannot be left in place
+// waiting for you: nothing live in this file is typed Angle, and Spotless runs removeUnusedImports.
+// import edu.wpi.first.units.measure.Angle;
 import frc.lib.mechanism.Gains;
 import frc.lib.mechanism.MotionProfile;
 import frc.lib.mechanism.MotorConfig;
@@ -35,9 +38,10 @@ import frc.robot.Constants;
  * REVERSE_SOFT_LIMIT                      travel bound
  * </pre>
  *
- * <p>Expect exactly those seven values. {@code REVERSE_SOFT_LIMIT} is named twice, because the
- * simulation also starts the arm there; every other one is named once. It used to be eight — the
- * total gear ratio is now derived from the two ratios by {@code
+ * <p>Expect exactly those seven values, and one import — {@code Angle}, which the two soft limits
+ * need and which Spotless will not let the scaffold carry unused. {@code REVERSE_SOFT_LIMIT} is
+ * named twice, because the simulation also starts the arm there; every other one is named once. It
+ * used to be eight — the total gear ratio is now derived from the two ratios by {@code
  * MotorConfig.rotorToMechanismRatio()}, so there is no longer a third number that has to agree with
  * the other two.
  *
@@ -92,6 +96,8 @@ public final class ExampleArmConstants {
   // TODO: measure the travel bounds on the real mechanism, then uncomment.
   // These are where the arm physically stops, minus a margin. Zero is wherever the encoder
   // calibration put it — usually horizontal, but that is a decision you make, not a given.
+  //
+  // Uncomment the Angle import at the top of the file with them.
   //
   // public static final Angle REVERSE_SOFT_LIMIT = Degrees.of(-5);
   // public static final Angle FORWARD_SOFT_LIMIT = Degrees.of(95);
@@ -162,6 +168,16 @@ public final class ExampleArmConstants {
    * <p>Set the last argument false for a mechanism that turns in a horizontal plane. A turret has
    * an angle but no gravity load, and simulating one teaches a {@code kG} that does not exist.
    */
+  // TODO: MEASURE FOR SIMULATION — the arm's mass, its length (in SETTINGS above), and where its
+  // centre of mass actually sits. Weigh the assembly; take the length from CAD to the centre of
+  // mass, not to the tip. Together these three set the gravity torque the loop spends most of its
+  // effort fighting, so a guess scales every kG the simulation teaches you by the same factor. It
+  // will not look wrong — the arm will reach its setpoints in sim and sag on the robot.
+  //
+  // TODO: MEASURE THE LEVEL POSITION and pass it to .gravityOffset(...) in CONFIG above whenever
+  // this arm's zero is not horizontal — a stow-referenced zero, which is the normal case. The
+  // simulation applies gravity about that angle now, so leaving it at the default tells the sim
+  // the arm is level at its zero and peaks the torque in the wrong place.
   public static final RotarySimModel SIM =
       new RotarySimModel(
           MOTOR.gearbox(CONFIG.motorCount()), Pounds.of(8), REVERSE_SOFT_LIMIT, true);

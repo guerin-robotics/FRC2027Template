@@ -217,6 +217,31 @@ public interface MotorIO {
   /** Called every loop when {@link #hasAbsoluteEncoder()} is true. */
   default void updateEncoderInputs(EncoderInputs inputs) {}
 
+  /**
+   * The IO a mechanism replays a log through.
+   *
+   * <p>It reads nothing and writes nothing — AdvantageKit feeds the inputs classes from the log —
+   * but it has to agree with the real one about the <i>shape</i> of the motor group, because that
+   * is what decides which input groups get fed at all. A bare {@code new MotorIO() {}} takes the
+   * defaults below: no followers, no encoder. Replay a two-motor lift through that and the
+   * follower's logged channels are never read back, so {@code isConnected()} answers true in replay
+   * for a follower that was dead on the field, and any logic gated on it takes the other branch.
+   * The bug then does not reproduce — which is the one thing replay exists to do.
+   */
+  static MotorIO replay(MotorConfig config) {
+    return new MotorIO() {
+      @Override
+      public int followerCount() {
+        return config.followers().size();
+      }
+
+      @Override
+      public boolean hasAbsoluteEncoder() {
+        return config.hasEncoder();
+      }
+    };
+  }
+
   /** How many followers this motor group has. The leader is not counted. */
   default int followerCount() {
     return 0;
@@ -286,4 +311,18 @@ public interface MotorIO {
    * <p>A safety limit, not a tuning knob. See {@code .claude/rules/00-safety.md} before using it.
    */
   default void setSupplyCurrentLimit(Current limit) {}
+
+  /**
+   * Turns the reverse travel bound on or off on the leader.
+   *
+   * <p>For zeroing, and for nothing else. A mechanism on {@code Feedback.INTERNAL} boots reading
+   * zero wherever it physically sits, so if its reverse bound is at zero — which is what a lift
+   * whose {@code MIN_HEIGHT} is the bottom of travel configures — the device believes it is already
+   * at the limit and refuses to drive toward the stop. The routine then measures no motion, calls
+   * that a stall, and zeroes the mechanism wherever it was parked.
+   *
+   * <p>Whoever disables it owns re-enabling it. {@code LinearCommands.zeroAtHardStop} does that in
+   * a {@code finallyDo}, so an interrupted or cancelled zeroing restores the bound too.
+   */
+  default void setReverseSoftLimitEnabled(boolean enabled) {}
 }

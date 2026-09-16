@@ -362,11 +362,17 @@ public class MotorIOTalonFX implements MotorIO {
 
   @Override
   public void updateEncoderInputs(EncoderInputs inputs) {
+    // Magnet health is refreshed, but kept out of the status below. refreshAll returns the worst
+    // status of everything handed to it, and magnet health is registered at 10 Hz in a different
+    // status frame from position — so folding it in lets a slow or dropped diagnostic frame report
+    // a working CANcoder as disconnected while position and velocity keep arriving at 50 Hz. The
+    // leader path above splits the two for exactly this reason.
+    BaseStatusSignal.refreshAll(encoderMagnetHealth);
+
     // A separate device gets a separate status. A CANcoder can drop off the bus while its motor
     // stays perfectly healthy, and that is exactly the failure worth catching.
     var status =
-        BaseStatusSignal.refreshAll(
-            encoderPosition, encoderVelocity, encoderAbsolutePosition, encoderMagnetHealth);
+        BaseStatusSignal.refreshAll(encoderPosition, encoderVelocity, encoderAbsolutePosition);
     inputs.connected = encoderConnectedDebounce.calculate(status.isOK());
 
     inputs.absolutePosition = encoderAbsolutePosition.getValue();
@@ -469,6 +475,17 @@ public class MotorIOTalonFX implements MotorIO {
   public void setSupplyCurrentLimit(Current limit) {
     config.CurrentLimits.SupplyCurrentLimit = limit.in(Amps);
     applyToAll(configurator -> configurator.apply(config.CurrentLimits));
+  }
+
+  @Override
+  public void setReverseSoftLimitEnabled(boolean enabled) {
+    config.SoftwareLimitSwitch.ReverseSoftLimitEnable = enabled;
+
+    // Leader only, deliberately — NOT applyToAll. Followers were given a config with both travel
+    // bounds switched off (see MotorConfig.toFollowerTalonFXConfiguration), and pushing this
+    // sub-config to them would hand them the leader's forward bound as a side effect, in the
+    // leader's sign frame, which is the whole thing that config exists to prevent.
+    PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.SoftwareLimitSwitch));
   }
 
   /**

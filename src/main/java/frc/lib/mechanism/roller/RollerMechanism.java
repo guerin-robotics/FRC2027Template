@@ -108,7 +108,7 @@ public class RollerMechanism extends Mechanism {
    * changed after a match can be replayed against the log from that match.
    */
   public static RollerMechanism replay(MotorConfig config, RollerSettings settings) {
-    return new RollerMechanism(config, settings, new MotorIO() {});
+    return new RollerMechanism(config, settings, MotorIO.replay(config));
   }
 
   /** Physics simulation, with the real gains running on a simulated Talon. */

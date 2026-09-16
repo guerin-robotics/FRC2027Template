@@ -114,6 +114,23 @@ public final class LinearCommands {
    *       not leave current driving into the hard stop.
    * </ul>
    *
+   * <h2>The reverse travel bound has to come off first</h2>
+   *
+   * <p>The only mechanisms that need this routine are the ones on {@code Feedback.INTERNAL}, where
+   * the Talon reads zero rotations at boot no matter where the carriage physically is. If the
+   * reverse soft limit sits at zero — which is exactly what {@code softLimits(rotationsFor(
+   * MIN_HEIGHT), ...)} configures on a lift whose minimum height is the bottom of travel — then at
+   * boot the device believes it is already at the bound and refuses to drive toward the stop.
+   *
+   * <p>Nothing about that looks like a failure. The carriage does not move, so velocity stays at
+   * zero, so the stall check succeeds the first time it is polled, and the routine zeroes the
+   * mechanism wherever it was parked. The settling-time guard above does not help: the timer
+   * elapses whether or not anything moved.
+   *
+   * <p>So the bound comes off for the duration and goes back on in the same {@code finallyDo} that
+   * stops the output — which means an interrupted or cancelled zeroing restores it too. While it is
+   * off, the stall detection and the timeout are what bound downward travel.
+   *
    * <p>Run this once at robot startup, or bind it to a pit button. It should <b>not</b> run
    * automatically during a match: the carriage travelling to the bottom is not always safe, and it
    * is never fast.
@@ -136,7 +153,12 @@ public final class LinearCommands {
       Time timeout,
       Distance heightAtStop) {
     return Commands.sequence(
-            Commands.runOnce(() -> linear.setTorqueCurrent(zeroingCurrent), linear),
+            Commands.runOnce(
+                () -> {
+                  linear.setReverseSoftLimitEnabled(false);
+                  linear.setTorqueCurrent(zeroingCurrent);
+                },
+                linear),
             Commands.waitTime(settleTime),
             Commands.waitUntil(
                     () ->
@@ -144,7 +166,13 @@ public final class LinearCommands {
                             < Math.abs(stallVelocity.in(InchesPerSecond)))
                 .withTimeout(timeout),
             Commands.runOnce(() -> linear.zeroAt(heightAtStop), linear))
-        .finallyDo(linear::stop)
+        .finallyDo(
+            () -> {
+              linear.stop();
+              // After zeroAt, so the bound is re-applied against the corrected frame rather than
+              // the boot frame. Restored on every exit path, interruption included.
+              linear.setReverseSoftLimitEnabled(true);
+            })
         .withName(linear.getName() + "_ZeroAtHardStop");
   }
 

@@ -88,9 +88,13 @@ public class LinearMechanism extends Mechanism {
     return new LinearMechanism(config, settings, new MotorIOTalonFX(config));
   }
 
-  /** Log replay. The IO does nothing; AdvantageKit feeds the inputs class from the log. */
+  /**
+   * Log replay. The IO does nothing; AdvantageKit feeds the inputs classes from the log.
+   *
+   * <p>It still reports the group's shape, so the follower and encoder channels are replayed too.
+   */
   public static LinearMechanism replay(MotorConfig config, LinearSettings settings) {
-    return new LinearMechanism(config, settings, new MotorIO() {});
+    return new LinearMechanism(config, settings, MotorIO.replay(config));
   }
 
   /** Physics simulation, with the real gains running on a simulated Talon. */
@@ -153,6 +157,18 @@ public class LinearMechanism extends Mechanism {
   public void zeroAt(Distance height) {
     io.setEncoderPosition(geometry.rotationsFor(height));
     goalPosition = height;
+  }
+
+  /**
+   * Turns the reverse travel bound on or off.
+   *
+   * <p>Only {@link frc.lib.mechanism.linear.LinearCommands#zeroAtHardStop} should call this, and it
+   * restores the bound in a {@code finallyDo}. See {@link
+   * frc.lib.mechanism.MotorIO#setReverseSoftLimitEnabled(boolean)} for why the routine cannot work
+   * without it.
+   */
+  public void setReverseSoftLimitEnabled(boolean enabled) {
+    io.setReverseSoftLimitEnabled(enabled);
   }
 
   @Override
