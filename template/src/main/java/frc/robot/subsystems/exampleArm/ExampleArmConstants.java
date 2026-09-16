@@ -7,6 +7,9 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 
 import com.ctre.phoenix6.signals.NeutralModeValue;
+// Uncomment with REVERSE_SOFT_LIMIT and FORWARD_SOFT_LIMIT below. It cannot be left in place
+// waiting for you: nothing live in this file is typed Angle, and Spotless runs removeUnusedImports.
+// import edu.wpi.first.units.measure.Angle;
 import frc.lib.mechanism.Gains;
 import frc.lib.mechanism.MotionProfile;
 import frc.lib.mechanism.MotorConfig;
@@ -94,10 +97,7 @@ public final class ExampleArmConstants {
   // These are where the arm physically stops, minus a margin. Zero is wherever the encoder
   // calibration put it — usually horizontal, but that is a decision you make, not a given.
   //
-  // Uncomment the import with them. Nothing live in this file is typed Angle, and Spotless runs
-  // removeUnusedImports, so it cannot be left in place waiting for you:
-  //
-  // import edu.wpi.first.units.measure.Angle;
+  // Uncomment the Angle import at the top of the file with them.
   //
   // public static final Angle REVERSE_SOFT_LIMIT = Degrees.of(-5);
   // public static final Angle FORWARD_SOFT_LIMIT = Degrees.of(95);
