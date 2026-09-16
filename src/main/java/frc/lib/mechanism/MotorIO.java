@@ -286,4 +286,18 @@ public interface MotorIO {
    * <p>A safety limit, not a tuning knob. See {@code .claude/rules/00-safety.md} before using it.
    */
   default void setSupplyCurrentLimit(Current limit) {}
+
+  /**
+   * Turns the reverse travel bound on or off on the leader.
+   *
+   * <p>For zeroing, and for nothing else. A mechanism on {@code Feedback.INTERNAL} boots reading
+   * zero wherever it physically sits, so if its reverse bound is at zero — which is what a lift
+   * whose {@code MIN_HEIGHT} is the bottom of travel configures — the device believes it is already
+   * at the limit and refuses to drive toward the stop. The routine then measures no motion, calls
+   * that a stall, and zeroes the mechanism wherever it was parked.
+   *
+   * <p>Whoever disables it owns re-enabling it. {@code LinearCommands.zeroAtHardStop} does that in
+   * a {@code finallyDo}, so an interrupted or cancelled zeroing restores the bound too.
+   */
+  default void setReverseSoftLimitEnabled(boolean enabled) {}
 }

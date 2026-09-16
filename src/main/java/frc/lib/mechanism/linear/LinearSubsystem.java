@@ -72,6 +72,11 @@ public class LinearSubsystem extends SubsystemBase {
     linear.zeroAt(height);
   }
 
+  /** Turns the reverse travel bound on or off. For {@code zeroAtHardStop}, and nothing else. */
+  public void setReverseSoftLimitEnabled(boolean enabled) {
+    linear.setReverseSoftLimitEnabled(enabled);
+  }
+
   /**
    * Stops commanding output.
    *

@@ -155,6 +155,18 @@ public class LinearMechanism extends Mechanism {
     goalPosition = height;
   }
 
+  /**
+   * Turns the reverse travel bound on or off.
+   *
+   * <p>Only {@link frc.lib.mechanism.linear.LinearCommands#zeroAtHardStop} should call this, and it
+   * restores the bound in a {@code finallyDo}. See {@link
+   * frc.lib.mechanism.MotorIO#setReverseSoftLimitEnabled(boolean)} for why the routine cannot work
+   * without it.
+   */
+  public void setReverseSoftLimitEnabled(boolean enabled) {
+    io.setReverseSoftLimitEnabled(enabled);
+  }
+
   @Override
   public void setVoltage(Voltage volts) {
     closedLoop = false;

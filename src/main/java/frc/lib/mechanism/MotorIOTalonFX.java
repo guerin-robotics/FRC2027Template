@@ -471,6 +471,17 @@ public class MotorIOTalonFX implements MotorIO {
     applyToAll(configurator -> configurator.apply(config.CurrentLimits));
   }
 
+  @Override
+  public void setReverseSoftLimitEnabled(boolean enabled) {
+    config.SoftwareLimitSwitch.ReverseSoftLimitEnable = enabled;
+
+    // Leader only, deliberately — NOT applyToAll. Followers were given a config with both travel
+    // bounds switched off (see MotorConfig.toFollowerTalonFXConfiguration), and pushing this
+    // sub-config to them would hand them the leader's forward bound as a side effect, in the
+    // leader's sign frame, which is the whole thing that config exists to prevent.
+    PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.SoftwareLimitSwitch));
+  }
+
   /**
    * Applies a sub-config to the leader and to every follower.
    *
