@@ -19,9 +19,10 @@ import org.littletonrobotics.junction.Logger;
  * budget.
  *
  * <p>Drive and Vision were the two dominators of {@code robotPeriodic} on the 2026 robot, which ran
- * at roughly 30 Hz against a 20 ms budget for an entire season. {@link frc.lib.LoopTimeMonitorTest}
- * pins down the watchdog that reports that condition; this test attacks the other end, keeping the
- * largest known contributor from quietly growing in the first place.
+ * at roughly 30 Hz against a 20 ms budget for an entire season. {@link
+ * frc.lib.util.LoopTimeMonitorTest} pins down the watchdog that reports that condition; this test
+ * attacks the other end, keeping the largest known contributor from quietly growing in the first
+ * place.
  *
  * <p><b>What this can and cannot tell you.</b> It measures wall-clock time on whatever machine runs
  * the test — a dev laptop or CI runner, not a roboRIO. A RIO is far slower, so passing here is

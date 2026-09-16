@@ -123,7 +123,7 @@ rather than assuming a green build means they hold.
 | Path-following gains | `Drive.java` (`configureAutoBuilder()`) |
 | Heading-hold gains | `DriveCommands.java` (`ANGLE_KP` / `ANGLE_KD`) |
 | Vision thresholds | `subsystems/vision/VisionConstants.java` |
-| Field dimensions / AprilTag layout | `frc/lib/FieldConstants.java` |
+| Field dimensions / AprilTag layout | `frc/lib/util/FieldConstants.java` |
 | Game geometry, scoring targets, zones | `RobotState.java` + `FieldConstants` |
 | Button objects | `Triggers.java` — never in `RobotContainer` |
 | Subsystem wiring | `RobotContainer.java` |
