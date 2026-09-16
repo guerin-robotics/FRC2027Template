@@ -11,8 +11,8 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Time;
-import frc.lib.LoggedTunableNumber;
-import frc.lib.MotorSpecs;
+import frc.lib.util.LoggedTunableNumber;
+import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
 
 /**

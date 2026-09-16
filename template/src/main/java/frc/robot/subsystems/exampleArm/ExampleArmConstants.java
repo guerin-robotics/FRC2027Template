@@ -19,8 +19,8 @@ import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Time;
-import frc.lib.LoggedTunableNumber;
-import frc.lib.MotorSpecs;
+import frc.lib.util.LoggedTunableNumber;
+import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
 
 /**

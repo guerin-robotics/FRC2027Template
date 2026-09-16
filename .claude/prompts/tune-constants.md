@@ -63,6 +63,6 @@ Always state why the old limit was insufficient before raising it.
 | Heading-hold gains | `commands/DriveCommands` (ANGLE_KP / ANGLE_KD) |
 | Path-following gains | `subsystems/drive/Drive` (`configureAutoBuilder()`) |
 | Joystick shaping, limited speed | `subsystems/drive/DriveConstants` |
-| Field dimensions, AprilTag layout | `frc/lib/FieldConstants` |
+| Field dimensions, AprilTag layout | `frc/lib/util/FieldConstants` |
 | PID/FF gains (mechanisms) | `[Subsystem]Constants` or IO implementation |
 | Setpoints, timeouts, tolerances | `Constants.Setpoints` / `.Waits` / `.Thresholds` — never inline |

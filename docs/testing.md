@@ -74,7 +74,7 @@ deliberate: the values were earned from real 2026 match logs and are the source 
 | `commands/JoystickDriveAtAngleSimTest` | Heading hold converges |
 | `subsystems/drive/DriveOdometrySimTest` | Odometry integrates correctly |
 | `subsystems/drive/DrivePeriodicBudgetTest` | `Drive.periodic()` staying inside the loop budget |
-| `frc/lib/LoopTimeMonitorTest` | The watchdog that reports an over-budget loop |
+| `frc/lib/util/LoopTimeMonitorTest` | The watchdog that reports an over-budget loop |
 | `frc/robot/GainSweepTest` | The gain-sweep harness `/pid-tune` drives |
 
 `LoopTimeMonitorTest` drives timing with `SimHooks.pauseTiming()`/`stepTiming()`, so its
