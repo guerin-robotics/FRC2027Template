@@ -1,8 +1,7 @@
 package frc.lib.mechanism;
 
-import static edu.wpi.first.units.Units.Rotations;
-
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.SensorDirectionValue;
 import com.ctre.phoenix6.sim.CANcoderSimState;
 import com.ctre.phoenix6.sim.ChassisReference;
 import com.ctre.phoenix6.sim.TalonFXSimState;
@@ -58,7 +57,6 @@ public class MotorIOTalonFXSim extends MotorIOTalonFX {
 
   private final double rotorToMechanism;
   private final double sensorToMechanism;
-  private final Angle magnetOffset;
 
   public MotorIOTalonFXSim(MotorConfig motorConfig) {
     super(motorConfig);
@@ -83,11 +81,31 @@ public class MotorIOTalonFXSim extends MotorIOTalonFX {
     }
 
     encoderSim = hasAbsoluteEncoder() ? encoder.getSimState() : null;
+    if (encoderSim != null) {
+      // Same reasoning as the motor's Orientation above, and the same caveat: CTRE's javadoc says
+      // this field tracks the mechanical linkage rather than the invert config. This library feeds
+      // its devices MECHANISM-frame positions out of the physics model, and a configured invert is
+      // precisely what stands between a device's own frame and the mechanism's — so here the two
+      // amount to the same thing, and compensating is what makes a simulated device report the
+      // position the model says the mechanism is at. Leaving it default while the motor compensates
+      // would make the two disagree in sign under FusedCANcoder the moment an encoder is configured
+      // Clockwise_Positive, and the fusion would fight itself.
+      encoderSim.Orientation =
+          motorConfig.encoderDirection() == SensorDirectionValue.Clockwise_Positive
+              ? ChassisReference.Clockwise_Positive
+              : ChassisReference.CounterClockwise_Positive;
+
+      // CTRE's own hook for exactly this, documented as "allowing for a non-zero magnet offset
+      // config to behave correctly in simulation": setRawPosition subtracts it before applying
+      // Orientation. The simulated CANcoder carries the same calibrated MagnetOffset as the real
+      // one, because MotorIOTalonFX applies the whole CANcoder config here too — so without this
+      // the device adds the offset to every seeded position and the mechanism runs shifted by a
+      // constant, with setpoints landing wrong and soft limits tripping early or late.
+      encoderSim.SensorOffset = motorConfig.magnetOffsetRotations();
+    }
 
     rotorToMechanism = motorConfig.rotorToMechanismRatio();
     sensorToMechanism = motorConfig.sensorToMechanismRatio();
-    magnetOffset =
-        hasAbsoluteEncoder() ? Rotations.of(motorConfig.magnetOffsetRotations()) : Rotations.of(0);
   }
 
   /**
@@ -139,16 +157,10 @@ public class MotorIOTalonFXSim extends MotorIOTalonFX {
     }
 
     if (encoderSim != null) {
-      // The CANcoder sits at the sensor location, one reduction short of the mechanism.
-      //
-      // setRawPosition writes the PRE-offset value, and the simulated encoder carries the same
-      // calibrated MagnetOffset as the real one — MotorIOTalonFX applies the whole CANcoder config
-      // here too, which is the point of extending it. So the offset has to come back out: seed the
-      // raw position with it subtracted and the device adds it again, leaving the reported
-      // position equal to the physics model's. Seeding without this, every mechanism with a real
-      // calibrated offset runs in simulation shifted by a constant — setpoints land in the wrong
-      // place and soft limits trip early or late, while the picture and the Talon disagree.
-      encoderSim.setRawPosition(position.times(sensorToMechanism).minus(magnetOffset));
+      // The CANcoder sits at the sensor location, one reduction short of the mechanism. The magnet
+      // offset and the sensor direction are handled by SensorOffset and Orientation, set once in
+      // the constructor, so what goes in here is the physics model's position and nothing else.
+      encoderSim.setRawPosition(position.times(sensorToMechanism));
       encoderSim.setVelocity(velocity.times(sensorToMechanism));
     }
   }

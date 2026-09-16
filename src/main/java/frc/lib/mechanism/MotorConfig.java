@@ -294,6 +294,11 @@ public final class MotorConfig {
     return magnetOffsetRotations;
   }
 
+  /** Which way the CANcoder counts. Needed by the simulation to match the real device's sign. */
+  public SensorDirectionValue encoderDirection() {
+    return encoderDirection;
+  }
+
   public double rotorToSensorRatio() {
     return rotorToSensorRatio;
   }
