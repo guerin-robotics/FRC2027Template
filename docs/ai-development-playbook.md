@@ -76,7 +76,7 @@ And "Claude types" undersells it. Claude isn't only the layer-3 implementer we v
 A spec is not an essay. It's a structured request:
 
 - **Behavior:** what should happen, in sequence, with numbers ("spin the mechanism up, wait for alignment up to 0.9s, then feed")
-- **Constraints:** what must not change ("do not touch the drive subsystem; timeout constants live in `CompConstants.Waits`")
+- **Constraints:** what must not change ("do not touch the drive subsystem; timeout constants live in `Constants.Waits`")
 - **Interfaces:** what it connects to ("reads pose from `RobotState`, triggered by the operator's right bumper")
 - **Verification:** how we'll know it works ("must show correct command activation in sim before deploy")
 

@@ -56,14 +56,14 @@ Do not write a single line of code until you have read and understood the releva
 ### Required reads before implementing
 1. **`README.md`** — understand the robot's physical mechanisms, software architecture, operator controls, and constants policy
 2. **`src/main/java/frc/robot/RobotContainer.java`** — understand how subsystems are instantiated and how commands are bound to buttons and autos
-3. **`src/main/java/frc/robot/Constants.java`** — the one constants file: CAN IDs, setpoints, timeouts, tolerances, mode flags
-4. **`src/main/java/frc/robot/Constants.java`** — understand simulation mode and robot variant selection
-5. **Any subsystems directly touched by the issue** — read both the subsystem class and its IO interface + all IO implementations
+3. **`src/main/java/frc/robot/Constants.java`** — the one constants file: CAN IDs, setpoints, timeouts, tolerances, mode flags (`currentMode`, `simMode`, `tuningMode`)
+4. **`src/main/java/frc/robot/Triggers.java`** — every controller and trigger; `RobotContainer` only reads it
+5. **Any subsystems directly touched by the issue** — the subsystem class and its constants. For a mechanism built on `frc/lib/mechanism/`, the IO layer is the shared `MotorIO` / `MotorIOTalonFX` / `MotorIOTalonFXSim`; for `drive/` and `vision/`, read their own IO interfaces and implementations
 6. **Any command files directly touched by the issue** — read them fully, not just the method you plan to change
 
 ### How to explore effectively
 - Use file tree exploration to understand the directory layout before reading individual files
-- When you read a subsystem, also read its `io/` subfolder (the IO interface and all hardware/sim implementations)
+- When you read a subsystem, also read its IO layer — `vision/io/`, the IO classes beside `Drive`, or `frc/lib/mechanism/` for any mechanism
 - When you read a command that calls subsystem methods, trace into the subsystem to understand what those methods actually do
 - When you see a constant referenced, find where it's defined and understand its meaning
 - Follow the chain: button binding → command → subsystem method → IO interface → hardware implementation
@@ -123,7 +123,7 @@ are current.
 - Do not use magic numbers — define named constants
 - Do not hardcode CAN IDs or port numbers in subsystem or command classes
 - Do not access vendor APIs (`TalonFX`, `SparkMax`) outside of IO implementations
-- Do not leave motors running in `end(boolean interrupted)` unless intentional and documented
+- Do not leave motors running when a command ends or is interrupted (the `onEnd` of `Commands.startEnd`, or `finallyDo`) unless intentional and documented
 - Do not create workaround scripts or temporary files in the repo root — put temporary work in `/tmp`
 - Do not modify unrelated code — surgical, focused changes only
 
@@ -136,7 +136,7 @@ After making changes, verify correctness by:
 1. **Build the project**: Run `./gradlew build` from the project root. Fix all compiler errors and Spotless formatting issues before proceeding.
 2. **Re-read your changes**: Read every file you modified in full. Ask yourself:
    - Does this command properly declare its subsystem requirements?
-   - Are all motors stopped in `end(boolean interrupted)`?
+   - Are all motors stopped when the command ends or is interrupted?
    - Are all sensor inputs logged through AdvantageKit?
    - Are constants defined in the right place?
    - Would a high school student be able to understand this code with the comments provided?
@@ -185,22 +185,24 @@ These apply to every task you take on:
 | Swerve config — CAN IDs, geometry, gains (generated) | `src/main/java/frc/robot/generated/TunerConstants.java` |
 | Field dimensions and AprilTag layout | `src/main/java/frc/lib/util/FieldConstants.java` |
 | Alliance coordinate flipping | `src/main/java/frc/lib/util/AllianceFlipUtil.java` |
-| Game state triggers | `src/main/java/frc/robot/Triggers.java` (may not exist yet) |
+| Controllers, button and state triggers | `src/main/java/frc/robot/Triggers.java` |
 | CAN IDs for non-swerve hardware | `src/main/java/frc/robot/Constants.java` (`CanIds`) |
-| The subsystem pattern to copy | `template/src/` and `docs/robot-spec.md` |
+| The mechanism pattern to copy | `template/src/` (three scaffolds) and `template/GUIDE.md` |
+| Motor IO, config builder, mechanism kinds | `src/main/java/frc/lib/mechanism/` |
 
-### Subsystem IO pattern summary
+### Mechanism pattern summary
 
-Every subsystem follows this structure:
+A motor-driven mechanism is **two files**. Do not write a per-mechanism IO interface, real IO or
+sim IO — `frc/lib/mechanism/` already provides them, and a copy is exactly what that library
+exists to prevent.
 ```
 subsystems/
   <name>/
-    <Name>.java              ← Subsystem class (extends SubsystemBase, uses IO interface)
-    <Name>Constants.java     ← PID gains, limits, lookup tables for this subsystem
-    io/
-      <Name>IO.java          ← Interface with updateInputs() + @AutoLog Inputs class
-      <Name>IOReal.java      ← Hardware implementation (vendor APIs here)
-      <Name>IOSim.java       ← Simulation implementation
+    <Name>.java              ← extends RollerSubsystem / RotarySubsystem / LinearSubsystem
+    <Name>Constants.java     ← MotorConfig, settings, gains, limits, travel bounds, SIM model
 ```
 
-When adding a new subsystem, create all four files. When adding hardware to an existing subsystem, add methods to the IO interface and implement them in both the real and sim IO classes.
+Copy the matching scaffold from `template/src/` (`exampleRoller`, `exampleArm`, `exampleLift`),
+and follow `.claude/skills/add-subsystem/SKILL.md` for CAN IDs, setpoints and three-mode wiring.
+A subsystem whose hardware is not a motor follows `vision/`: its own `XxxIO` interface with an
+`@AutoLog` inputs class, a real implementation and a sim implementation, changed together.

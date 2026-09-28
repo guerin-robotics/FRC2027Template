@@ -158,7 +158,7 @@ Three things about them are deliberate:
   every loop, and the 2026 robot ran closer to 30 Hz than 50 Hz all season. Leave it on through
   bring-up, where it is the whole point; check `LoopTiming/` with it enabled before competition and
   turn it off if the budget is tight. One flag rather than one per subsystem, because a switch you
-  have to find in six files is a switch nobody throws.
+  have to find in every mechanism's files is a switch nobody throws.
 - **`SmartDashboard.putData` is called once, in the constructor.** The 2026 `IntakePivotVisualizer`
   called it inside its update method, republishing the Sendable fifty times a second. The dashboard
   holds a reference and reads through it — once is all it ever needed.
@@ -252,10 +252,13 @@ Command factories take setpoints as parameters and `RobotContainer` supplies the
 `Constants.Setpoints`. A finished `RobotContainer` contains no bare numbers at all — if a unit
 import is still needed in it, a setpoint got left behind. See `.claude/rules/03-commands.md`.
 
-The constants file is flat except for a nested `Sim` block, because sim needs its own gains —
-the model has no backlash, no belt stretch and a guessed inertia, so gains that behave against
-it are routinely wrong on hardware. Mode-aware `getKP()`-style accessors pick the right set so
-no caller has to know which mode it is in.
+There is no separate `Sim` gain block any more. `MotorIOTalonFXSim` applies the same
+`TalonFXConfiguration` to a simulated Talon, so one set of gains runs in both places. That makes
+sim a check on the gains you will deploy — but the model still has no backlash, no belt stretch
+and a guessed inertia, so gains that behave in sim are a starting point for the robot, not a
+result. What a scaffold's constants file does carry for sim is the *model* — a `SIM` field of type
+`RollerSimModel` / `RotarySimModel` / `LinearSimModel` holding the gearbox and the inertia or
+mass, which the per-kind `*MechanismSim` uses.
 
 The one rule that makes it work: **`MyMechanism.java` must behave identically whether the
 IO is real, sim, or replay.** That is the entire point of the abstraction. The moment a
@@ -379,8 +382,9 @@ comparably complex.
 ### 5. `RobotContainer` growth
 
 It is small and readable today. In 2026 it reached 1300 lines. Split bindings into
-per-subsystem `configureXxxBindings()` methods before it gets there, and move triggers into
-`Triggers.java` as soon as there are more than a handful.
+per-subsystem `configureXxxBindings()` methods before it gets there. Triggers already live in
+`Triggers.java` — keep it that way; a trigger constructed in `RobotContainer` is the first step
+back to 1300 lines.
 
 ---
 
@@ -393,7 +397,7 @@ src/main/java/frc/robot/
 ├── RobotState.java           ← shared state; add game geometry here
 ├── Constants.java            ← THE constants file: mode, CAN IDs, setpoints,
 │                                waits, thresholds. Anything you'd change in the pit.
-├── Triggers.java             ← CREATE THIS once bindings outgrow RobotContainer
+├── Triggers.java             ← every controller and trigger; RobotContainer only reads it
 ├── generated/
 │   └── TunerConstants.java   ← regenerate with Tuner X; never hand-edit
 ├── subsystems/

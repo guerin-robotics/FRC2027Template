@@ -44,6 +44,11 @@ existed, not just what it did. It is worth the half hour.
 | Dashboard | Elastic + AdvantageScope |
 | Formatting | Spotless / Google Java Format (runs on `compileJava`) |
 | Java | 17 |
+| Commands | V2 (`edu.wpi.first.wpilibj2.command`) |
+
+**2027 target:** Systemcore, Java 25, `org.wpilib`, Commands V3. Not ported yet — see
+[2027-migration.md](2027-migration.md) for the gates and [commands-v3.md](commands-v3.md) for
+what each command rule becomes. Update this table in the port commit.
 
 Versions live in `vendordeps/` — see `docs/hardware-layout.md` for the table.
 
@@ -72,8 +77,9 @@ TODO — add mechanism packages as they are created.
 
 Summarized here; authoritative version is `.claude/rules/01-architecture.md`.
 
-- Every subsystem wraps hardware behind an `XxxIO` interface; hardware objects exist only
-  in `IOReal`. This is what makes log replay work.
+- Every subsystem wraps hardware behind an IO interface; hardware objects exist only in IO
+  implementations (`MotorIOTalonFX` for every mechanism, `ModuleIOTalonFX` / `GyroIOPigeon2` /
+  `VisionIOPhotonVision` for drive and vision). This is what makes log replay work.
 - No subsystem holds a reference to another subsystem. Shared state goes through
   `RobotState`; one-off values go through a `Supplier` passed at construction.
 - Commands are static factory methods, never `extends Command` classes. Every one calls
@@ -94,10 +100,12 @@ removed to keep the suite small.
 | Phase | What happens |
 |---|---|
 | Constructor | Record build metadata; configure AdvantageKit receivers per `Constants.currentMode`; `Logger.start()`; register `RobotState` with `AutoLogOutputManager`; construct `RobotContainer` |
-| `robotPeriodic` | `AllianceFlipUtil.refresh()` → `CommandScheduler.run()` → `batteryLogger` update |
-| `autonomousInit` | Pull selected auto from the chooser and schedule it |
-| `teleopInit` | Cancel the auto command |
-| `testInit` | `CommandScheduler.cancelAll()` |
+| `robotPeriodic` | `loopMonitor.begin()` → `AllianceFlipUtil.refresh()` → `CommandScheduler.run()` → `CommandLogger.periodic()` → `batteryLogger` update → CAN bus, match metadata and `FaultMonitor` → `loopMonitor.end()` |
+| `disabledInit` / `disabledPeriodic` | Stop hoot logging; coast the drive `COAST_DELAY_SECONDS` (3 s) after disable |
+| `autonomousInit` | Brake + start hoot logging; start the auto timer; schedule the chooser's auto |
+| `autonomousExit` | Log `Auto/DurationSeconds` and `Auto/Overran` |
+| `teleopInit` | Brake + start hoot logging; cancel the auto command |
+| `testInit` | Brake + start hoot logging; `CommandScheduler.cancelAll()` |
 
 `AllianceFlipUtil.refresh()` must run **before** the scheduler — commands read the cached
 value during their own execution.
@@ -177,9 +185,10 @@ constructor code because `AutoBuilder` is global state and a second `Drive` woul
 Path-following gains and `PP_CONFIG` (mass, MOI, wheel COF) are in that method — all 2026
 values, all need re-measuring.
 
-**Commands.** `joystickDrive`, `joystickDriveLimited`, `joystickDriveAtAngle`, `stopWithX`,
-`feedforwardCharacterization`, `wheelRadiusCharacterization`. Every "align to X" command is
-built by passing a heading supplier to `joystickDriveAtAngle`.
+**Commands.** `joystickDrive`, `joystickDriveLimited`, `joystickDriveAtAngle`, `driveToPose`,
+`alignForScore`, `stopWithX`, `feedforwardCharacterization`, `wheelRadiusCharacterization`.
+A heading-only align passes a heading supplier to `joystickDriveAtAngle`; a full-pose align
+uses `driveToPose`. See [target-alignment.md](target-alignment.md).
 
 **Logged per module.** Connected flags, drive position/velocity/applied volts, stator
 current and **torque current**, turn absolute/relative position, velocity, applied volts,
@@ -259,7 +268,8 @@ the 2026 State and Worlds logs (2.5–9.6 m off) was a single-tag solve at ≥ 3
 near-zero ambiguity. The ambiguity filter alone could not catch them. Multi-tag solves at
 4–6 m were never catastrophically wrong, so they keep the looser limit.
 
-**Known gaps.** No pose-estimator divergence guard. Camera transforms are identity
+**Known gaps.** Pose-estimator divergence is detected (`Odometry/OffField`, an Alert) but not
+guarded. Camera transforms are identity
 placeholders. A camera died mid-event in 2026 (`RobotLeft`, after q13) and nothing alerted
 beyond the disconnect `Alert`.
 
@@ -289,9 +299,19 @@ because that shooter faced backward; the offset is now the caller's job.
 
 ## 13. Triggers.java
 
-**TODO — does not exist yet.** Bindings live inline in `RobotContainer` while there are
-only four. Create `Triggers.java` as soon as operator controls and state triggers appear;
-`.claude/rules/01-architecture.md` explains why they belong in one file.
+Singleton; owns both controllers privately — flight stick (driver) and Xbox (operator), ports in
+`Constants.Controllers`. Exposes robot-convention axis suppliers (`driveXSupplier`,
+`driveYSupplier`, `driveRotSupplier` — sign flips live here, no deadband) and one named accessor
+per robot function. State triggers go here as `LoggedTrigger` fields.
+`.claude/rules/01-architecture.md` explains why.
+
+| Accessor | Button | Bound to |
+|---|---|---|
+| `resetGyro()` | flight stick 2 | re-zero heading, works while disabled |
+| `lockHeading()` | flight stick 3 | `joystickDriveAtAngle` at 0° |
+| `stopWithX()` | flight stick 4 | `stopWithX` |
+
+TODO — add operator accessors as mechanisms land.
 
 ---
 
@@ -314,7 +334,9 @@ Wiring layer. Constructs subsystems per `Constants.currentMode` (REAL / SIM / RE
 registers PathPlanner named commands and event triggers **before**
 `AutoBuilder.buildAutoChooser()`, builds the auto chooser, then configures bindings.
 
-Current bindings: default `joystickDrive`, A = hold 0° heading, X = X-wheels, B = reset gyro.
+Current bindings: default `joystickDrive`, plus the three flight-stick accessors in §13. The
+auto chooser is a `LoggedDashboardChooser` built from `AutoBuilder.buildAutoChooser()` plus the
+SysId and characterization routines.
 
 No game logic here. Ever.
 
@@ -333,6 +355,12 @@ No game logic here. Ever.
 | `LoggedTrigger` | Trigger wrapper that logs its own state |
 | `Elastic` | Dashboard notifications and tab switching |
 | `ThrowingRunnable` | Functional interface for throwing config calls |
+| `LoggedTunableNumber` / `LoggedTunableBoolean` / `LoggedTunableProfiledPID` | Dashboard-adjustable values, gated on `tuningMode` — see [tunables.md](tunables.md) |
+| `MotorSpecs` | Motor free speeds and sim gearboxes from WPILib's `DCMotor` |
+| `CommandLogger`, `LoopTimeMonitor`, `CANBusMonitor`, `FaultMonitor`, `MatchMetadataLogger`, `PhoenixSignalLogger` | Instrumentation — see the README table |
+
+`frc/lib/mechanism/` is the motor abstraction and the three mechanism kinds; see
+`template/GUIDE.md`.
 
 ---
 
@@ -342,9 +370,9 @@ No game logic here. Ever.
 |---|---|
 | Loop overruns — ~30 Hz actual vs 50 Hz budget, Drive + Vision dominant | Stale control, missed odometry samples |
 | 491 brownouts across 23 matches; battery to ~6.3 V at 390 A p95 | Motor cutouts mid-match |
-| No pose-estimator divergence guard | A bad estimate persists until good vision arrives |
+| Pose divergence detected but not guarded | A bad estimate persists until good vision arrives |
 | `maxPoseJumpMeters` filter written but never tuned or enabled | One less defense against bad poses |
-| No jam/stall detection pattern on open-loop mechanisms | Jams are silent |
+| Jam detection exists (`RollerMechanism`) but has no measured thresholds | Jams stay silent until the 2027 intake's thresholds are logged and set |
 | Autos overran the auto period; last path truncated every match | Lost auto points |
 | `Measure`-typed log fields record in SI base units | Temperatures read as Kelvin |
 

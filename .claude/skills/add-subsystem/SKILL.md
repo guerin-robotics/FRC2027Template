@@ -5,7 +5,7 @@ description: Scaffold a new mechanism subsystem end to end — the two files, CA
 
 # Add a Subsystem
 
-Scaffold a mechanism from the template's six-file pattern, wired into the robot and
+Scaffold a mechanism from the template's two-file pattern, wired into the robot and
 building, with every value that has to be measured on hardware marked as unmeasured
 rather than quietly guessed.
 
@@ -368,7 +368,7 @@ If the request needs one of those, say so and ask.
 
 ## Related
 
-- `template/GUIDE.md` — the six-file pattern and what goes where
+- `template/GUIDE.md` — the two-file pattern and what goes where
 - `.claude/prompts/add-subsystem.md` — the fill-in-the-blanks request form
 - `.claude/rules/01-architecture.md` — IO layer, `RobotState`, `Triggers`
 - `.claude/rules/02-hardware.md` — CAN, config, inversion, signal frequency

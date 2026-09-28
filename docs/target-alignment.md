@@ -60,9 +60,16 @@ clear: a pick/place station, a fixed scoring position. If it might not be clear,
 `Drive.pathfindToPose` instead, which runs a PathPlanner path around configured obstacles.
 
 ```java
-Pose2d target = AllianceFlipUtil.apply(someFieldConstantsPose);
-controller.a().whileTrue(DriveCommands.driveToPose(drive, () -> target));
+// In RobotContainer — the button comes from a named Triggers accessor, never a controller.
+triggers
+    .alignToStation()
+    .whileTrue(
+        DriveCommands.driveToPose(drive, () -> AllianceFlipUtil.apply(someFieldConstantsPose)));
 ```
+
+Flip **inside** the supplier. Flipping once into a local at binding time captures whatever
+alliance was known when `RobotContainer` was constructed — usually none, before the FMS connects
+— and drives the red alliance to the blue-side pose all match.
 
 Like the heading supplier above, `targetPoseSupplier` is read every loop — a dynamic target (e.g.
 "nearest scoring face") is just a supplier that recomputes which pose to return.

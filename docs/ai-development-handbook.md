@@ -322,7 +322,8 @@ the quality of the context it gets.
 [BEHAVIOR] If stator current exceeds 60 A for more than 250 ms while the
            intake command is active, stop the roller and log a warning.
 [WHERE]    IntakeRoller subsystem. Threshold constants in Constants.Thresholds.
-[VERIFY]   Show me it working in sim by faking a current spike in IOSim.
+[VERIFY]   Show me it working in a unit test that fakes the current spike,
+           like RollerJamDetectionTest does.
 ```
 
 (That example assumes a 2027 robot with an intake roller — substitute your own
@@ -419,6 +420,7 @@ the leads prune anything that hasn't been used.
 
 | Skill | What it does | When |
 |---|---|---|
+| `/add-subsystem` | Scaffolds a mechanism end to end: the two files, CAN IDs, setpoints, three-mode wiring, triggers | Every new mechanism |
 | `/debug-match-log` | Analyzes an AdvantageKit log: correlates signals around an anomaly, proposes root cause, sets up replay | Anything went wrong on the field |
 | `/pid-tune` | Runs the tuning loop: change gains → run sim → read the logs → evaluate → iterate; proposes final values with evidence | Tuning any closed-loop mechanism |
 | `/code-review` | Automated bug-hunting review of the current diff | Before every PR |
@@ -497,18 +499,19 @@ public void periodic() {
 1. Get the hardware facts from whoever wired it: motor type, CAN ID, bus,
    follower (and opposition), encoder, and which of the three kinds it is —
    spins, pivots, or travels in a line.
-2. Fill in `.claude/prompts/add-subsystem.md` and paste. Claude generates all
-   six files from the matching scaffold in `template/src/`, adds the CAN ID to
-   `Constants.CanIds`, wires real/sim/replay in `RobotContainer`,
-   compiles, and writes the unit tests.
-3. Review: CAN ID matches the wiring sheet; correct bus; config via
-   `PhoenixUtil.tryUntilOk(...)`; current limits set **low** (§6) and
-   enabled; `IOSim` works; inputs appear in AdvantageScope.
+2. Run `/add-subsystem` (or fill in `.claude/prompts/add-subsystem.md` and
+   paste). Claude generates the two files from the matching scaffold in
+   `template/src/`, adds the CAN ID to `Constants.CanIds` and the setpoints to
+   `Constants.Setpoints`, wires real/sim/replay in `RobotContainer`, compiles,
+   and writes the sim convergence test.
+3. Review: CAN ID matches the wiring sheet; correct bus; current limits set
+   **low** (§6) — `MotorConfig` refuses to build without them; the mechanism
+   moves in sim; inputs appear in AdvantageScope.
 4. First hardware test at low voltage before any closed-loop control.
 
 > [!IMPORTANT]
-> **Time cost: about 30 minutes including review.** Hand-writing the same five
-> files correctly used to take a day — and the sim implementation usually
+> **Time cost: about 30 minutes including review.** Hand-writing the old
+> six-file version correctly used to take a day — and the sim implementation usually
 > didn't get written at all. This is the single clearest payoff of the whole
 > approach: the AI makes the *right structure* cheaper than the shortcut.
 
@@ -546,7 +549,7 @@ supply the known-correct numbers.
 UNTESTED; keep current limits LOW) → ② auto specs (sim-verify every path) →
 ③ tune and tweak (Fast Path + `/pid-tune` + `/debug-match-log`).
 
-**Skills:** `/debug-match-log` (field problems), `/pid-tune` (tuning loop),
+**Skills:** `/add-subsystem` (new mechanism), `/debug-match-log` (field problems), `/pid-tune` (tuning loop),
 `/code-review` (before every PR), `/verify`, `/simplify`, `/graphify`.
 **Templates:** `.claude/prompts/` — add-subsystem, new-auto, tune-constants,
 review-change, write-test. Fill brackets, don't freestyle.
@@ -556,7 +559,7 @@ offsets, inversions, current limits, safety timeouts,
 `Logger.processInputs()`, `.auto` files.
 
 **Always:** every `waitUntil` gets `.withTimeout()`. Every command gets
-`.withName()`. Hardware only in `IOReal`. Every fixed bug gets a regression
+`.withName()`. Hardware only inside IO classes. Every fixed bug gets a regression
 test. Every Full Loop change gets a PR.
 
 **Remember:** the AI knows the code, not the robot. Tell it what the robot
