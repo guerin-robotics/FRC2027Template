@@ -149,7 +149,7 @@ moves the robot as needing a human at the driver station.
 
 **Mechanism library** — `frc/lib/mechanism`: one shared `MotorIO` schema, `MotorIOTalonFX` /
 `MotorIOTalonFXSim`, the `MotorConfig` builder that refuses to build without current limits,
-ratios, gains and travel bounds, and three mechanism kinds — `roller/`, `rotary/`, `linear/` —
+ratios and gains — plus travel bounds on a position mechanism — and three mechanism kinds — `roller/`, `rotary/`, `linear/` —
 each with its subsystem, command factories, physics sim and (for the position kinds) a
 visualizer. A new mechanism is two files on top of it. In the build and under test.
 

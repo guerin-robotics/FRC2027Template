@@ -5,7 +5,7 @@
 > has Systemcore hardware. This document records the audit so the port does not have to re-derive
 > it.
 >
-> *Audit date: 2026-09-28, against WPILib `2027.0.0-alpha-7` (released 2026-08-30) and
+> *Audit date: 2026-09-28, against WPILib `2027.0.0-alpha-7` (tagged 2026-08-30, published 2026-09-01) and
 > allwpilib `main` of 2026-09-27. Previous audit: 2026-08-26, alpha-6. Re-check the version tables
 > before acting on them.*
 >

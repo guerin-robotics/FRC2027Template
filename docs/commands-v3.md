@@ -63,10 +63,16 @@ public static Command runAtVelocity(RollerSubsystem roller, AngularVelocity velo
         roller.setVelocity(velocity);
         coroutine.park(); // hold until canceled
       })
-      .whenExited(roller::stop)
+      .whenCanceled(roller::stop) // park() never returns, so cancel is the only way out
       .named(roller.getName() + "_Velocity");
 }
 ```
+
+**Cleanup hooks differ between alpha-7 and `main`.** Alpha-7's builder has only
+`whenCanceled(...)`, which runs **only** when the command is canceled — not on natural completion.
+`whenExited(...)`, which runs on any exit, was added on `main` after alpha-7. A body that parks
+forever (like the one above) can only exit by cancel, so `whenCanceled` is enough. A body that can
+finish on its own must also clean up at its end, or use `whenExited` once a release ships it.
 
 ### The factory table
 
@@ -74,8 +80,8 @@ public static Command runAtVelocity(RollerSubsystem roller, AngularVelocity velo
 |---|---|
 | `Commands.runOnce(action, sub)` | `mech.run(co -> action.run()).named(...)` |
 | `Commands.run(action, sub)` | `mech.runRepeatedly(action).named(...)` |
-| `Commands.startEnd(start, end, sub)` | `mech.run(co -> { start.run(); co.park(); }).whenExited(end).named(...)` |
-| `cmd.finallyDo(end)` | `.whenExited(end)` on the builder — runs on completion, cancel or interrupt. `.whenCanceled(...)` runs **only** on cancel |
+| `Commands.startEnd(start, end, sub)` | `mech.run(co -> { start.run(); co.park(); }).whenCanceled(end).named(...)` — `park()` only exits by cancel |
+| `cmd.finallyDo(end)` | alpha-7: `.whenCanceled(end)` **and** `end` at the bottom of the body — `whenCanceled` does not run on natural completion. `main` (post-alpha-7): `.whenExited(end)`, which runs on completion, cancel or interrupt |
 | `Commands.sequence(a, b, c)` | `Command.sequence(a, b, c).named(...)`, or `a.andThen(b).andThen(c).named(...)` |
 | `Commands.parallel(a, b)` | `Command.parallel(a, b).named(...)` — ends when **all** finish |
 | `Commands.race(a, b)` | `Command.race(a, b).named(...)` — ends when **any** finishes |

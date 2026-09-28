@@ -60,7 +60,12 @@ clear: a pick/place station, a fixed scoring position. If it might not be clear,
 `Drive.pathfindToPose` instead, which runs a PathPlanner path around configured obstacles.
 
 ```java
-// In RobotContainer — the button comes from a named Triggers accessor, never a controller.
+// In Triggers.java — add an accessor named for the action. It does not exist yet.
+public Trigger alignToStation() {
+  return xbox.a();
+}
+
+// In RobotContainer — the button comes from that accessor, never a controller.
 triggers
     .alignToStation()
     .whileTrue(
