@@ -87,6 +87,12 @@ public class RunMechanismAtVelocityCommand extends Command {
 **Why:** Static factories are composable, testable, and traceable in AdvantageKit logs.
 Named command classes create unnecessary files and hide composition structure.
 
+**Under Commands V3 this rule stays.** V3 makes `mechanism.run(...)` the builder entry point; the
+factories still live in `*Commands` classes, not on the subsystem. V3 also has **no
+`Subsystem.periodic()`** — nothing calls a mechanism's `periodic()` for you, so the port must wire
+every one explicitly or `Logger.processInputs()` silently stops running. See
+[docs/commands-v3.md](../../docs/commands-v3.md).
+
 ---
 
 ## Triggers

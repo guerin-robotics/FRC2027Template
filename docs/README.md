@@ -24,7 +24,8 @@ Process and workflow docs. Nothing in them depends on a particular robot or game
 | [tunables.md](tunables.md) | Changing values live instead of redeploying. RAM-side vs TalonFX Slot0 gains, what should and should not be tunable, where Phoenix Tuner X fits, and why gains typed into Tuner X get silently overwritten at the next boot |
 | [new-mechanism-bringup.md](new-mechanism-bringup.md) | The ordered path from "the subsystem compiles" to "the mechanism is trusted": what to set before it moves, first open-loop motion, gains, motion profile, tolerances, and writing it all back |
 | [target-alignment.md](target-alignment.md) | How to use `joystickDriveAtAngle` and `driveToPose`, the FieldConstants pattern for turning AprilTag poses into scoring targets, and the sim tests to copy before wiring a new one up |
-| [2027-migration.md](2027-migration.md) | The audit for the WPILib 2027 / Commands V3 / Systemcore port: what breaks, which vendors are ready, and an ordered checklist. **The port is deliberately not started** — read this before anyone bumps a version |
+| [2027-migration.md](2027-migration.md) | The audit for the WPILib 2027 / Systemcore port, re-checked against alpha-7: what breaks, which vendors are ready, and a gated checklist that ports the platform on V2 first and V3 second. **The port is deliberately not started** — read this before anyone bumps a version |
+| [commands-v3.md](commands-v3.md) | What every command rule in this repo becomes under Commands V3 — factory table, timeouts, Ready → Align → Act, default commands, triggers, and a verdict on each `frc/lib` command class. Doctrine only; the code is still V2 |
 | [testing.md](testing.md) | What is under test and what each layer catches — CAN ID validation, `RobotContainer` wiring, vision filtering, and sim convergence — plus the architecture rules that nothing checks automatically. Read before adding a mechanism |
 
 ## Procedure kept, data needs filling in
