@@ -25,6 +25,8 @@ import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
 import frc.robot.subsystems.lowerFeeder.LowerFeeder;
 import frc.robot.subsystems.lowerFeeder.LowerFeederConstants;
+import frc.robot.subsystems.prestage.Prestage;
+import frc.robot.subsystems.prestage.PrestageConstants;
 import frc.robot.subsystems.transport.Transport;
 import frc.robot.subsystems.transport.TransportConstants;
 import frc.robot.subsystems.upperFeeder.UpperFeeder;
@@ -56,6 +58,7 @@ public class RobotContainer {
   private final Transport transport;
   private final UpperFeeder upperFeeder;
   private final LowerFeeder lowerFeeder;
+  private final Prestage prestage;
 
   // Controllers live in Triggers, not here. This class binds triggers to commands; it does not
   // own input devices and never touches a controller object directly.
@@ -96,6 +99,9 @@ public class RobotContainer {
         lowerFeeder =
             new LowerFeeder(
                 RollerMechanism.real(LowerFeederConstants.CONFIG, LowerFeederConstants.SETTINGS));
+        prestage =
+            new Prestage(
+                RollerMechanism.real(PrestageConstants.CONFIG, PrestageConstants.SETTINGS));
         break;
 
       case SIM:
@@ -136,6 +142,10 @@ public class RobotContainer {
                     LowerFeederConstants.CONFIG,
                     LowerFeederConstants.SETTINGS,
                     LowerFeederConstants.SIM));
+        prestage =
+            new Prestage(
+                RollerMechanism.sim(
+                    PrestageConstants.CONFIG, PrestageConstants.SETTINGS, PrestageConstants.SIM));
         break;
 
       default:
@@ -165,6 +175,9 @@ public class RobotContainer {
         lowerFeeder =
             new LowerFeeder(
                 RollerMechanism.replay(LowerFeederConstants.CONFIG, LowerFeederConstants.SETTINGS));
+        prestage =
+            new Prestage(
+                RollerMechanism.replay(PrestageConstants.CONFIG, PrestageConstants.SETTINGS));
         break;
     }
 
@@ -229,6 +242,7 @@ public class RobotContainer {
     transport.registerFaultMonitors();
     upperFeeder.registerFaultMonitors();
     lowerFeeder.registerFaultMonitors();
+    prestage.registerFaultMonitors();
 
     // Configure the button bindings
     configureButtonBindings();
