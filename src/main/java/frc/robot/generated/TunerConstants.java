@@ -17,7 +17,9 @@ import edu.wpi.first.units.measure.*;
 // https://v6.docs.ctr-electronics.com/en/stable/docs/tuner/tuner-swerve/index.html
 //
 // CARRIED OVER FROM THE 2026 COMPETITION ROBOT. Every value below describes that
-// drivetrain. Before this template drives a 2027 robot, re-run the Tuner X swerve
+// drivetrain. On the feature/rebuilt2026-port branch the gains and the steer stator limit are
+// the Rebuilt2026 main COMP_TunerConstants values, restored over the template's placeholders.
+// Before this template drives a 2027 robot, re-run the Tuner X swerve
 // generator against the real hardware and replace this file wholesale. In particular:
 //
 //   - CAN IDs (1-12) and kPigeonId
@@ -39,11 +41,11 @@ public class TunerConstants {
   // See docs/characterization-and-tuning.md § Part 2.
   private static final Slot0Configs steerGains =
       new Slot0Configs()
-          .withKP(2000)
+          .withKP(3750)
           .withKI(0)
-          .withKD(20)
-          .withKS(0)
-          .withKV(0)
+          .withKD(50)
+          .withKS(0.1)
+          .withKV(1.94)
           .withKA(0)
           .withStaticFeedforwardSign(StaticFeedforwardSignValue.UseClosedLoopSign);
   // When using closed-loop control, the drive motor uses the control
@@ -54,7 +56,7 @@ public class TunerConstants {
   // kDriveClosedLoopOutput is TorqueCurrentFOC.
   // See docs/characterization-and-tuning.md § Part 1.
   private static final Slot0Configs driveGains =
-      new Slot0Configs().withKP(60).withKI(0).withKD(0.0).withKS(7.26299).withKV(0.0).withKA(0.0);
+      new Slot0Configs().withKP(35).withKI(0).withKD(0.0).withKS(3.18).withKV(1.2).withKA(0.0);
 
   // The closed-loop output type to use for the steer motors;
   // This affects the PID/FF gains for the steer motors
@@ -102,7 +104,7 @@ public class TunerConstants {
                   // Swerve azimuth does not require much torque output, so we can set a relatively
                   // low
                   // stator current limit to help avoid brownouts without impacting performance.
-                  .withStatorCurrentLimit(Amps.of(40))
+                  .withStatorCurrentLimit(Amps.of(60))
                   .withStatorCurrentLimitEnable(true)
                   .withSupplyCurrentLimit(Amps.of(40))
                   .withSupplyCurrentLimitEnable(true));
