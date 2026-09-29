@@ -320,7 +320,17 @@ public final class Constants {
 
     private Thresholds() {}
 
-    // public static final double ALIGNMENT_TOLERANCE_DEGREES = 2.0;
-    // public static final double VELOCITY_TOLERANCE_RPM = 100.0;
+    // ---- The 2026 competition robot (Rebuilt2026 HardwareConstants.CompConstants.Thresholds) ----
+
+    /** How close (degrees) the heading must be to the hub before feeding starts. */
+    public static final double HUB_ALIGNMENT_TOLERANCE_DEGREES = 1.5;
+
+    /** Looser hub tolerance, so a shot already under way does not drop out of "aligned". */
+    public static final double HUB_LOOSE_ALIGNMENT_TOLERANCE_DEGREES = 6.0;
+
+    /** Pass shots tolerate more heading error than hub shots. */
+    public static final double PASS_ALIGNMENT_TOLERANCE_DEGREES = 7.0;
+
+    public static final double PASS_LOOSE_ALIGNMENT_TOLERANCE_DEGREES = 7.0;
   }
 }

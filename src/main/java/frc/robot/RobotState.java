@@ -5,10 +5,18 @@ import static edu.wpi.first.units.Units.Meters;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.units.measure.Distance;
+import frc.lib.util.AllianceFlipUtil;
+import frc.lib.util.FieldConstants;
+import frc.robot.Zones.ApproachingZoneComposite;
+import frc.robot.Zones.ApproachingZoneX;
+import frc.robot.Zones.ApproachingZoneY;
+import frc.robot.Zones.BroadZone;
+import frc.robot.Zones.SpecificZone;
 import frc.robot.subsystems.drive.Drive;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.AutoLogOutput;
@@ -234,5 +242,237 @@ public class RobotState {
    */
   public void updateModuleStates(SwerveModuleState[] moduleStates) {
     currentModuleStates = moduleStates;
+  }
+
+  // ============================================================================================
+  // 2026 REBUILT GAME STATE — ported from Rebuilt2026 RobotState
+  // ============================================================================================
+  //
+  // The 2026 shooter faces the BACK of the robot. 2026 baked that half turn into
+  // getAngleToAllianceHub() and getAngleToTarget(); the template's getAngleToTarget() returns the
+  // true bearing, so the offset lives in getShooterAngleToTarget() below and every 2026 call site
+  // that relied on it now calls that instead. getAngleToAllianceHub() keeps its 2026 meaning.
+
+  /** Half a turn: the shooter points out the back of the robot. */
+  private static final Rotation2d SHOOTER_HEADING_OFFSET = Rotation2d.kPi;
+
+  /** Robot-relative velocity rotated into the hub-facing frame, for shoot-on-the-move. */
+  @AutoLogOutput(key = "RobotState/HubRelativeVelocity")
+  public ChassisSpeeds getHubRelativeVelocity() {
+    ChassisSpeeds robotRelative = getRobotRelativeVelocity();
+    return ChassisSpeeds.fromRobotRelativeSpeeds(robotRelative, getAngleToAllianceHub());
+  }
+
+  @AutoLogOutput(key = "RobotState/DistanceToAllianceHub_m")
+  public Distance getDistanceToAllianceHub() {
+    return getDistanceToPoint(getAllianceHubTarget().toTranslation2d());
+  }
+
+  /** The top center of our hub, flipped for red. */
+  public Translation3d getAllianceHubTarget() {
+    return AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint);
+  }
+
+  /** The heading that points the (rear-facing) SHOOTER at our hub. */
+  @AutoLogOutput(key = "RobotState/AngleToAllianceHub")
+  public Rotation2d getAngleToAllianceHub() {
+    return getShooterAngleToTarget(getAllianceHubTarget().toTranslation2d());
+  }
+
+  /**
+   * The heading that points the rear-facing SHOOTER at a field point. This is what Rebuilt2026
+   * called {@code getAngleToTarget}.
+   */
+  public Rotation2d getShooterAngleToTarget(Translation2d target) {
+    return getAngleToTarget(target).plus(SHOOTER_HEADING_OFFSET);
+  }
+
+  // ---- Shooting alignment ----
+
+  @AutoLogOutput(key = "RobotState/IsAlignedToHub")
+  public boolean isAlignedToHub() {
+    // Rotation2d.minus() handles wrap-around (179 - (-179) = 2 degrees, not 358).
+    double errorDegrees =
+        Math.abs(getAngleToAllianceHub().minus(getEstimatedPose().getRotation()).getDegrees());
+    return errorDegrees < Constants.Thresholds.HUB_ALIGNMENT_TOLERANCE_DEGREES;
+  }
+
+  /** Looser tolerance, for staying "aligned" once shooting has started. */
+  public boolean isAlignedToHubLoose() {
+    double errorDegrees =
+        Math.abs(getAngleToAllianceHub().minus(getEstimatedPose().getRotation()).getDegrees());
+    return errorDegrees < Constants.Thresholds.HUB_LOOSE_ALIGNMENT_TOLERANCE_DEGREES;
+  }
+
+  @AutoLogOutput(key = "RobotState/IsAlignedToPass")
+  public boolean isAlignedToPass() {
+    double errorDegrees =
+        Math.abs(
+            getShooterAngleToTarget(getPassTarget().toTranslation2d())
+                .minus(getEstimatedPose().getRotation())
+                .getDegrees());
+    return errorDegrees < Constants.Thresholds.PASS_ALIGNMENT_TOLERANCE_DEGREES;
+  }
+
+  public boolean isAlignedToPassLoose() {
+    double errorDegrees =
+        Math.abs(
+            getShooterAngleToTarget(getPassTarget().toTranslation2d())
+                .minus(getEstimatedPose().getRotation())
+                .getDegrees());
+    return errorDegrees < Constants.Thresholds.PASS_LOOSE_ALIGNMENT_TOLERANCE_DEGREES;
+  }
+
+  /** Where to pass to: our side of the field, on whichever half (left/right) the robot is on. */
+  public Translation3d getPassTarget() {
+    double poseY = getEstimatedPose().getY();
+    if (AllianceFlipUtil.shouldFlip()) {
+      // Red alliance
+      if (poseY > (FieldConstants.fieldWidth / 2)) {
+        return new Translation3d(12.0, 6.1, 0);
+      } else {
+        return new Translation3d(12.0, 2.3, 0);
+      }
+    } else {
+      // Blue alliance (or unknown — defaults to blue)
+      if (poseY < (FieldConstants.fieldWidth / 2)) {
+        return new Translation3d(4.5, 2.3, 0);
+      } else {
+        return new Translation3d(4.5, 6.1, 0);
+      }
+    }
+  }
+
+  // ---- Zone classification ----
+
+  /** Alliance zone, alliance trench, neutral, opposing trench or opposing zone. */
+  public BroadZone getBroadZone() {
+    double poseX = AllianceFlipUtil.applyX(getEstimatedPose().getX());
+    if (poseX < FieldConstants.LinesVertical.allianceZone) {
+      return BroadZone.ALLIANCE_ZONE;
+    } else if (poseX < FieldConstants.LinesVertical.neutralZoneNear) {
+      return BroadZone.ALLIANCE_TRENCH;
+    } else if (poseX < FieldConstants.LinesVertical.neutralZoneFar) {
+      return BroadZone.NEUTRAL;
+    } else if (poseX < FieldConstants.LinesVertical.oppAllianceZone) {
+      return BroadZone.OPPOSING_TRENCH;
+    } else {
+      return BroadZone.OPPOSING_ZONE;
+    }
+  }
+
+  /**
+   * Alliance/opposing tower, trench or bump, near or far. NEUTRAL when in none of them, including
+   * the middle of the alliance zone. Unused by 2026 robot logic.
+   */
+  public SpecificZone getSpecificZone(Pose2d pose) {
+    double poseX = AllianceFlipUtil.applyX(pose.getX());
+    double poseY = AllianceFlipUtil.applyY(pose.getY());
+    BroadZone broadZone = getBroadZone();
+    if ((broadZone == BroadZone.ALLIANCE_ZONE)
+        && (poseX < FieldConstants.Tower.frontFaceX)
+        && (poseY < FieldConstants.Tower.leftUpright.getY())
+        && poseY > FieldConstants.Tower.rightUpright.getY()) {
+      return SpecificZone.ALLIANCE_TOWER;
+    } else if (broadZone == BroadZone.ALLIANCE_TRENCH) {
+      if (poseY < FieldConstants.RightTrench.openingTopLeft.getY()) {
+        return SpecificZone.ALLIANCE_TRENCH_NEAR;
+      } else if (poseY < FieldConstants.Hub.farRightCorner.getY()) {
+        return SpecificZone.ALLIANCE_BUMP_NEAR;
+      } else if (poseY < FieldConstants.Hub.farLeftCorner.getY()) {
+        return SpecificZone.ALLIANCE_HUB;
+      } else if (poseY < FieldConstants.LeftTrench.openingTopRight.getY()) {
+        return SpecificZone.ALLIANCE_BUMP_FAR;
+      } else {
+        return SpecificZone.ALLIANCE_TRENCH_FAR;
+      }
+    } else if (broadZone == BroadZone.OPPOSING_TRENCH) {
+      if (poseY < FieldConstants.RightTrench.openingTopLeft.getY()) {
+        return SpecificZone.OPPOSING_TRENCH_NEAR;
+      } else if (poseY < FieldConstants.RightBump.nearLeftCorner.getY()) {
+        return SpecificZone.OPPOSING_BUMP_NEAR;
+      } else if (poseY < FieldConstants.LeftBump.farRightCorner.getY()) {
+        return SpecificZone.OPPOSING_HUB;
+      } else if (poseY < FieldConstants.LeftTrench.openingTopRight.getY()) {
+        return SpecificZone.OPPOSING_BUMP_FAR;
+      } else {
+        return SpecificZone.OPPOSING_TRENCH_FAR;
+      }
+    } else if ((broadZone == BroadZone.OPPOSING_ZONE)
+        && (poseX < FieldConstants.Tower.oppLeftUpright.getX())
+        && (poseY < FieldConstants.Tower.oppLeftUpright.getY())
+        && (poseY > FieldConstants.Tower.oppRightUpright.getY())) {
+      return SpecificZone.OPPOSING_TOWER;
+    } else {
+      return SpecificZone.NEUTRAL;
+    }
+  }
+
+  public ApproachingZoneX getApproachingZoneX(Pose2d pose) {
+    double poseX = AllianceFlipUtil.applyX(pose.getX());
+    if (poseX < (FieldConstants.Tower.leftUpright.getX() + Zones.APPROACHING_X_OFFSET)) {
+      return ApproachingZoneX.APPROACHING_ALLIANCE_TOWER;
+    } else if ((poseX > FieldConstants.LinesVertical.allianceZone - Zones.APPROACHING_X_OFFSET)
+        && (poseX < FieldConstants.LinesVertical.neutralZoneNear + Zones.APPROACHING_X_OFFSET)) {
+      return ApproachingZoneX.APPROACHING_ALLIANCE_TRENCH;
+    } else if ((poseX > FieldConstants.LinesVertical.neutralZoneFar - Zones.APPROACHING_X_OFFSET)
+        && (poseX < FieldConstants.LinesVertical.oppAllianceZone + Zones.APPROACHING_X_OFFSET)) {
+      return ApproachingZoneX.APPROACHING_OPPOSING_TRENCH;
+    } else if (poseX > FieldConstants.Tower.oppLeftUpright.getX() - Zones.APPROACHING_X_OFFSET) {
+      return ApproachingZoneX.APPROACHING_OPPOSING_TOWER;
+    } else {
+      return ApproachingZoneX.NEUTRAL;
+    }
+  }
+
+  /** Unused by 2026 robot logic. Returns null when no case matches, as 2026 did. */
+  public ApproachingZoneY getApproachingZoneY(Pose2d pose) {
+    double poseY = AllianceFlipUtil.applyY(pose.getY());
+    BroadZone broadZone = getBroadZone();
+    if ((broadZone == BroadZone.ALLIANCE_ZONE)
+        && ((poseY > (FieldConstants.Tower.leftUpright.getY() - Zones.APPROACHING_Y_OFFSET))
+            || (poseY < (FieldConstants.Tower.rightUpright.getY() + Zones.APPROACHING_Y_OFFSET)))) {
+      return ApproachingZoneY.APPROACHING_ALLIANCE_TOWER;
+    } else if ((broadZone == BroadZone.OPPOSING_ZONE)
+        && ((poseY > (FieldConstants.Tower.oppLeftUpright.getY() - Zones.APPROACHING_Y_OFFSET))
+            || (poseY
+                < (FieldConstants.Tower.oppRightUpright.getY() + Zones.APPROACHING_Y_OFFSET)))) {
+      return ApproachingZoneY.APPROACHING_OPPOSING_TOWER;
+    } else if ((poseY < FieldConstants.RightBump.farLeftCorner.getY())
+        || (poseY > FieldConstants.LeftBump.farRightCorner.getY())) {
+      return ApproachingZoneY.APPROACHING_BUMP;
+    } else if ((poseY > FieldConstants.RightBump.farLeftCorner.getY())
+        || (poseY < FieldConstants.LeftBump.farRightCorner.getY())) {
+      return ApproachingZoneY.APPROACHING_TRENCH;
+    } else {
+      return null;
+    }
+  }
+
+  /** Unused by 2026 robot logic. Returns null when no case matches, as 2026 did. */
+  public ApproachingZoneComposite getApproachingZone(Pose2d pose) {
+    ApproachingZoneX zoneX = getApproachingZoneX(pose);
+    ApproachingZoneY zoneY = getApproachingZoneY(pose);
+    if ((zoneX == ApproachingZoneX.APPROACHING_ALLIANCE_TRENCH)
+        && (zoneY == ApproachingZoneY.APPROACHING_TRENCH)) {
+      return ApproachingZoneComposite.APPROACHING_ALLIANCE_TRENCH;
+    } else if ((zoneX == ApproachingZoneX.APPROACHING_ALLIANCE_TRENCH)
+        && zoneY == ApproachingZoneY.APPROACHING_BUMP) {
+      return ApproachingZoneComposite.APPROACHING_ALLIANCE_BUMP;
+    } else if ((zoneX == ApproachingZoneX.APPROACHING_OPPOSING_TRENCH)
+        && zoneY == ApproachingZoneY.APPROACHING_TRENCH) {
+      return ApproachingZoneComposite.APPROACHING_OPPOSING_TRENCH;
+    } else if ((zoneX == ApproachingZoneX.APPROACHING_OPPOSING_TRENCH)
+        && zoneY == ApproachingZoneY.APPROACHING_BUMP) {
+      return ApproachingZoneComposite.APPROACHING_OPPOSING_BUMP;
+    } else if ((zoneX == ApproachingZoneX.APPROACHING_ALLIANCE_TOWER)
+        && (zoneY == ApproachingZoneY.APPROACHING_ALLIANCE_TOWER)) {
+      return ApproachingZoneComposite.APPROACHING_ALLIANCE_TOWER;
+    } else if ((zoneX == ApproachingZoneX.APPROACHING_OPPOSING_TOWER)
+        && (zoneY == ApproachingZoneY.APPROACHING_OPPOSING_TOWER)) {
+      return ApproachingZoneComposite.APPROACHING_OPPOSING_TOWER;
+    } else {
+      return null;
+    }
   }
 }
