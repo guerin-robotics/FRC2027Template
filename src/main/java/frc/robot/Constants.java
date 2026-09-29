@@ -155,6 +155,8 @@ public final class Constants {
     // Intake
     public static final int INTAKE_ROLLER_LEADER = 42; // RIO CAN
     public static final int INTAKE_ROLLER_FOLLOWER = 43; // RIO CAN
+    public static final int INTAKE_PIVOT_MOTOR = 41; // RIO CAN
+    public static final int INTAKE_PIVOT_ENCODER = 44; // RIO CAN
 
     // Prestage
     public static final int PRESTAGE_LEADER = 38; // RIO CAN
@@ -311,6 +313,20 @@ public final class Constants {
 
     /** How long a shot waits for the flywheel to reach speed before feeding anyway. */
     public static final double SPIN_UP_TIMEOUT_SECONDS = 1.0;
+
+    // Hopper compress (intake pivot jostle)
+
+    /** Single compress: delay before lifting the intake. */
+    public static final double WAIT_TO_COMPRESS_SECONDS = 0.50;
+
+    /** Double compress: hold at the first lift before dropping back down. */
+    public static final double WAIT_TO_DROP_SECONDS = 0.5;
+
+    /** Double compress: hold down before the second lift. */
+    public static final double WAIT_BETWEEN_COMPRESS_SECONDS = 0.15;
+
+    /** Auto shoot: delay before its single compress. */
+    public static final double AUTO_WAIT_TO_COMPRESS_SECONDS = 0.50;
   }
 
   // ============================================================================================

@@ -28,6 +28,8 @@ import frc.robot.subsystems.flywheel.Flywheel;
 import frc.robot.subsystems.flywheel.FlywheelConstants;
 import frc.robot.subsystems.hood.Hood;
 import frc.robot.subsystems.hood.HoodConstants;
+import frc.robot.subsystems.intakePivot.IntakePivot;
+import frc.robot.subsystems.intakePivot.IntakePivotConstants;
 import frc.robot.subsystems.intakeRoller.IntakeRoller;
 import frc.robot.subsystems.intakeRoller.IntakeRollerConstants;
 import frc.robot.subsystems.lowerFeeder.LowerFeeder;
@@ -69,6 +71,7 @@ public class RobotContainer {
   private final IntakeRoller intakeRoller;
   private final Flywheel flywheel;
   private final Hood hood;
+  private final IntakePivot intakePivot;
 
   // Controllers live in Triggers, not here. This class binds triggers to commands; it does not
   // own input devices and never touches a controller object directly.
@@ -119,6 +122,9 @@ public class RobotContainer {
             new Flywheel(
                 RollerMechanism.real(FlywheelConstants.CONFIG, FlywheelConstants.SETTINGS));
         hood = new Hood(RotaryMechanism.real(HoodConstants.CONFIG, HoodConstants.SETTINGS));
+        intakePivot =
+            new IntakePivot(
+                RotaryMechanism.real(IntakePivotConstants.CONFIG, IntakePivotConstants.SETTINGS));
         break;
 
       case SIM:
@@ -177,6 +183,12 @@ public class RobotContainer {
             new Hood(
                 RotaryMechanism.sim(
                     HoodConstants.CONFIG, HoodConstants.SETTINGS, HoodConstants.SIM));
+        intakePivot =
+            new IntakePivot(
+                RotaryMechanism.sim(
+                    IntakePivotConstants.CONFIG,
+                    IntakePivotConstants.SETTINGS,
+                    IntakePivotConstants.SIM));
         break;
 
       default:
@@ -217,6 +229,9 @@ public class RobotContainer {
             new Flywheel(
                 RollerMechanism.replay(FlywheelConstants.CONFIG, FlywheelConstants.SETTINGS));
         hood = new Hood(RotaryMechanism.replay(HoodConstants.CONFIG, HoodConstants.SETTINGS));
+        intakePivot =
+            new IntakePivot(
+                RotaryMechanism.replay(IntakePivotConstants.CONFIG, IntakePivotConstants.SETTINGS));
         break;
     }
 
@@ -289,6 +304,7 @@ public class RobotContainer {
     intakeRoller.registerFaultMonitors();
     flywheel.registerFaultMonitors();
     hood.registerFaultMonitors();
+    intakePivot.registerFaultMonitors();
 
     // Configure the button bindings
     configureButtonBindings();
