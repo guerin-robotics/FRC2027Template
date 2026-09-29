@@ -116,13 +116,14 @@ The governance lives in the repo, so it applies wherever the agent runs — term
   for edits, and when the agent must ask before acting.
 - **`.claude/rules/`** carries the architecture, hardware, command, build and git rules that
   `CLAUDE.md` pulls in.
-- **`.claude/skills/`** — `/add-subsystem` scaffolds a mechanism (six files, constants,
-  three-mode wiring, triggers); `/debug-match-log` root-causes a field problem from an
+- **`.claude/skills/`** — `/add-subsystem` scaffolds a mechanism (the two files, CAN IDs,
+  setpoints, three-mode wiring, triggers); `/debug-match-log` root-causes a field problem from an
   AdvantageKit log; `/pid-tune` runs a sim-first tuning loop.
 - **`.claude/prompts/`** holds task templates for the common jobs.
-- **`.github/instructions/`** and `.github/agents/` restate the same rules for GitHub
-  Copilot and the PR review agent. **If you change a rule in `.claude/`, change it there
-  too** — they drift silently otherwise.
+- **`.github/copilot-instructions.md`** and `.github/agents/` configure GitHub Copilot and the
+  PR review agent. They **point at** `.claude/rules/` rather than restating it — a restated
+  copy is what drifted in 2026. Keep them as pointers; the hard-stop list is the only
+  deliberate inline copy.
 
 Working in the browser, the useful shape is one branch and one PR per logical change: the
 CI workflow (`spotlessCheck` then `build`) runs on every PR, and the review agent config in
@@ -146,9 +147,18 @@ moves the robot as needing a human at the driver station.
   single-tag distance limit, angular velocity, pitch/roll, field bounds), per-observation
   rejection-reason logging, and distance/tag-count std dev scaling.
 
+**Mechanism library** — `frc/lib/mechanism`: one shared `MotorIO` schema, `MotorIOTalonFX` /
+`MotorIOTalonFXSim`, the `MotorConfig` builder that refuses to build without current limits,
+ratios and gains — plus travel bounds on a position mechanism — and three mechanism kinds — `roller/`, `rotary/`, `linear/` —
+each with its subsystem, command factories, physics sim and (for the position kinds) a
+visualizer. A new mechanism is two files on top of it. In the build and under test.
+
 **Commands** — `commands/DriveCommands`: `joystickDrive`, `joystickDriveLimited`,
-`joystickDriveAtAngle`, `stopWithX`, `feedforwardCharacterization`,
-`wheelRadiusCharacterization`.
+`joystickDriveAtAngle`, `driveToPose`, `alignForScore`, `stopWithX`,
+`feedforwardCharacterization`, `wheelRadiusCharacterization`.
+
+**Bindings** — `Triggers.java` owns both controllers (flight stick drives, Xbox operates) and
+every trigger; `RobotContainer` only reads from it.
 
 **Core** — `Main`, `Robot`, `RobotContainer`, `Constants` in AdvantageKit template shape.
 `RobotState` as a game-agnostic singleton (pose, velocity, distance/bearing helpers).
@@ -173,6 +183,8 @@ unnoticed for a whole season:
 
 **Utilities**
 
+All in `frc/lib/util/`.
+
 | File | Purpose |
 |---|---|
 | `lib/BatteryLogger` | Per-subsystem current accounting, brownout counting, min voltage |
@@ -183,7 +195,6 @@ unnoticed for a whole season:
 | `lib/MatchMetadataLogger` | Event and match identity, for triaging logs |
 | `lib/PhoenixSignalLogger` | CTRE hoot logging, started on enable and stopped on disable |
 | `lib/PhoenixUtil` | `tryUntilOk` — retries CTRE config until it sticks |
-| `lib/CANUpdateThread` | Async CAN device configuration with retry |
 | `lib/LocalADStarAK` | Replay-safe PathPlanner pathfinder |
 | `lib/LoggedTrigger` | Trigger wrapper that logs its state |
 | `lib/Elastic` | Elastic dashboard notifications and tab switching |
@@ -196,6 +207,8 @@ unnoticed for a whole season:
 | `lib/EdgeDetector` | Rising/falling edges, and counting edges in a window |
 | `lib/LoggedTunableNumber` | Dashboard-adjustable constant, gated on `tuningMode` |
 | `lib/LoggedTunableBoolean` | Same, for booleans |
+| `lib/LoggedTunableProfiledPID` | Tunable `ProfiledPIDController` gains and constraints |
+| `lib/MotorSpecs` | Motor free speeds from WPILib's `DCMotor`; computes top speed and the sim gearbox |
 
 Everything shared lives in `frc/lib` — there is no `frc/robot/util`. A utility either applies
 to any robot, in which case it goes there, or it belongs to a subsystem, in which case it goes
@@ -209,8 +222,8 @@ and skills forward.
 `change-classification.md`) are ready to use; the robot-describing ones are skeletons with
 banners saying what to fill in. See [docs/README.md](docs/README.md).
 
-**Style reference** — `template/` holds three scaffolds of the six-file subsystem pattern every
-mechanism must follow: `exampleRoller` (velocity), `exampleArm` (rotary position), `exampleLift`
+**Style reference** — `template/` holds three scaffolds of the two-file mechanism pattern (the
+subsystem and its constants, on top of `frc/lib/mechanism`): `exampleRoller` (velocity), `exampleArm` (rotary position), `exampleLift`
 (linear position). Plus [GUIDE.md](template/GUIDE.md) and a
 [new-season checklist](template/NEW_SEASON_CHECKLIST.md). Not part of the Gradle build.
 
@@ -224,8 +237,8 @@ wpilib-agent-tools (Python CLI for sim, NT4 recording, log analysis). See
 ## What Was Removed
 
 All 2026 mechanisms (flywheel, hood, prestage, upper/lower feeder, transport, intake pivot,
-intake roller), their commands and sequences, `HardwareConstants` (folded into `Constants`), `Triggers`,
-`HubShiftUtil`, `RobotModelVisualizer`, the 2026 field geometry in `FieldConstants`, the
+intake roller), their commands and sequences, `HardwareConstants` (folded into `Constants`), the
+2026 `Triggers` bindings (`Triggers.java` is back, rebuilt around the drive controls), `HubShiftUtil`, `RobotModelVisualizer`, the 2026 field geometry in `FieldConstants`, the
 2026 PathPlanner autos and paths, and the `ALPHA`/`COMP` robot-type switch —
 `COMP_TunerConstants` is now simply `TunerConstants`.
 
@@ -282,8 +295,9 @@ Worth knowing before they bite again:
 - **Vision failure mode.** Every catastrophically wrong accepted pose in the 2026 logs was
   a *single-tag* solve at long range, some with near-zero ambiguity. Hence
   `maxSingleTagDistanceMeters`, which is stricter than the multi-tag limit.
-- **Pose estimator.** There is no off-field divergence guard. Vision rejection filters are
-  the only thing keeping a bad estimate from persisting.
+- **Pose estimator.** Divergence is now *detected* (`Odometry/OffField`, `PoseJumpCount`, an
+  Alert) but not *guarded* — nothing rejects or corrects a bad estimate. Vision rejection
+  filters are still the only thing keeping one from persisting. See `template/GUIDE.md` § D.
 - **Auto time budget.** 2026 routines overran the auto period; the final path was truncated
   in every match. Time autos in simulation before competition.
 - **Log units.** AdvantageKit logs `Measure`-typed fields in SI base units — temperatures

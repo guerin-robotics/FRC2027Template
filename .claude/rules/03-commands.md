@@ -1,5 +1,10 @@
 # Command Rules
 
+> **These rules describe Commands V2**, which is what the code runs today. Follow them as written.
+> What each one becomes under WPILib 2027's Commands V3 is worked out in
+> [docs/commands-v3.md](../../docs/commands-v3.md) — read it before writing any V3 code, and
+> rewrite this file from it in the same commit as the port. Do not mix V3 idioms into V2 code.
+
 ---
 
 ## Factory Method Pattern (Mandatory)
@@ -41,6 +46,10 @@ Commands.waitUntil(mechanism::isReady)
 ```
 
 This is a competition safety rule. A robot that hangs mid-sequence scores zero points.
+
+**It survives the V3 port unchanged.** V3 has two untimed waits — `Command.waitUntil(cond)` and
+`coroutine.waitUntil(cond)` — and both are forbidden for the same reason. See
+[docs/commands-v3.md](../../docs/commands-v3.md#timeouts-on-every-wait--keep-and-it-gets-sharper).
 
 ---
 

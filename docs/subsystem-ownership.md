@@ -77,8 +77,9 @@ subsystems/vision/io/VisionIOPhotonVisionSim.java
 
 **Known gaps carried from 2026:**
 
-- The pose estimator has **no off-field divergence guard**. The rejection filters in
-  `VisionConstants` are the only defense against a bad estimate persisting.
+- Pose-estimator divergence is **detected** (`Odometry/OffField`, `PoseJumpCount`, an Alert)
+  but not **guarded**. The rejection filters in `VisionConstants` are the only defense against
+  a bad estimate persisting.
 - The `maxPoseJumpMeters` filter was written and left disabled because it was never
   tuned against real logs. Either tune and enable it, or add an explicit field-bounds
   sanity check.
@@ -94,9 +95,12 @@ Add one section per mechanism, following this shape:
 ```
 subsystems/myMechanism/MyMechanism.java
 subsystems/myMechanism/MyMechanismConstants.java
-subsystems/myMechanism/io/MyMechanismIO.java (+ Real, Sim)
-commands/MyMechanismCommands.java
+commands/MyMechanismCommands.java   ← only for verbs the library's *Commands do not cover
 ```
+
+The IO layer is not per-mechanism — it is `frc/lib/mechanism/` (`MotorIO`, `MotorIOTalonFX`,
+`MotorIOTalonFXSim`), shared by every mechanism. Log keys, the `@AutoLog` schema and the sim
+implementation come from there.
 
 **Permitted cross-boundary interactions:** list them explicitly. If a mechanism needs a
 value from another subsystem, it goes through `RobotState` or a `Supplier` passed at
@@ -148,6 +152,7 @@ frc/lib/util/
 │   ├── PhoenixUtil.java             tryUntilOk config retry
 │   ├── PhoenixSignalLogger.java     CTRE hoot logging
 │   ├── CANBusMonitor.java           bus utilization and errors
+│   ├── MotorSpecs.java              motor free speeds and sim gearboxes, from DCMotor
 │   └── ThrowingRunnable.java
 ├── Health and diagnostics
 │   ├── BatteryLogger.java           power accounting, brownout counting
@@ -156,7 +161,8 @@ frc/lib/util/
 │   └── MatchMetadataLogger.java     event and match identity
 ├── Tuning
 │   ├── LoggedTunableNumber.java     dashboard-adjustable, gated on tuningMode
-│   └── LoggedTunableBoolean.java
+│   ├── LoggedTunableBoolean.java
+│   └── LoggedTunableProfiledPID.java  tunable ProfiledPIDController gains and constraints
 └── Misc
     ├── Elastic.java                 dashboard notifications and tabs
     └── LocalADStarAK.java           replay-safe PathPlanner pathfinder
@@ -170,6 +176,11 @@ Four classes read `frc.robot.Constants` — `AllianceFlipUtil`, the two tunables
 `currentMode`), never for robot structure. If you lift this package into another project,
 those flags are the only thing you need to supply.
 
-Keep it that way: `frc.lib` may depend on `frc.robot.Constants` and nothing else under
+**One known exception:** `frc/lib/mechanism/Mechanism.java` imports `frc.robot.Robot` to reach
+the static `Robot.batteryLogger`. It is the only thing tying the mechanism library to this
+robot's `Robot` class; injecting the `BatteryLogger` instead would remove it. Worth doing at the
+2027 port, when `Robot` is rewritten anyway.
+
+Keep it that way otherwise: `frc.lib` may depend on `frc.robot.Constants` and nothing else under
 `frc.robot`. Nothing checks this automatically, so a new `frc.lib` class reaching into a
 subsystem or `RobotState` will compile happily — catch it in review.

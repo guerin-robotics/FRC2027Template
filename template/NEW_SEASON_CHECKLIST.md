@@ -18,10 +18,14 @@ they're listed so you know they're handled, not so you redo them.
 - [ ] Verify team number in `.wpilib/wpilib_preferences.json`
 - [ ] Configure `tools/log-sync` with the 2027 team-number IP and **verify one upload
       actually works** — do this at season start, not the night before an event
-- [ ] Update WPILib to the 2027 release (`build.gradle` plugin version, `settings.gradle` `frcYear`)
-- [ ] Update AdvantageKit to the matching 2027 version
-- [ ] Update CTRE Phoenix 6, PathPlannerLib, PhotonVision, Studica vendordeps
-- [ ] Confirm `./gradlew build` still passes after the vendordep bumps
+- [ ] **Port to WPILib 2027** — not a version bump. Systemcore replaces the roboRIO, Java 17 → 25,
+      `edu.wpi.first` → `org.wpilib`, Commands V2 → V3, SmartDashboard → Telemetry/Tunables. Work
+      the gated checklist in [docs/2027-migration.md](../docs/2027-migration.md); do not start
+      until its gates pass. The V3 target for every command rule is in
+      [docs/commands-v3.md](../docs/commands-v3.md)
+- [ ] Update AdvantageKit, CTRE Phoenix 6, PathPlannerLib, PhotonVision and Studica vendordeps to
+      the 2027 versions named in the migration doc
+- [ ] Confirm `./gradlew build` still passes after the port
 - [ ] Update `FieldConstants.aprilTagLayout` to the 2027 field as soon as WPILib ships it
 
 ## Kickoff Week — Game Modeling
@@ -188,7 +192,8 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
 ## Driver Controls
 
 - [ ] Update button bindings for the new mechanism layout
-- [ ] Move triggers out of `RobotContainer` into `Triggers.java` once they outgrow it
+- [ ] Add a named accessor to `Triggers.java` for each operator function — never construct a
+      trigger or a controller in `RobotContainer`
 - [ ] Write `docs/driver-controls-card.md` and print it for the drive team
 - [ ] Drive practice before the first event, not at it
 

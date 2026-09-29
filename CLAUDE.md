@@ -284,8 +284,10 @@ applies automatically to every request. `.github/agents/` and `.github/prompts/`
 code-review and cloud coding-agent configs.
 
 **They point at `.claude/rules/` rather than restating it.** They used to restate it, and
-they drifted: the Copilot instructions ended up teaching patterns that now fail the build —
+they drifted: the Copilot instructions ended up teaching patterns the rules forbid —
 controllers constructed in `RobotContainer`, command methods on the subsystem, `extends
-Command`. Keep them as pointers. Anything inlined there is a second copy that will rot, and a
+Command`. Nothing in the build catches those (the ArchUnit test that briefly did was removed —
+see `docs/testing.md`), so a drifted instruction file reaches the robot unless a reviewer
+stops it. Keep them as pointers. Anything inlined there is a second copy that will rot, and a
 rule that lies is worse than no rule. The only deliberate exception is the hard-stop list,
 which is short and effectively frozen.

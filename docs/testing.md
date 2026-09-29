@@ -3,11 +3,12 @@
 What is under test, what each layer catches, and what to add when you build a mechanism.
 
 Everything here runs on `./gradlew build` and in CI on every PR and push to main. No test
-touches hardware; the sim-backed ones use the HAL simulator and the physics `IOSim`
-implementations.
+touches hardware; the sim-backed ones use the HAL simulator, `ModuleIOSim` for the drivetrain,
+and `MotorIOTalonFXSim` plus the per-kind `*MechanismSim` for mechanisms.
 
-The suite is deliberately small — 39 tests across 9 classes. It covers the things that fail
-*silently*, and leaves everything else to review. Adding a test is cheap; maintaining one that
+The suite is deliberately targeted — about 95 tests across 19 classes, most of them in
+`frc/lib/mechanism`. It covers the things that fail *silently*, and leaves everything else to
+review. Adding a test is cheap; maintaining one that
 nobody trusts is not.
 
 ---
@@ -16,9 +17,10 @@ nobody trusts is not.
 
 | Layer | Runs | Catches |
 |---|---|---|
-| **Config validation** | Instantly, no HAL | CAN ID collisions |
+| **Config validation** | Instantly, no HAL | CAN ID collisions, a `MotorConfig` missing an unguessable value |
 | **Wiring** | HAL sim | `RobotContainer` failing to construct or resolve |
 | **Filter logic** | HAL sim, no physics | Vision pose rejection |
+| **Mechanism library** | HAL sim + Phoenix device sim | Geometry, gravity frame, zeroing, jam detection, encoder seeding, replay schema |
 | **Simulation** | HAL sim + physics | Commands not converging, loop budget regressions |
 
 ---
@@ -54,6 +56,20 @@ covered automatically — nothing in that file names `Drive` or `Vision`.
 `PathPlannerAssets.java` beside it is test support, not a test: it scans
 `src/main/deploy/pathplanner` for the named commands the autos reference. Those directories are
 empty in the template, so that assertion passes vacuously until the first 2027 auto exists.
+
+### Mechanism library — `src/test/java/frc/lib/mechanism/`
+
+| Test | Covers |
+|---|---|
+| `MotorConfigTest` | The builder refuses to build without a current limit, ratio, gains or — on a position mechanism — travel bounds, and derives the torque clamp and follower config correctly |
+| `MotorIOReplayTest` | Follower and encoder groups survive replay |
+| `MotorIOTalonFXSimEncoderTest` | The simulated CANcoder gets its magnet offset and direction |
+| `roller/RollerMechanismSimTest`, `roller/RollerJamDetectionTest` | Velocity convergence; the jam detector fires on a jam and not on a normal load |
+| `rotary/RotaryMechanismSimTest`, `rotary/RotaryGravityFrameTest` | Position convergence and clamping; an arm hanging at rest stays there, so the gravity frame agrees between config and sim |
+| `linear/LinearMechanismSimTest`, `linear/LinearGeometryTest`, `linear/LinearZeroingSoftLimitTest` | Convergence; drum/stage arithmetic; the reverse bound is dropped while zeroing and restored after |
+
+These are what make a two-file mechanism trustworthy — the scaffolds cannot be tested, the
+library they sit on is.
 
 ### Filter logic
 
