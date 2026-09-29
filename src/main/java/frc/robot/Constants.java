@@ -148,6 +148,10 @@ public final class Constants {
     public static final int FLYWHEEL_FOLLOWER_3 = 33; // RIO CAN
     public static final int FLYWHEEL_FOLLOWER_4 = 34; // RIO CAN
 
+    // Hood
+    public static final int HOOD_MOTOR = 35; // RIO CAN
+    public static final int HOOD_ENCODER = 50; // RIO CAN
+
     // Intake
     public static final int INTAKE_ROLLER_LEADER = 42; // RIO CAN
     public static final int INTAKE_ROLLER_FOLLOWER = 43; // RIO CAN

@@ -14,6 +14,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.lib.mechanism.roller.RollerMechanism;
+import frc.lib.mechanism.rotary.RotaryMechanism;
 import frc.lib.util.FaultMonitor;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
@@ -25,6 +26,8 @@ import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
 import frc.robot.subsystems.flywheel.Flywheel;
 import frc.robot.subsystems.flywheel.FlywheelConstants;
+import frc.robot.subsystems.hood.Hood;
+import frc.robot.subsystems.hood.HoodConstants;
 import frc.robot.subsystems.intakeRoller.IntakeRoller;
 import frc.robot.subsystems.intakeRoller.IntakeRollerConstants;
 import frc.robot.subsystems.lowerFeeder.LowerFeeder;
@@ -65,6 +68,7 @@ public class RobotContainer {
   private final Prestage prestage;
   private final IntakeRoller intakeRoller;
   private final Flywheel flywheel;
+  private final Hood hood;
 
   // Controllers live in Triggers, not here. This class binds triggers to commands; it does not
   // own input devices and never touches a controller object directly.
@@ -114,6 +118,7 @@ public class RobotContainer {
         flywheel =
             new Flywheel(
                 RollerMechanism.real(FlywheelConstants.CONFIG, FlywheelConstants.SETTINGS));
+        hood = new Hood(RotaryMechanism.real(HoodConstants.CONFIG, HoodConstants.SETTINGS));
         break;
 
       case SIM:
@@ -168,6 +173,10 @@ public class RobotContainer {
             new Flywheel(
                 RollerMechanism.sim(
                     FlywheelConstants.CONFIG, FlywheelConstants.SETTINGS, FlywheelConstants.SIM));
+        hood =
+            new Hood(
+                RotaryMechanism.sim(
+                    HoodConstants.CONFIG, HoodConstants.SETTINGS, HoodConstants.SIM));
         break;
 
       default:
@@ -207,6 +216,7 @@ public class RobotContainer {
         flywheel =
             new Flywheel(
                 RollerMechanism.replay(FlywheelConstants.CONFIG, FlywheelConstants.SETTINGS));
+        hood = new Hood(RotaryMechanism.replay(HoodConstants.CONFIG, HoodConstants.SETTINGS));
         break;
     }
 
@@ -267,6 +277,10 @@ public class RobotContainer {
                   vision.isCameraConnected(cameraIndex) && !vision.isCameraCalibrated(cameraIndex));
     }
 
+    // The trajectory visualizer draws the shot at the hood's measured angle. A supplier keeps
+    // Flywheel and Hood decoupled.
+    flywheel.setHoodAngleSupplier(hood::getPosition);
+
     // Mechanism health: disconnected, rebooted, over temperature, hardware fault.
     transport.registerFaultMonitors();
     upperFeeder.registerFaultMonitors();
@@ -274,6 +288,7 @@ public class RobotContainer {
     prestage.registerFaultMonitors();
     intakeRoller.registerFaultMonitors();
     flywheel.registerFaultMonitors();
+    hood.registerFaultMonitors();
 
     // Configure the button bindings
     configureButtonBindings();
