@@ -5,6 +5,7 @@ import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.lib.util.CommandLogger;
 
 /**
  * A {@link SubsystemBase} wrapping one {@link LinearMechanism}.
@@ -32,6 +33,7 @@ public class LinearSubsystem extends SubsystemBase {
   @Override
   public void periodic() {
     linear.periodic();
+    CommandLogger.recordCurrentCommand(getName(), this);
   }
 
   /** The mechanism itself, for anything this wrapper does not forward. */

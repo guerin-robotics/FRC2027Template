@@ -77,11 +77,17 @@ public class CommandLogger {
    * question is usually "what was driving *this* subsystem at that moment" — including whether it
    * had fallen back to its default command, which the global list does not make obvious.
    *
-   * <p>Call from the subsystem's {@code periodic()}:
+   * <p>Already called by {@code RollerSubsystem}, {@code RotarySubsystem}, {@code
+   * LinearSubsystem} and {@code Drive}, so any subsystem built on those gets it for free. A
+   * subsystem that extends {@code SubsystemBase} directly (one that owns two mechanisms) must call
+   * it itself, from its {@code periodic()}:
    *
    * <pre>
-   * CommandLogger.recordCurrentCommand("Drive", this);
+   * CommandLogger.recordCurrentCommand(getName(), this);
    * </pre>
+   *
+   * <p>Logs the top-level command only. A composition such as {@code sequence(waitUntil(...),
+   * feed())} logs as the group's name, not the step inside it that is running.
    *
    * @param name Log key prefix, normally the subsystem name
    * @param subsystem The subsystem to inspect

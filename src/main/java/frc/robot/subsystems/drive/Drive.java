@@ -41,6 +41,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.lib.util.CommandLogger;
 import frc.lib.util.FieldConstants;
 import frc.lib.util.LocalADStarAK;
 import frc.robot.Constants;
@@ -264,6 +265,8 @@ public class Drive extends SubsystemBase {
       Logger.recordOutput("SwerveStates/Setpoints", new SwerveModuleState[] {});
       Logger.recordOutput("SwerveStates/SetpointsOptimized", new SwerveModuleState[] {});
     }
+
+    CommandLogger.recordCurrentCommand("Drive", this);
 
     // Update odometry
     double[] sampleTimestamps =

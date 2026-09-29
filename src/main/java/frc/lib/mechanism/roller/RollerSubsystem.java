@@ -3,6 +3,7 @@ package frc.lib.mechanism.roller;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.lib.util.CommandLogger;
 
 /**
  * A {@link SubsystemBase} wrapping one {@link RollerMechanism}.
@@ -24,7 +25,9 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
  *
  * <p>A subsystem that owns <b>two</b> mechanisms does not use this class. It extends {@code
  * SubsystemBase} itself, holds the mechanisms, and calls {@code periodic()} on each. That shape is
- * why {@link RollerMechanism} is not a subsystem in the first place.
+ * why {@link RollerMechanism} is not a subsystem in the first place. Such a subsystem should also
+ * call {@code CommandLogger.recordCurrentCommand(getName(), this)} from its {@code periodic()},
+ * which this class does for you.
  */
 public class RollerSubsystem extends SubsystemBase {
 
@@ -40,6 +43,7 @@ public class RollerSubsystem extends SubsystemBase {
   @Override
   public void periodic() {
     roller.periodic();
+    CommandLogger.recordCurrentCommand(getName(), this);
   }
 
   /** The mechanism itself, for anything this wrapper does not forward. */

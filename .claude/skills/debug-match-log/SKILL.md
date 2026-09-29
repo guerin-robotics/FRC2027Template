@@ -40,6 +40,7 @@ Triggers/[gatingTrigger]           — was the composite trigger true?
 [Mechanism]/isReady                — did the readiness condition pass?
 [Mechanism]/torqueCurrentAmps      — was it loaded, stalled, or free-spinning?
 Commands/Active                    — was the command actually scheduled?
+[Mechanism]/CurrentCommand         — which command owned the mechanism ("None" = nothing did)
 ```
 
 For any mechanism on a `*TorqueCurrentFOC` request, torque current is the control
@@ -157,7 +158,11 @@ Odometry/Trajectory                — the path being followed
 Also always check `Commands/Active` around the event time — a missing or
 unexpectedly-interrupted command explains most "it just didn't do it" reports.
 `Commands/All/<name>` gives one boolean per command, which graphs cleanly against
-the mechanism's own signals on the same timeline. Commands appear here under the
+the mechanism's own signals on the same timeline. `<Subsystem>/CurrentCommand`
+(e.g. `Drive/CurrentCommand`) answers the per-mechanism version of the question:
+what was driving *this* subsystem, including whether it had fallen back to its
+default command. It shows the top-level command only — a composition logs as the
+group's name, not the step inside it that was running. Commands appear under the
 name given to `.withName()`, so an unnamed command shows up as its class name.
 
 ## Step 3 — Report

@@ -168,7 +168,7 @@ unnoticed for a whole season:
 
 | What | Channels | The 2026 failure it closes |
 |---|---|---|
-| Active command logging | `Commands/Active`, `Commands/All/<name>` | No way to tell "never scheduled" from "scheduled and interrupted" |
+| Active command logging | `Commands/Active`, `Commands/All/<name>`, `<Subsystem>/CurrentCommand` | No way to tell "never scheduled" from "scheduled and interrupted", or which command owned a mechanism when it misbehaved |
 | Loop-time watchdog | `LoopTiming/*` + Alert | Ran ~30 Hz against a 20 ms budget all season, found post-season |
 | CAN bus health | `CANBus/Canivore/*` + Alerts | Signal frequency decisions had no visible consequence |
 | Match metadata | `Match/*` | Logs identified only by timestamp filename |

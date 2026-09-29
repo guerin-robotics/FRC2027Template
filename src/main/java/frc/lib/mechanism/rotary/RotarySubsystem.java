@@ -3,6 +3,7 @@ package frc.lib.mechanism.rotary;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.lib.util.CommandLogger;
 
 /**
  * A {@link SubsystemBase} wrapping one {@link RotaryMechanism}.
@@ -30,6 +31,7 @@ public class RotarySubsystem extends SubsystemBase {
   @Override
   public void periodic() {
     rotary.periodic();
+    CommandLogger.recordCurrentCommand(getName(), this);
   }
 
   /** The mechanism itself, for anything this wrapper does not forward. */
