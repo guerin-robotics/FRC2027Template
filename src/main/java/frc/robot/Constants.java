@@ -143,6 +143,7 @@ public final class Constants {
 
     // Feeders
     public static final int UPPER_FEEDER_MOTOR = 36; // RIO CAN
+    public static final int LOWER_FEEDER_MOTOR = 39; // RIO CAN
 
     // Transport
     public static final int TRANSPORT_MOTOR = 40; // RIO CAN
