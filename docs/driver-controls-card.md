@@ -1,99 +1,214 @@
 # Driver Controls — Quick Refresh
 
-> **MOSTLY BLANK. The drive controls below are real; the operator controls are not.**
->
-> The 2026 version of this card was a two-mode button map for that season's mechanisms.
-> None of it applies to a 2027 robot, so it was not carried over.
->
-> Fill in the operator section as mechanisms land, print it, and keep a copy in the pit.
-> The 2026 drive team used it between matches and it was worth the effort to maintain.
+> **Branch `feature/rebuilt2026-port`: the 2026 robot, as this port binds it.** Carried from
+> the Rebuilt2026 card (27 July 2026) and corrected against the Rebuilt2026 `main` code,
+> which changed after the card was written: flightstick 8 became the tower odometry reset
+> (bump align is no longer bound), pass moved to 9, and D-pad down was added.
+
+Two ways to drive the robot. Someone picks the mode on the dashboard before you enable;
+find your mode below and ignore the other one.
+
+```
+PLUG-IN CHECK        Port 1  Xbox controller
+                     Port 2  Flightstick
+
+If your controller does nothing at all, this is almost always why.
+Check the Driver Station USB tab before anything else.
+
+PICKING THE MODE     Dashboard -> "Drive controller" -> Thrustmaster  or  Xbox
+
+It only takes effect at the next ENABLE. Change it mid-match and nothing
+happens. After a code redeploy it goes back to Thrustmaster on its own.
+```
 
 ---
 
-## How to use this card
+## MODE 1 — FLIGHTSTICK DRIVES  (the usual)
 
-Keep it to **one printed page per mode.** A driver refreshing between matches has about
-thirty seconds. Structure that worked in 2026:
+You hold the flightstick. Someone else holds the Xbox as a backup controller.
 
-1. A diagram or list of every button, in physical layout order
-2. What each button does, in the driver's language — not the code's
-3. What happens on *release*, which is where drivers get surprised
-4. Any automatic behavior the driver doesn't press a button for
-5. A short "good to know" section for the non-obvious interactions
+```
+THRUSTMASTER T.16000M
+────────────────────────────────────────────────────────────────────────────────
 
-Write it for someone who has never read the code.
+                        STICK HEAD  (looking down)
+
+                          ╭─────────────╮
+                         ╱     ╭───╮     ╲
+                        │      │ ✛ │      │      the HAT does nothing
+         INTAKE IN ─────┤ (3)  ╰───╯  (4) ├───── INTAKE OUT
+           pivot up     │                 │        pivot down
+                         ╲     (2)       ╱
+                          ╰──────┬───────╯        (2) = TRENCH ALIGN
+                                 │
+                            ┌────┴────┐
+                            │   (1)   │
+                            └────┬────┘
+                                 └───── SHOOT ★   trigger, front of grip
+
+            push / pull / left / right = DRIVE        twist = TURN
+
+
+                              BASE  (looking down)
+
+        LEFT SIDE                                       RIGHT SIDE
+   ┌────────┬────────┬────────┐                  ┌────────┬────────┬────────┐
+   │   5    │   6    │   7    │                  │   11   │   12   │   13   │
+   │ INTAKE │COMPRESS│ demo   │                  │        │ CANCEL │        │
+   │ ROLLER │        │ shot   │                  │        │ AUTO-X │        │
+   ├────────┼────────┼────────┤       ⊙ stick    ├────────┼────────┼────────┤
+   │   8    │   9    │   10   │                  │   14   │   15   │   16   │
+   │ ODOM   │  PASS  │ TOWER  │                  │        │        │        │
+   │ RESET !│        │  SHOT  │                  │        │        │        │
+   └────────┴────────┴────────┘                  └────────┴────────┴────────┘
+
+   Blank buttons do nothing. Button 7 only works in practice/demo mode.
+```
+
+| Control | What it does |
+|---|---|
+| Push / pull / left / right | Drive |
+| Twist | Turn |
+| **Trigger (1)** | **Shoot** — aims, spins up and fires. See *What the trigger does* below |
+| 2 | Trench align — locks your heading for the trench |
+| 3 | Intake in (pivot up) |
+| 4 | Intake out (pivot down) |
+| 5 | Intake roller — hold to pull fuel in |
+| 6 | Compress by hand |
+| 7 | Demo shot — practice and demos only, dead in a match |
+| 8 | Odometry reset — tells the robot it is centred in front of our tower. **See warning below** |
+| 9 | Pass — fixed pass, no aiming, fires on a timer |
+| 10 | Tower shot — fixed shot, no aiming, no waiting |
+| 12 | Cancel auto-X (stop the wheels locking up) |
+| Hat, 11, 13–16 | Nothing |
+
+**The Xbox does three things in this mode**
+
+| Xbox | What it does |
+|---|---|
+| A | Flip which alliance the hub is favouring |
+| B | Switch compress to double |
+| Y | Turn the hub timer off completely |
+
+Tap them — holding does nothing extra. Every other Xbox button is dead.
 
 ---
 
-## Controller assignment
+## MODE 2 — XBOX DRIVES
 
-| Port | Device | Who |
-|---|---|---|
-| 0 | Flight stick | Driver — translation and rotation |
-| 1 | Xbox controller | Operator — mechanisms and overrides |
+You hold the Xbox. The flightstick sits on the desk as the backup controller.
 
-Ports are set in `Constants.Controllers`. **Verify them in the DS USB tab before the first
-match.** The driver station assigns ports in plug order, not by device type, and a controller
-that gets unplugged and replugged can come back on a different one. The symptom is "my
-controller does nothing" with no error anywhere.
+```
+XBOX ELITE SERIES 2
+────────────────────────────────────────────────────────────────────────────────
 
-Both controller objects live in `Triggers.java` and are private. Nothing else in the codebase
-touches them — see `.claude/rules/01-architecture.md`.
+    INTAKE ROLLER ── LT                                RT ── SHOOT ★
+   INTAKE IN, up ── LB                                 RB ── INTAKE OUT, down
+   ╔═════════════════════════════════════════════════════════════════════════╗
+   ║                                                                         ║
+   ║      ╭─────╮                                              ( Y )         ║
+   ║      │  L  │       (  )   (  )   (  )                                   ║
+   ║      ╰─────╯                                        ( X )     ( B )     ║
+   ║       DRIVE                                                             ║
+   ║                                                           ( A )         ║
+   ║          ↑                          ╭─────╮                            ║
+   ║        ← ✛ →                        │  R  │             Y  TOWER SHOT  ║
+   ║          ↓                          ╰─────╯             X  TRENCH      ║
+   ║        D-PAD                          TURN              A  nothing     ║
+   ║  ↑ PASS  ↓ ODOM RESET !          left / right           B  nothing     ║
+   ║                                                                         ║
+   ╚═════════════════════════════════════════════════════════════════════════╝
+      Menu, View, the small centre buttons, clicking the sticks and the
+      back paddles all do nothing.
+```
+
+| Control | What it does |
+|---|---|
+| Left stick | Drive |
+| Right stick, left / right | Turn |
+| **Right trigger** | **Shoot** — aims, spins up and fires. See below. Squeeze it properly, a light pull won't register |
+| Left trigger | Intake roller — hold to pull fuel in |
+| Left bumper | Intake in (pivot up) |
+| Right bumper | Intake out (pivot down) |
+| X | Trench align |
+| Y | Tower shot |
+| D-pad Up | Pass |
+| D-pad Down | Odometry reset. **See warning below** |
+| A, B | Nothing in this mode |
+| Everything else | Nothing |
+
+> **First time driving in Xbox mode:** push the left stick gently forward in open space
+> before you trust it in a match. If the robot goes backwards, stop and tell a
+> programmer — it's a one-line fix, but not one to discover mid-match.
+
+**The flightstick does five things in this mode**
+
+| Flightstick | What it does |
+|---|---|
+| 2 | Turn the hub timer off completely |
+| 3 or 4 | Flip which alliance the hub is favouring (either button, same result) |
+| 6 | Compress by hand |
+| 7 | Demo shot — practice and demos only |
+| 12 | Cancel auto-X |
+
+Everything else on the flightstick is dead while the Xbox is driving — including the
+trigger. **Pulling the flightstick trigger in this mode does nothing.**
 
 ---
 
-## Driver controls
+## What the trigger does
 
-Flight stick, port 0.
+One button. The robot decides what it means from where you are on the field.
 
-| Control | Action | On release |
-|---|---|---|
-| Stick forward/back | Drive forward/back (field-relative) | Robot coasts to stop |
-| Stick left/right | Drive left/right (field-relative) | Robot coasts to stop |
-| Twist | Rotate | — |
-| Button 2 | Reset gyro heading to 0° | — |
-| Button 3 (hold) | Hold heading at 0° while still driving | Returns to normal drive |
-| Button 4 (hold) | X the wheels — resists being pushed | Wheels return to normal on next move |
+```
+  IN OUR ZONE, hub is ours          ──►   FULL SHOT
+                                          Turns to the hub, spins up, sets the
+                                          hood, then fires when it's ready and
+                                          lined up. Compress happens on its own.
 
-*These are the template's defaults and are wired up now. Button numbers are whatever your
-stick reports — check them in the DS before printing this card.*
+  IN OUR ZONE, hub is NOT ours     ──►   AIMS BUT WON'T FIRE
+                                          It will still turn to face the hub and
+                                          then just sit there. This is normal.
+                                          It is not jammed. Wait for the hub.
 
----
+  OUTSIDE OUR ZONE                 ──►   PASS
+                                          Turns to your alliance partner's spot
+                                          and passes instead of shooting.
+```
 
-## Operator controls
-
-Xbox controller, port 1. Nothing is bound yet — add a row per function as mechanisms land.
-
-| Control | Action | On release |
-|---|---|---|
-| | | |
-
----
-
-## Automatic behavior (no button)
-
-List anything the robot does on its own, so the drive team is never surprised by robot
-motion they did not command. In 2026 this section covered the auto-align, auto-X, and
-auto-compress behaviors that triggered off a single button press.
-
-| Behavior | When it happens | How to override |
-|---|---|---|
-| | | |
+**Hold it.** All three cases need the trigger held down — it aims, waits, then fires.
+Let go early and nothing comes out.
 
 ---
 
 ## Good to know
 
-- Field-relative drive is relative to **your alliance wall**. `AllianceFlipUtil` handles
-  the red/blue flip; if the robot drives backward from what the driver expects, check
-  the alliance color in the driver station before touching code.
-- Resetting the gyro only changes heading, not position. Vision corrects position.
-- If a mechanism stops responding mid-match, check whether a command with a timeout has
-  already expired — the robot is designed to give up rather than hang.
+- **The robot slows to half speed while it's aiming.** That is on purpose. It is not a
+  dying battery and it is not a brownout.
+
+- **Touching the intake cancels auto-compress.** If you press intake in, intake out, or
+  compress, the robot stops compressing by itself for the rest of that trigger pull. Let
+  go of the trigger and it comes back.
+
+- **Tower shot, the pass button and demo shot don't aim.** They fire a fixed shot on a
+  timer. Line the robot up yourself first. (Passing with the *trigger* outside our zone
+  does aim.)
+
+- **The trigger and trench align steer for you.** You keep translation control, the robot
+  takes the heading. Don't fight it with the twist axis or the right stick.
+
+- **Odometry reset takes the drivetrain and does not give it back.** After you press it the
+  sticks stop driving the robot. Pull the trigger (or trench align) once to get driving
+  back. This is how the 2026 code behaved; it is flagged, not fixed, on this branch.
+
+- **At the start of teleop the intake deploys and the roller runs on its own.** The roller
+  keeps running until you use the intake roller or the trigger.
+
+- **After any redeploy, re-check the mode dropdown.** It resets to Thrustmaster. A
+  brownout does *not* reset it.
 
 ---
 
-## Related
-
-- `docs/drive-controller-mode.md` — swapping between controller types between matches
-- `.claude/rules/03-commands.md` — how bindings are structured in code
+*Button positions confirmed with the drive team in 2026. Functions read from this branch's
+`Triggers.java` and `RobotContainer.configureRealBindings()` — if a button does something
+different from this card, the card is wrong, so tell a programmer.*

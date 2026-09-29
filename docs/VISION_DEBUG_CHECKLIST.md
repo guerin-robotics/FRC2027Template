@@ -3,11 +3,9 @@
 Practical checklist for debugging the PhotonVision + AdvantageKit vision system.
 Work top to bottom — most vision problems are configuration, not code.
 
-> **Template status:** the *procedure* here is season-agnostic and carries over
-> unchanged. The **camera names in §2 and the transforms in §5 are placeholders**
-> — `VisionConstants.robotToCameraN` are identity transforms until someone
-> measures the 2027 robot. Fill both tables in as part of robot build, and update
-> the vendordep version in §1 and the AprilTag layout in §3 and §15.
+> **Branch `feature/rebuilt2026-port`:** the camera names in §2 and the transforms in §5
+> are the **2026 competition robot's**, as `VisionConstants` carries them on this branch.
+> On `main` they are placeholders.
 
 The full data chain:
 
@@ -34,10 +32,10 @@ Code expects these **exact** names (see `VisionConstants.java`):
 
 | Index | Code name  | Location on robot |
 |-------|------------|-------------------|
-| 0     | `camera0`  | TODO              |
-| 1     | `camera1`  | TODO              |
-| 2     | `camera2`  | TODO              |
-| 3     | `camera3`  | TODO              |
+| 0     | `RobotRight`   | Right side, facing right |
+| 1     | `RobotLeft`    | Left side, facing left   |
+| 2     | `ShooterRight` | Rear, right of center, facing back |
+| 3     | `ShooterLeft`  | Rear, left of center, facing back  |
 
 Rename these in `VisionConstants` to something descriptive of where each camera
 actually sits, then mirror the names here. Delete rows for cameras the 2027 robot
@@ -71,10 +69,10 @@ Transforms live in `VisionConstants.java` (`robotToCamera0..3`), measured from *
 
 | Camera    | X (fwd) | Y (left) | Z (up) | Pitch | Yaw |
 |-----------|---------|----------|--------|-------|-----|
-| `camera0` | TODO    | TODO     | TODO   | TODO  | TODO|
-| `camera1` | TODO    | TODO     | TODO   | TODO  | TODO|
-| `camera2` | TODO    | TODO     | TODO   | TODO  | TODO|
-| `camera3` | TODO    | TODO     | TODO   | TODO  | TODO|
+| `RobotRight`   | 1.0     | -12.171  | 6.438  | -15°  | 270°|
+| `RobotLeft`    | 1.0     | 12.421   | 6.438  | -15°  | 90° |
+| `ShooterRight` | -12.572 | -6.125   | 12.509 | -15°  | 180°|
+| `ShooterLeft`  | -12.572 | 5.375    | 12.509 | -15°  | 180°|
 
 For reference, the 2026 robot's four cameras sat at roughly ±12 in laterally and
 6–12 in up, all pitched -15°. Expect similar magnitudes; measure, don't assume.

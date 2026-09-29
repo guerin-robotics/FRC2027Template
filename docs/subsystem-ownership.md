@@ -3,9 +3,8 @@
 This document defines which files belong to each subsystem and the rules for
 modifying them.
 
-> **NEEDS EXTENDING FOR THE 2027 ROBOT.** Drive, Vision, and the shared layers below are
-> accurate as written. Every 2027 mechanism needs a section added following the same
-> shape — do it when the subsystem is created, not later.
+> **Branch `feature/rebuilt2026-port`:** Drive, Vision, the shared layers, and the eight
+> 2026 mechanisms below are accurate for this branch.
 
 ---
 
@@ -88,24 +87,37 @@ subsystems/vision/io/VisionIOPhotonVisionSim.java
 
 ---
 
-## [Your 2027 Mechanisms]
+## 2026 Mechanisms (branch `feature/rebuilt2026-port`)
 
-Add one section per mechanism, following this shape:
+The eight 2026 mechanisms, each on `frc/lib/mechanism/`. The IO layer is not per-mechanism —
+`MotorIO`, `MotorIOTalonFX` and `MotorIOTalonFXSim` are shared, so each mechanism owns only its
+subsystem, its constants, and (where it has verbs of its own) a commands file.
 
-```
-subsystems/myMechanism/MyMechanism.java
-subsystems/myMechanism/MyMechanismConstants.java
-commands/MyMechanismCommands.java   ← only for verbs the library's *Commands do not cover
-```
+| Mechanism | Kind | Owner files |
+|---|---|---|
+| Flywheel | Roller | `subsystems/flywheel/Flywheel.java`, `FlywheelConstants.java`, `ShotCalculator.java`, `FlywheelVisualizer.java`; `commands/FlywheelCommands.java` |
+| Hood | Rotary | `subsystems/hood/Hood.java`, `HoodConstants.java`, `HoodPosCalculator.java`; `commands/HoodCommands.java` |
+| Prestage | Roller | `subsystems/prestage/Prestage.java`, `PrestageConstants.java`; `commands/PrestageCommands.java` |
+| Upper Feeder | Roller | `subsystems/upperFeeder/UpperFeeder.java`, `UpperFeederConstants.java`; `commands/FeederCommands.java` (shared) |
+| Lower Feeder | Roller | `subsystems/lowerFeeder/LowerFeeder.java`, `LowerFeederConstants.java`; `commands/FeederCommands.java` (shared) |
+| Transport | Roller | `subsystems/transport/Transport.java`, `TransportConstants.java`; `commands/TransportCommands.java` |
+| Intake Roller | Roller | `subsystems/intakeRoller/IntakeRoller.java`, `IntakeRollerConstants.java`; `commands/IntakeRollerCommands.java` |
+| Intake Pivot | Rotary | `subsystems/intakePivot/IntakePivot.java`, `IntakePivotConstants.java`; `commands/IntakePivotCommands.java` |
 
-The IO layer is not per-mechanism — it is `frc/lib/mechanism/` (`MotorIO`, `MotorIOTalonFX`,
-`MotorIOTalonFXSim`), shared by every mechanism. Log keys, the `@AutoLog` schema and the sim
-implementation come from there.
+**Permitted cross-boundary interactions:**
 
-**Permitted cross-boundary interactions:** list them explicitly. If a mechanism needs a
-value from another subsystem, it goes through `RobotState` or a `Supplier` passed at
-construction — never a direct reference. The 2026 flywheel took a `hoodAngleSupplier`
-rather than a `Hood` reference, and that is the pattern to copy.
+- `Flywheel` takes a `Supplier<Angle>` for the hood angle (wired to `hood::getPosition` in
+  `RobotContainer`), used only by the trajectory visualizer. It never holds a `Hood`.
+- `Flywheel`, `Hood`, `ShotCalculator` and `HoodPosCalculator` read targets and distances from
+  `RobotState`.
+- `Triggers.isFlywheelSpunUp` reads `flywheel::isSpunUp` through a `BooleanSupplier` handed
+  over once by `RobotContainer`.
+- `RobotModelVisualizer` takes three `Supplier<Angle>`s (pivot, hood, flywheel), never the
+  subsystems.
+
+The per-mechanism command files keep 2026 semantics rather than using the library's
+`RollerCommands` / `RotaryCommands` (velocity setters are `runOnce`; "stop" is a zero-velocity
+setpoint on most mechanisms) because the 2026 bindings depend on both.
 
 ---
 
@@ -118,7 +130,12 @@ permitted.
 RobotContainer.java   — subsystem wiring + command binding
 RobotState.java       — shared state and field geometry (singleton)
 Triggers.java         — all button and state trigger objects; owns the controllers
-[Sequences].java      — composed multi-subsystem pipelines (create when needed)
+commands/ShootSequences.java, commands/SpitSequences.java
+                      — composed multi-subsystem pipelines (the 2026 ones)
+HubShiftUtil.java     — 2026 hub-shift schedule (static)
+ShotModes.java        — 2026 shot-tuning / demo flags, FMS-guarded
+AutoPreview.java      — pre-match auto path preview and start-pose check
+RobotModelVisualizer.java — AdvantageScope 3D component poses
 ```
 
 **Rule for `RobotContainer`:** wiring only. If you find yourself writing if-statements or

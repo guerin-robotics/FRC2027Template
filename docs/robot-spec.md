@@ -1,34 +1,48 @@
 # Guerin Robotics — Robot Specification
 
-> **THIS IS A SPEC SKELETON.** The 2026 version of this document was a complete
-> ~1450-line specification of that robot: every constant, every subsystem, every command,
-> every binding. It was the single best artifact for onboarding someone (or an agent)
-> onto the codebase fast.
+> **BRANCH `feature/rebuilt2026-port`: THIS DESCRIBES THE 2026 ROBOT ON THE 2027 TEMPLATE.**
 >
-> That content was all 2026-specific, so it was not carried over. What remains is the
-> **structure**, plus the sections that describe code that actually shipped in this
-> template (§2–§6, §9, §11, §14–§17).
+> This branch rebuilds the Rebuilt2026 competition code (its `main`, August 2026) on this
+> template: the eight mechanisms on `frc/lib/mechanism`, the 2026 game logic, bindings and
+> autos. It exists to show what the template does and does not carry, and it is never merged
+> to `main` — on `main` this file is a 2027 skeleton.
 >
-> Fill the TODO sections in as the 2027 robot is built. Keeping this current is what makes
-> the rest of the AI workflow work — see `docs/ai-development-handbook.md` §7.
+> Every difference from how Rebuilt2026 behaved is listed in
+> [rebuilt2026-port.md](rebuilt2026-port.md). Read that before trusting this robot on the floor.
 
-**Status:** template skeleton — not yet a description of any robot
-**Last updated:** when this template was created
+**Status:** 2026 robot, ported — shop testing only, not for events
+**Last updated:** 2026-09-29
 
 ---
 
 ## 1. Game Context
 
-TODO — after kickoff, describe:
+The 2026 FRC game **"Rebuilt"**: each alliance scores by launching fuel (balls) into its hub.
+The robot intakes fuel off the floor, carries it through a hopper (transport, lower and upper
+feeders, prestage) and launches it from a five-motor flywheel under an adjustable hood. The
+shooter faces the **rear** of the robot.
 
-- The game, in a paragraph
-- Scoring elements and where they score
-- Match phases and their durations
-- What this robot is designed to do, and explicitly what it is *not*
-- Alliance/field asymmetry that affects code (mirrored vs rotated field)
+**Hub shift.** The hub alternates between the alliances on a fixed 140 s teleop schedule, and
+scoring only counts in your active window. The FMS game-specific message's first character
+decides who starts active, inverted in code (`'R'` → blue starts active). `HubShiftUtil` owns
+the schedule:
 
-The 2026 version of this section was what let an agent reason about *why* a sequence
-existed, not just what it did. It is worth the half hour.
+| Window | Time into teleop |
+|---|---|
+| TRANSITION | 0 – 10 s |
+| SHIFT1 | 10 – 35 s |
+| SHIFT2 | 35 – 60 s |
+| SHIFT3 | 60 – 85 s |
+| SHIFT4 | 85 – 110 s |
+| ENDGAME | 110 – 140 s |
+
+Active-first schedule `{T, T, F, T, F, T}`, the other `{T, F, T, F, T, T}`. Window edges are
+shifted for flight time and count delay: opening −1.75 s, closing 0.0 s.
+
+**What the robot does with a single trigger:** in our alliance zone while our hub is active it
+aims the rear at the hub, spins up to a distance-mapped speed and hood angle, and feeds once
+spun up and aligned; in our zone while the hub is inactive it aims and waits; outside our zone
+it passes to a fixed target on our side. The field is **mirrored** (`AllianceFlipUtil`).
 
 ---
 
@@ -69,7 +83,21 @@ frc/robot/commands/          DriveCommands (+ one file per mechanism)
 Tests mirror this structure under `src/test/java`. See [testing.md](testing.md) for what each
 layer covers, and — just as important — what it does not.
 
-TODO — add mechanism packages as they are created.
+This branch adds:
+
+```
+frc/robot/                   + HubShiftUtil, Zones, ShotModes, AutoPreview, RobotModelVisualizer
+frc/robot/subsystems/flywheel/     Flywheel, FlywheelConstants, ShotCalculator, FlywheelVisualizer
+frc/robot/subsystems/hood/         Hood, HoodConstants, HoodPosCalculator
+frc/robot/subsystems/intakePivot/  IntakePivot, IntakePivotConstants
+frc/robot/subsystems/intakeRoller/ IntakeRoller, IntakeRollerConstants
+frc/robot/subsystems/prestage/     Prestage, PrestageConstants
+frc/robot/subsystems/upperFeeder/  UpperFeeder, UpperFeederConstants
+frc/robot/subsystems/lowerFeeder/  LowerFeeder, LowerFeederConstants
+frc/robot/subsystems/transport/    Transport, TransportConstants
+frc/robot/commands/          + one *Commands per mechanism (FeederCommands covers both feeders),
+                               ShootSequences, SpitSequences
+```
 
 ---
 
@@ -110,8 +138,16 @@ removed to keep the suite small.
 `AllianceFlipUtil.refresh()` must run **before** the scheduler — commands read the cached
 value during their own execution.
 
-TODO — 2026 also did hub-shift init, driver-preset latching, controller-mode latching, and
-dashboard publishing here. Add whatever 2027 equivalents appear, and keep this table current.
+**Added on this branch (the 2026 behavior):**
+
+| Phase | What happens |
+|---|---|
+| Constructor | Publish the "Robot Pose Field Map" `Field2d` and the 2026 pre-match checklist (29 devices) |
+| `robotPeriodic` | After the battery logger: robot pose to the field map, 3D model poses, `ShotModes.update()`, log `driverPreset` and `driveController` |
+| `disabledPeriodic` | `AutoPreview`: draw the selected auto, report distance from its start pose |
+| `autonomousPeriodic` | Robot on the auto preview field; "Match Time" to the dashboard |
+| `teleopInit` | Schedule stop-all; `HubShiftUtil.initialize()`; latch the drive controller; schedule intake roller at 12 V (runs until something else takes the roller) and pivot down; select the Elastic "Teleoperated" tab; latch the driver's rotation exponent |
+| `teleopPeriodic` | Hub-shift time left, "Win Auto?", "Is Hub Active", match time, aligned / spun up / X'd to the dashboard; hub shift to the log |
 
 ---
 
@@ -143,8 +179,13 @@ Constants
 ├── CanIds                         every non-swerve CAN ID, each with // CANivore or // RIO CAN
 ├── Setpoints                      voltages, velocities, positions a mechanism is commanded to
 ├── Waits                          every command timeout — nothing inline
-└── Thresholds                     alignment tolerances, readiness bands
+├── ShotModeRequests               2026 shot-tuning / demo requests, FMS-guarded by ShotModes
+├── Autos                          default auto name
+└── Thresholds                     alignment tolerances, readiness bands, start-pose check
 ```
+
+`Controllers` also carries the 2026 port map (flight stick on **2**, Xbox on 1, sim keyboard on
+3), the driver-preset exponents and the drive-controller option labels.
 
 The rule: **if you would change it in the pit between matches, it goes in `Constants`.**
 
@@ -205,34 +246,70 @@ Slot0 gain is in amps. See `docs/characterization-and-tuning.md` for how to meas
 Drive supply limit went 40 A → 60 A mid-season: ~12% more peak acceleration, 4× the
 brownouts, no change in top speed.
 
-TODO — add the 2027 alignment commands as they are written.
+**2026 alignment commands (this branch).** All but two are `joystickDriveAtAngle` with a
+heading supplier:
+
+| Factory | Heading / behavior | Bound |
+|---|---|---|
+| `alignOrXForShoot` | Aim at the hub; X once `isAlignedForCurrentShot` and the stick is centered | Real: shoot in zone |
+| `alignForDefenseShot` | Pathfinds to (3.5, 1.5 or 6.5) facing the shooter at the hub; finishes immediately | Sim only |
+| `joystickDriveAlignForTrench` | ±90° by side of the field's center line | Real and sim |
+| `joystickDriveAlignForBump` | Nearest diagonal | Sim only |
+| `joystickDriveAlignForTower`, `…ForWall`, `…ForSweep`, `…ForSweepToAllianceZone` | 2026 variants | Unbound |
 
 ---
 
 ## 10. Mechanism Subsystems
 
-**TODO — one section per mechanism.** Use this shape for each:
+Every mechanism is built on `frc/lib/mechanism`. That fixes, for all eight at once:
 
-```
-### [Mechanism Name]
+- **Control:** rollers use `MotionMagicVelocityTorqueCurrentFOC`, position mechanisms
+  `MotionMagicTorqueCurrentFOC`; open loop is `VoltageOut` with FOC. Gains are in amps.
+- **Logged inputs:** the shared `MotorIO` schema under the mechanism's name — applied volts,
+  stator / supply / torque amps, position, velocity, temperature, closed-loop reference and
+  error, four sticky faults — plus `/FollowerN` and `/Encoder` groups where present. 50 Hz
+  control group, 10 Hz diagnostics, 4 Hz faults, `optimizeBusUtilization` last.
+- **Health:** `registerFaultMonitors()` for disconnect, reboot, over-temperature, hardware fault.
 
-**Files:** subsystems/x/… + commands/XCommands.java
-**Hardware:** motor type, CAN ID(s), bus, followers (and whether they oppose), encoder
-**Control mode:** VoltageOut / VelocityTorqueCurrentFOC / MotionMagic…
-**Gains:** kP/kI/kD/kS/kV/kA and where they live
-**Current limits:** supply / stator, and why those values
-**Logged inputs:** the @AutoLog field list — voltage, stator amps, supply amps,
-                   velocity, temperature, and torque current if any control request
-                   is *TorqueCurrentFOC (see .claude/rules/02-hardware.md)
-**State queries:** isAtVelocity(), isAtPosition(), … and their tolerances
-**Commands:** every factory, what it does, what it names itself
-**Default command:** what it idles to
-**Failure modes:** what breaks if this is wrong
-```
+Hardware, gains, limits and ratios per mechanism are in
+[hardware-layout.md](hardware-layout.md#mechanism-configuration); this section covers behavior.
 
-The 2026 spec had nine of these (flywheel, hood, intake pivot, intake roller, prestage,
-upper feeder, lower feeder, transport, plus drive and vision). That level of detail is the
-point — it is what let an agent make a correct change without reading every file.
+### Flywheel
+**Files:** `subsystems/flywheel/` + `commands/FlywheelCommands.java`. Five Krakens, 36:24.
+**At speed:** within 200 RPM (`isSpunUp()` = `isAtVelocity()`), feeds `Triggers.isFlywheelSpunUp`.
+**Shot selection:** `setSpeedForHub` / `ForPassing` / `ForTarget` / `ForDistance` through
+`ShotCalculator` and the `SPEED_MAP` / `PASSING_SPEED_MAP` tables, clamped 100–5600 RPM.
+`shootDynamic` (shoot-on-the-move, sim-bound only) is ported with three known bugs, documented
+in place.
+**Default:** hold 1200 RPM idle.
+**Commands:** velocity factories are `run` (hold until interrupted); `stop` sets 0 RPM.
+
+### Hood
+**Files:** `subsystems/hood/` + `commands/HoodCommands.java`. Fused CANcoder, 0–62°.
+**Aim:** `setHoodPosForHub` / `ForPass` through `HoodPosCalculator` and `ANGLE_MAP` /
+`PASSING_ANGLE_MAP`. Setpoints are clamped to the soft limits by the library.
+**Default:** hold 0° (`hoodIdle`). Aiming commands stow to 0° when they end.
+
+### Intake Pivot
+**Files:** `subsystems/intakePivot/` + `commands/IntakePivotCommands.java`. Remote CANcoder;
+0 = deployed, 0.3 rot = retracted.
+**Compress:** lift to 0.25 rot after 0.5 s (single) or 0.115 → 0 → 0.25 (double), chosen live
+by `ContinuousConditionalCommand`. Auto uses its own single compress.
+**Default:** none. `setPivotPosition` is `runOnce`; the device holds the goal.
+**Soft limits:** effectively off, as 2026 ran — see the constants file.
+
+### Intake Roller
+**Files:** `subsystems/intakeRoller/` + `commands/IntakeRollerCommands.java`. Two motors.
+**Default:** 3 V agitate (real robot only). Intake is 12 V while held; stop is 0 RPM.
+
+### Prestage
+**Files:** `subsystems/prestage/` + `commands/PrestageCommands.java`. Two motors.
+Runs 3000 RPM with the flywheel; stop is 0 RPM. No default command (commented out in 2026).
+
+### Upper and Lower Feeder, Transport
+**Files:** one package each + `commands/FeederCommands.java`, `commands/TransportCommands.java`.
+Feeders run −3000 RPM, transport −1800 RPM, set once (`runOnce`) and left running until a stop.
+"After wait" variants wait 0.5 s, then for alignment within the remaining 1.0 s. No defaults.
 
 ---
 
@@ -290,34 +367,72 @@ Current surface (game-agnostic):
 | `setPoseSupplier(Supplier<Pose2d>)` | wiring, called once by `Drive` |
 | `updateModuleStates(SwerveModuleState[])` | called each loop by `Drive` |
 
-TODO — add scoring targets, alignment predicates, and zone classification for 2027.
+**2026 game state (this branch):**
+
+| Method | Returns |
+|---|---|
+| `getAllianceHubTarget()` | our hub's top center, flipped for red |
+| `getAngleToAllianceHub()` | heading that points the **rear shooter** at our hub (`@AutoLogOutput`) |
+| `getShooterAngleToTarget(Translation2d)` | heading that points the rear shooter at a point — 2026's `getAngleToTarget` |
+| `getDistanceToAllianceHub()` | `@AutoLogOutput` |
+| `getHubRelativeVelocity()` | for shoot-on-the-move (`@AutoLogOutput`) |
+| `getPassTarget()` | (4.5, 2.3 or 6.1) blue / (12.0, …) red, by field half |
+| `isAlignedToHub()` / `…Loose()` | within 1.5° / 6° |
+| `isAlignedToPass()` / `…Loose()` | within 7° / 7° |
+| `getBroadZone()` | alliance zone / alliance trench / neutral / opposing trench / opposing zone |
+| `getSpecificZone`, `getApproachingZoneX/Y`, `getApproachingZone` | finer zones; only `ApproachingZoneX` is read (sim) |
 
 Note `getAngleToTarget` returns the true bearing. The 2026 version silently added 180°
-because that shooter faced backward; the offset is now the caller's job.
+because that shooter faced backward; on this branch that offset lives in
+`getShooterAngleToTarget`, and every 2026 call site uses it.
 
 ---
 
 ## 13. Triggers.java
 
-Singleton; owns both controllers privately — flight stick (driver) and Xbox (operator), ports in
+Singleton; owns the controllers privately — flight stick, Xbox, and the sim keyboard, ports in
 `Constants.Controllers`. Exposes robot-convention axis suppliers (`driveXSupplier`,
 `driveYSupplier`, `driveRotSupplier` — sign flips live here, no deadband) and one named accessor
 per robot function. State triggers go here as `LoggedTrigger` fields.
 `.claude/rules/01-architecture.md` explains why.
 
-| Accessor | Button | Bound to |
-|---|---|---|
-| `resetGyro()` | flight stick 2 | re-zero heading, works while disabled |
-| `lockHeading()` | flight stick 3 | `joystickDriveAtAngle` at 0° |
-| `stopWithX()` | flight stick 4 | `stopWithX` |
+**This branch carries the 2026 layout,** including the dashboard drive-controller swap:
+`latchDriveController()` is called once from `teleopInit`, and `sourced()` routes each function
+to one device. The full button map is [driver-controls-card.md](driver-controls-card.md).
 
-TODO — add operator accessors as mechanisms land.
+| Accessor | Flight stick drives | Xbox drives |
+|---|---|---|
+| `shootButton` | FS 1 | RT |
+| `trenchAlignButton` | FS 2 | X |
+| `intakeInButton` / `intakeOutButton` | FS 3 / 4 | LB / RB |
+| `intakeRollerButton` | FS 5 | LT |
+| `intakeCompressButton` | FS 6 | FS 6 |
+| `demoDistanceShot` | FS 7 | FS 7 |
+| `wvroxOdometryReset` | FS 8 | D-pad down |
+| `passButton` | FS 9 | D-pad up |
+| `shootFromTowerButton` | FS 10 | Y |
+| `autoXOverride` | FS 12 | FS 12 |
+| `allianceWinFlipper` | Xbox A | FS 3 or 4 |
+| `allianceWinDisabler` | Xbox Y | FS 2 |
+| `doubleCompressOverride` | Xbox B | — |
+
+**State triggers** (2026 log keys): `isShootSafeZone`, `isShootSafeTime`, `isShootClear`,
+`isAlignedForCurrentShot` and `isAlignedLooser` (both debounced 0.3 s rising),
+`isFlywheelSpunUp`; new on this branch, `isHubInactiveInZone`, `isShotTuningMode`,
+`isDemoMode`.
 
 ---
 
 ## 14. Command Implementations
 
-See §9 for drive commands. TODO for mechanism commands.
+See §9 for drive commands and §10 for each mechanism's. The composition layer:
+
+| Factory | What it does |
+|---|---|
+| `ShootSequences.autoShootToHub` | The auto "Shoot": aim flywheel and hood at the hub, feed once spun up and loosely aligned (≤ 1 s), agitate and compress |
+| `ShootSequences.stopAll` | Stop every shooter mechanism and stow the hood; auto "stopAll" and teleopInit |
+| `ShootSequences.shootEndBehavior` | Unbound in 2026 |
+| `SpitSequences.*` | Clear the robot; none bound in 2026 |
 
 Patterns that must survive the season:
 
@@ -334,9 +449,28 @@ Wiring layer. Constructs subsystems per `Constants.currentMode` (REAL / SIM / RE
 registers PathPlanner named commands and event triggers **before**
 `AutoBuilder.buildAutoChooser()`, builds the auto chooser, then configures bindings.
 
-Current bindings: default `joystickDrive`, plus the three flight-stick accessors in §13. The
-auto chooser is a `LoggedDashboardChooser` built from `AutoBuilder.buildAutoChooser()` plus the
-SysId and characterization routines.
+This branch reproduces the two 2026 binding sets, which diverge — `configureRealBindings()`
+on a roboRIO, `configureSimBindings()` in simulation. The real set, by mechanism:
+
+- **Drive:** shoot in zone → `alignOrXForShoot` at half speed; shoot out of zone (not demo) → aim
+  at the pass target at half speed; trench button → trench align; odometry reset → a `run`
+  command that holds the drivetrain (a 2026 issue, kept).
+- **Flywheel + prestage:** shoot while clear → hub-distance speed; shoot out of zone → pass
+  speed; pass / tower / tuning / demo buttons → fixed-speed shots with timed feeding.
+- **Feed:** shoot, not in-zone-with-hub-inactive, loosely aligned → wait for spin-up (≤ 1 s),
+  then feed. The intake roller agitates at 3 V under the same condition.
+- **Pivot:** in / out / manual compress, plus automatic compress while feeding and on tower or
+  pass shots. Manual pivot input cancels the automatic compress until the trigger is released.
+- **Hood:** hub map while clear, 2.5° tower, 28° pass, tuning and demo angles.
+
+**Named commands:** `DeployIntake`, `RetractIntake`, `RunIntake`, `Shoot`, `stopAll`,
+`HoodDownNamed`. **Event markers:** `DeployIntake`, `RetractIntake`, `RunIntake` (no
+requirements), `HoodDown` (requires the hood — a 2026 issue, kept). The chooser defaults to
+`2.5-Left-Comp`; the "Auto Delay" dashboard value delays the start. SysId routines stay in the
+chooser for shop testing (commented out in 2026).
+
+**Choosers:** "Auto Choices", "Driver Preset" (Parker 1.35 / Christian 2.0 rotation exponent),
+"Drive controller" (Thrustmaster / Xbox).
 
 No game logic here. Ever.
 
@@ -373,12 +507,12 @@ No game logic here. Ever.
 | Pose divergence detected but not guarded | A bad estimate persists until good vision arrives |
 | `maxPoseJumpMeters` filter written but never tuned or enabled | One less defense against bad poses |
 | Jam detection exists (`RollerMechanism`) but has no measured thresholds | Jams stay silent until the 2027 intake's thresholds are logged and set |
-| Autos overran the auto period; last path truncated every match | Lost auto points |
+| Autos overran the auto period; last path truncated every match | Lost auto points — the autos on this branch are the same files |
 | `Measure`-typed log fields record in SI base units | Temperatures read as Kelvin |
 
 ---
 
 ## 18. Robot Physical Specifications
 
-TODO — see `docs/hardware-layout.md`. Weigh the robot, estimate MOI, measure real top
-speed rather than trusting the configured value.
+See `docs/hardware-layout.md`: 63.503 kg, MOI 5.162 kg·m², wheel COF 2.225, 4.0 m/s
+configured (voltage-saturated near 3.8 m/s in 2026 logs), 22 in square wheelbase, 2 in wheels.

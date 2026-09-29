@@ -6,6 +6,13 @@ Everything here has been made season- and robot-agnostic. Where a document descr
 2026 robot specifically, the **structure** was kept and the data was replaced with TODOs —
 those files carry a banner at the top saying exactly what needs filling in.
 
+> **Branch `feature/rebuilt2026-port`:** this branch rebuilds the 2026 robot on the template, so
+> the robot-specific docs below are filled in with 2026 data — hardware layout, robot spec,
+> subsystem ownership, the driver card, the vision tables, and the controller swap (wired here).
+> **Start with [rebuilt2026-port.md](rebuilt2026-port.md)**: every way this port differs from
+> Rebuilt2026, the 2026 bugs carried over, and the decisions still open. The status notes in the
+> tables below describe `main`.
+
 ---
 
 ## Ready to use as-is

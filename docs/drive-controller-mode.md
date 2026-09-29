@@ -1,18 +1,13 @@
 # Drive Controller Mode — Swapping Controllers Between Matches
 
-> **THE SWAP IS NOT WIRED UP. The hooks for it are.**
+> **Branch `feature/rebuilt2026-port`: THE SWAP IS WIRED UP HERE**, as the 2026 robot had
+> it. On `main` it is not — only the hooks are.
 >
-> The flight stick always drives and the Xbox always operates. There is no dashboard
-> chooser and no `XBOX_DRIVE_MODE` latch.
->
-> What *does* exist is the part that is expensive to retrofit: `Triggers.java`, a
-> `Constants.Controllers` block, and the rule that every drive-axis read goes through
-> `Triggers.driveXSupplier()` / `driveYSupplier()` / `driveRotSupplier()`. Because no
-> call site touches a controller object, **adding the swap means editing `Triggers.java`
-> and nothing else.**
->
-> The rest of this document is the design record for that work — the details below were
-> learned the hard way at an event. Rewrite it as operating instructions if you build it.
+> On this branch the "Drive controller" chooser is built in `RobotContainer`, the selection
+> is latched in `Robot.teleopInit()` into `Triggers.latchDriveController(...)` (a field in
+> `Triggers`, not the 2026 `ControllerConstants.XBOX_DRIVE_MODE` static), and
+> `robotPeriodic()` logs it as `driveController`. The code snippets below are the 2026
+> design record; the port follows them except for where the latched flag lives.
 
 ---
 
