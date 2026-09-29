@@ -8,9 +8,13 @@
 package frc.robot.subsystems.vision;
 
 import static edu.wpi.first.math.util.Units.inchesToMeters;
+import static edu.wpi.first.units.Units.Degrees;
+import static edu.wpi.first.units.Units.Inches;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation3d;
 import frc.lib.util.FieldConstants;
 import org.littletonrobotics.junction.Logger;
 
@@ -20,15 +24,14 @@ public class VisionConstants {
 
   // ---- Camera setup ----
   //
-  // TODO(2027): rename these to match the names configured on each coprocessor, and
-  // delete any cameras the 2027 robot does not have. The count here must match the
-  // number of VisionIO instances constructed in RobotContainer for ALL THREE modes
-  // (REAL, SIM, REPLAY) — replay needs one VisionIO per camera so every camera's
-  // logged inputs are replayed.
-  public static final String camera0Name = "camera0";
-  public static final String camera1Name = "camera1";
-  public static final String camera2Name = "camera2";
-  public static final String camera3Name = "camera3";
+  // The 2026 competition robot's four cameras. Names must match the names configured on each
+  // coprocessor. The count here must match the number of VisionIO instances constructed in
+  // RobotContainer for ALL THREE modes (REAL, SIM, REPLAY) — replay needs one VisionIO per camera
+  // so every camera's logged inputs are replayed.
+  public static final String camera0Name = "RobotRight";
+  public static final String camera1Name = "RobotLeft";
+  public static final String camera2Name = "ShooterRight";
+  public static final String camera3Name = "ShooterLeft";
 
   // ---- Camera transforms ----
   //
@@ -36,14 +39,57 @@ public class VisionConstants {
   // Y left, Z up) plus rotation (roll, pitch, yaw). Note that in WPILib a camera tilted
   // UPWARD has a NEGATIVE pitch.
   //
-  // TODO(2027): MEASURE THESE ON THE REAL ROBOT. They are identity placeholders. Vision
-  // pose estimates are garbage until these are correct — a 1 inch error in camera
-  // position is a 1 inch error in every pose estimate that camera produces, and a 1°
-  // yaw error grows with tag distance.
-  public static final Transform3d robotToCamera0 = new Transform3d();
-  public static final Transform3d robotToCamera1 = new Transform3d();
-  public static final Transform3d robotToCamera2 = new Transform3d();
-  public static final Transform3d robotToCamera3 = new Transform3d();
+  // Measured on the 2026 competition robot (Rebuilt2026 main). They describe that robot only.
+
+  // Robot right camera (flipped to left):
+  // x: 1.000
+  // y: -13.175
+  // z: 6.708 - 0.25 = 6.458
+  // roll: 0.0
+  // pitch: 15.0 (positive = tilted upward in WPILib)
+  // yaw: -90.0
+  public static final Transform3d robotToCamera0 =
+      new Transform3d(
+          new Translation3d(Inches.of(1.0), Inches.of(-12.171), Inches.of(6.438)),
+          new Rotation3d(Degrees.of(0.0), Degrees.of(-15.0), Degrees.of(270.0)));
+
+  // Robot left camera (flipped to right):
+  // x: 1.000
+  // y: 13.425
+  // z: 6.708 - 0.25 = 6.458
+  // roll: 0.0
+  // pitch: 15.0
+  // yaw: 90.0
+  public static final Transform3d robotToCamera1 =
+      new Transform3d(
+          new Translation3d(Inches.of(1.0), Inches.of(12.421), Inches.of(6.438)),
+          new Rotation3d(Degrees.of(0.0), Degrees.of(-15.0), Degrees.of(90.0)));
+
+  // Shooter right (flipped to left):
+  // x: -13.576
+  // y: -6.125
+  // z: 11.028 + 1.5 = 12.528
+  // roll: 0.0
+  // pitch: 15.0
+  // yaw: 180.0
+  public static final Transform3d robotToCamera2 =
+      new Transform3d(
+          new Translation3d(
+              Inches.of(-12.572), Inches.of(-6.125), Inches.of(12.509)), // -11.028 - 1.5
+          new Rotation3d(Degrees.of(0.0), Degrees.of(-15.0), Degrees.of(180)));
+
+  // Shooter left (flipped to right):
+  // x: -13.576
+  // y: 5.375
+  // z: 11.028 + 1.5 = 12.528
+  // roll: 0.0
+  // pitch: 15.0
+  // yaw: 180.0
+  public static final Transform3d robotToCamera3 =
+      new Transform3d(
+          new Translation3d(
+              Inches.of(-12.572), Inches.of(5.375), Inches.of(12.509)), // -11.028 - 1.5
+          new Rotation3d(Degrees.of(0.0), Degrees.of(-15.0), Degrees.of(180)));
 
   // ---- Filtering thresholds ----
   //
