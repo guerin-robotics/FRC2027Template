@@ -7,8 +7,10 @@
 
 package frc.robot;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -16,11 +18,13 @@ import frc.lib.util.AllianceFlipUtil;
 import frc.lib.util.BatteryLogger;
 import frc.lib.util.CANBusMonitor;
 import frc.lib.util.CommandLogger;
+import frc.lib.util.Elastic;
 import frc.lib.util.FaultMonitor;
 import frc.lib.util.LoopTimeMonitor;
 import frc.lib.util.MatchMetadataLogger;
 import frc.lib.util.PhoenixSignalLogger;
 import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.drive.DriveConstants;
 import org.littletonrobotics.junction.AutoLogOutputManager;
 import org.littletonrobotics.junction.LogFileUtil;
 import org.littletonrobotics.junction.LoggedRobot;
@@ -65,6 +69,9 @@ public class Robot extends LoggedRobot {
   private static final double COAST_DELAY_SECONDS = 3.0;
   private final Timer disabledTimer = new Timer();
   private boolean hasCoasted = false;
+
+  /** Where the robot thinks it is, on the dashboard in every mode. */
+  private final Field2d fieldMap = new Field2d();
 
   public Robot() {
     // Record metadata
@@ -124,19 +131,24 @@ public class Robot extends LoggedRobot {
     // and put our autonomous chooser on the dashboard.
     robotContainer = new RobotContainer();
 
-    // Short pre-match checklist, visible from the driver station without paper.
-    // TODO: fill in the device count and add one line per 2027 mechanism, in the order the
-    // drive team exercises them. Keep this in sync with docs/pre-match-checklist.md — that
-    // is the full version; this is the pit-side reminder.
+    SmartDashboard.putData("Robot Pose Field Map", fieldMap);
+
+    // Short pre-match checklist, visible from the driver station without paper. Keep this in
+    // sync with docs/pre-match-checklist.md — that is the full version; this is the pit-side
+    // reminder. The device count and mechanism lines are the 2026 robot's.
     SmartDashboard.putString(
         "Pre-Match Checklist",
         """
-        Phoenix Tuner: ___ devices
+        Phoenix Tuner: 29 devices
         USB drive in (no USB = no log)
         Correct code deployed, GitDirty clean
         Tuning/demo mode OFF
         Drive: all 4 modules
         Vision: tags detected
+        Intake in/out
+        Manual compress
+        Run rollers
+        Shoot (may not run)
         Correct auto selected
         Robot on auto start pose
         Swap battery
@@ -173,6 +185,13 @@ public class Robot extends LoggedRobot {
     batteryLogger.setRioCurrent(RobotController.getInputCurrent());
     batteryLogger.periodicAfterScheduler();
 
+    // 2026 dashboard and model: robot pose, 3D component poses, shot modes.
+    fieldMap.setRobotPose(RobotState.getInstance().getEstimatedPose());
+    robotContainer.updateRobotModelVisualizer();
+    ShotModes.update();
+    Logger.recordOutput("driverPreset", DriveConstants.rotationExponent);
+    Logger.recordOutput("driveController", Triggers.getInstance().isXboxDriving());
+
     // Health and diagnostics. All of these self-throttle or short-circuit, so they are cheap
     // to call every loop.
     canBusMonitor.periodic();
@@ -205,6 +224,10 @@ public class Robot extends LoggedRobot {
       robotContainer.setDriveBrakeMode(false);
       hasCoasted = true;
     }
+
+    // Pre-match check: draw the selected auto and report distance from its start pose.
+    robotContainer.autoPreview().updatePathPreview();
+    robotContainer.autoPreview().checkStartPose();
   }
 
   /** Brake on every enable, whichever mode we are entering. */
@@ -246,6 +269,9 @@ public class Robot extends LoggedRobot {
     if (!autoDurationLogged && autonomousCommand != null && !autonomousCommand.isScheduled()) {
       logAutoDuration(false);
     }
+
+    robotContainer.autoPreview().showRobotPose();
+    SmartDashboard.putNumber("Match Time", DriverStation.getMatchTime());
   }
 
   /** Called when leaving autonomous, whether the routine finished or the period expired. */
@@ -283,11 +309,51 @@ public class Robot extends LoggedRobot {
     if (autonomousCommand != null) {
       autonomousCommand.cancel();
     }
+
+    // ---- 2026 teleop start ----
+
+    // Stop every shooter mechanism auto left running.
+    CommandScheduler.getInstance().schedule(robotContainer.getAutoStopCommand());
+
+    // Start the hub-shift clock from zero.
+    HubShiftUtil.initialize();
+
+    // Latch the drive-controller selection for this enable. This is the ONLY place it is read —
+    // changing the dashboard mid-match does nothing until the next disable -> enable.
+    Triggers.getInstance().latchDriveController(robotContainer.isXboxDriveSelected());
+
+    // Deploy the intake and run the roller. The roller command runs until something else takes
+    // the intake roller.
+    CommandScheduler.getInstance().schedule(robotContainer.getIntakeRollerCommand());
+    CommandScheduler.getInstance().schedule(robotContainer.getIntakePivotCommand());
+
+    Elastic.selectTab("Teleoperated");
+
+    // Latch the selected driver's rotation response.
+    DriveConstants.rotationExponent = robotContainer.getDriverPreset();
   }
 
   /** This function is called periodically during operator control. */
   @Override
-  public void teleopPeriodic() {}
+  public void teleopPeriodic() {
+    // Driver dashboard: hub shift, alignment, spin-up, X.
+    SmartDashboard.putNumber(
+        "Time Left in Shift",
+        Math.round(HubShiftUtil.getShiftedShiftInfo().remainingTime() * 10.0) / 10.0);
+    SmartDashboard.putBoolean("Win Auto?", !HubShiftUtil.isActiveFirst());
+    SmartDashboard.putBoolean("Is Hub Active", HubShiftUtil.getShiftedShiftInfo().active());
+    SmartDashboard.putNumber("Match Time", DriverStation.getMatchTime());
+
+    SmartDashboard.putBoolean(
+        "Aligned To Shoot?", Triggers.getInstance().isAlignedForCurrentShot.getAsBoolean());
+    SmartDashboard.putBoolean("Spun Up To Shoot?", robotContainer.isFlywheelSpunUp());
+    SmartDashboard.putBoolean("Wheels X-ed?", robotContainer.isDriveXed());
+
+    Logger.recordOutput("RobotState/HubShift", HubShiftUtil.getShiftedShiftInfo().active());
+    Logger.recordOutput("RobotState/firstActiveAlliancer", HubShiftUtil.getFirstActiveAlliance());
+    Logger.recordOutput(
+        "RobotState/timeRemainingInShift", HubShiftUtil.getShiftedShiftInfo().remainingTime());
+  }
 
   /** This function is called once when test mode is enabled. */
   @Override

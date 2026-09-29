@@ -7,7 +7,16 @@
 
 package frc.robot;
 
+import static edu.wpi.first.units.Units.Degrees;
+import static edu.wpi.first.units.Units.RPM;
+import static edu.wpi.first.units.Units.Rotations;
+import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static edu.wpi.first.units.Units.Volts;
+
 import com.ctre.phoenix6.CANBus;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.RobotBase;
 
 /**
@@ -194,8 +203,13 @@ public final class Constants {
 
     private Controllers() {}
 
-    /** Flight stick — the driver. Translation and rotation. */
-    public static final int FLIGHT_STICK_PORT = 0;
+    /**
+     * Flight stick (a Thrustmaster) — the driver. Translation and rotation.
+     *
+     * <p>Port 2, as the 2026 robot's driver station was set up (Rebuilt2026 {@code
+     * JoystickControllerPort}); the template default is 0.
+     */
+    public static final int FLIGHT_STICK_PORT = 2;
 
     /** Xbox controller — the operator. Mechanisms and overrides. */
     public static final int XBOX_PORT = 1;
@@ -208,20 +222,29 @@ public final class Constants {
      */
     public static final double TRIGGER_THRESHOLD = 0.5;
 
-    // ---- Swap readiness ----
+    /**
+     * The keyboard joystick the 2026 simulation bindings read (Rebuilt2026 {@code
+     * SimKeyboardControllerPort}). Only polled when running in simulation.
+     */
+    public static final int SIM_KEYBOARD_PORT = 3;
+
+    // ---- Driver presets (2026) ----
     //
-    // The 2026 robot let the drive coach swap which controller drives, from a dashboard
-    // dropdown, so drivers could rotate between matches without a redeploy. That is NOT wired
-    // up here — the flight stick always drives.
+    // The drive coach picks a driver from the "Driver Preset" dashboard chooser before a match. The
+    // value is the exponent applied to rotation input (DriveConstants.rotationExponent), latched at
+    // teleopInit.
+
+    public static final double PARKER_ROTATION_EXPONENT = 1.35;
+    public static final double CHRISTIAN_ROTATION_EXPONENT = 2.0;
+
+    // ---- Drive controller swap (2026) ----
     //
-    // The hooks for it are in place, though: every drive-axis read in the codebase goes through
-    // Triggers.driveXSupplier()/driveYSupplier()/driveRotSupplier(), so adding the swap means
-    // editing Triggers.java and nothing else. No call site has to change.
-    //
-    // If you rebuild it, read docs/drive-controller-mode.md first — particularly the part about
-    // latching the selection in teleopInit() rather than polling it, and the drift bug that
-    // comes from one command reading a controller object directly while everything else uses
-    // the suppliers.
+    // The "Drive controller" dashboard chooser lets the drivers swap which controller drives
+    // between matches without a redeploy. The selection is latched once, in teleopInit — see
+    // Triggers and docs/drive-controller-mode.md. These are the two option labels.
+
+    public static final String FLIGHTSTICK_OPTION = "Thrustmaster";
+    public static final String XBOX_OPTION = "Xbox";
   }
 
   // ============================================================================================
@@ -253,9 +276,53 @@ public final class Constants {
 
     private Setpoints() {}
 
-    // public static final Voltage INTAKE_VOLTAGE = Volts.of(8.0);
-    // public static final AngularVelocity SCORE_VELOCITY = RPM.of(2400);
-    // public static final Angle STOW_POSITION = Degrees.of(0.0);
+    // ---- The 2026 competition robot (Rebuilt2026 HardwareConstants.CompConstants) ----
+
+    // Voltages
+    public static final Voltage INTAKE_ROLLER_VOLTAGE = Volts.of(12.0);
+    public static final Voltage INTAKE_ROLLER_AGITATE_VOLTAGE = Volts.of(3);
+
+    // Velocities
+    public static final AngularVelocity PRESTAGE_VELOCITY = RPM.of(3000.0);
+    public static final AngularVelocity FEEDER_VELOCITY = RPM.of(-3000.0);
+    public static final AngularVelocity TRANSPORT_VELOCITY = RPM.of(-1800);
+    public static final AngularVelocity FLYWHEEL_IDLE_VELOCITY = RPM.of(1200);
+    public static final AngularVelocity PRESTAGE_IDLE_VELOCITY = RPM.of(1300);
+    public static final AngularVelocity FLYWHEEL_HIGH_IDLE_VELOCITY = RPM.of(60);
+
+    // Positions
+    public static final Angle HOOD_DOWN_POSITION = Degrees.of(0);
+    public static final Angle PIVOT_UP_POSITION = Rotations.of(0.3);
+    public static final Angle PIVOT_DOWN_POSITION = Rotations.of(0.0);
+    public static final Angle PIVOT_JOSTLE_UP_POSITION = Rotations.of(0.25);
+    public static final Angle PIVOT_JOSTLE_FIRST_POSITION = Rotations.of(0.115);
+
+    // Fixed shots
+    public static final AngularVelocity FLYWHEEL_TOWER_VELOCITY = RPM.of(1625);
+    public static final Angle HOOD_TOWER_POSITION = Degrees.of(2.5);
+
+    /** The pass button's fixed flywheel speed. Inline in 2026's RobotContainer. */
+    public static final AngularVelocity FLYWHEEL_PASS_BUTTON_VELOCITY = RPM.of(2050);
+
+    /** The hood angle for passing on the real robot. Inline in 2026's RobotContainer. */
+    public static final Angle HOOD_PASS_POSITION = Degrees.of(28);
+
+    // Shot tuning and demo (see ShotModes)
+    public static final AngularVelocity FLYWHEEL_TUNING_VELOCITY = RPM.of(4500.0);
+    public static final Angle HOOD_TUNING_POSITION = Degrees.of(12.25);
+    public static final Angle HOOD_DEMO_POSITION = Degrees.of(25);
+
+    // Spit (clearing the robot). SpitSequences, unbound in 2026.
+    public static final Voltage TRANSPORT_SPIT_VOLTAGE = Volts.of(12);
+    public static final Voltage INTAKE_ROLLER_SPIT_VOLTAGE = Volts.of(10);
+    public static final AngularVelocity PRESTAGE_SPIT_VELOCITY = RotationsPerSecond.of(50.0);
+    public static final AngularVelocity FEEDER_SPIT_VELOCITY = RotationsPerSecond.of(50.0);
+    public static final AngularVelocity FLYWHEEL_SPIT_VELOCITY = RotationsPerSecond.of(17);
+
+    /** Odometry reset in front of the tower (WVROX): blue-origin X, Y, facing 0°. */
+    public static final double TOWER_RESET_X_METERS = 3.5;
+
+    public static final double TOWER_RESET_Y_METERS = 4.0;
   }
 
   // ============================================================================================
@@ -327,6 +394,48 @@ public final class Constants {
 
     /** Auto shoot: delay before its single compress. */
     public static final double AUTO_WAIT_TO_COMPRESS_SECONDS = 0.50;
+
+    /** ShootSequences.shootEndBehavior: delay between stopping the feed and the flywheel. */
+    public static final double SHOOT_END_FLYWHEEL_DELAY_SECONDS = 0.25;
+
+    /** SpitSequences.spitAfterShoot: how long to spit. */
+    public static final double SPIT_AFTER_SHOOT_SECONDS = 0.5;
+
+    /** Seconds before the selected auto starts, unless changed on the "Auto Delay" dashboard. */
+    public static final double DEFAULT_AUTO_DELAY_SECONDS = 0.0;
+  }
+
+  // ============================================================================================
+  // SHOT MODES
+  // ============================================================================================
+
+  /**
+   * Requested shot-tuning and demo modes. See {@link ShotModes} for what they do.
+   *
+   * <p><b>Both MUST BE FALSE FOR COMPETITION.</b> With {@link #AT_COMP} true they are forced off
+   * whenever the FMS is attached anyway.
+   */
+  public static final class ShotModeRequests {
+
+    private ShotModeRequests() {}
+
+    public static final boolean SHOT_TUNING = false;
+    public static final boolean DEMO = false;
+
+    /** When true, the FMS being attached forces both modes off. */
+    public static final boolean AT_COMP = true;
+  }
+
+  // ============================================================================================
+  // AUTOS
+  // ============================================================================================
+
+  public static final class Autos {
+
+    private Autos() {}
+
+    /** Selected on boot. Must match a .auto file name. */
+    public static final String DEFAULT_AUTO_NAME = "2.5-Left-Comp";
   }
 
   // ============================================================================================
@@ -359,5 +468,11 @@ public final class Constants {
     public static final double PASS_ALIGNMENT_TOLERANCE_DEGREES = 7.0;
 
     public static final double PASS_LOOSE_ALIGNMENT_TOLERANCE_DEGREES = 7.0;
+
+    /** Pre-match check: how close to the auto's start position counts as placed correctly. */
+    public static final double STARTING_POSE_DISTANCE_INCHES = 6.0;
+
+    /** Pre-match check: how close to the auto's start heading counts as placed correctly. */
+    public static final double STARTING_POSE_ROTATION_DEGREES = 5.0;
   }
 }

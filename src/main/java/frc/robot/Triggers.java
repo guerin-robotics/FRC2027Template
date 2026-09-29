@@ -1,8 +1,12 @@
 package frc.robot;
 
+import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.lib.util.LoggedTrigger;
+import frc.robot.Zones.BroadZone;
+import java.util.function.BooleanSupplier;
 
 /**
  * Every {@link Trigger} in the robot, in one file.
@@ -14,29 +18,30 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  *
  * <p>See {@code .claude/rules/01-architecture.md}.
  *
- * <h2>Controller layout</h2>
+ * <h2>This branch: the 2026 layout</h2>
  *
- * <p><b>Flight stick drives. Xbox operates.</b> Both are plugged in for every match. Ports are in
- * {@link Constants.Controllers} and must be checked in the DS USB tab before the first match.
+ * <p>Ported from Rebuilt2026 {@code Triggers}. By default the flight stick (a Thrustmaster) drives
+ * and the Xbox is the override controller. The "Drive controller" dashboard chooser swaps them
+ * between matches; {@link #latchDriveController} applies the choice once, at teleopInit, and it is
+ * not re-read until the next enable. See {@code docs/drive-controller-mode.md}.
+ *
+ * <p>Driver functions move from the flight stick to the Xbox when the Xbox drives; override
+ * functions move the opposite way. {@link #sourced} polls exactly one device per trigger, so the
+ * swap costs one boolean read per trigger per loop.
  *
  * <h2>Why the controllers are private</h2>
  *
  * <p>Nothing outside this class may touch a controller object. Every axis read goes through {@link
  * #driveXSupplier()} / {@link #driveYSupplier()} / {@link #driveRotSupplier()}, and every button
- * goes through a named accessor below.
- *
- * <p>This is not style. It is what makes the dashboard controller swap addable later by editing
- * only this file — and it prevents the failure that actually bit in 2026, where one command read a
- * controller directly while everything else used the suppliers. That command then followed a stick
- * nobody was holding. The symptom was an align command drifting on its own while ordinary driving
- * worked fine: hours to diagnose, trivial to prevent.
+ * goes through a named accessor below. That is what makes the swap possible at all, and it prevents
+ * the 2026 bug where one command read a controller directly and followed a stick nobody was
+ * holding.
  *
  * <h2>Naming</h2>
  *
- * <p>Accessors are named for <b>what the robot does</b>, not for the button. {@code resetGyro()},
- * not {@code bButton()}. When the drive team asks to move a function to a different button, you
- * change one line here and every call site keeps working — and reviewing a binding does not require
- * a controller diagram.
+ * <p>Accessors are named for <b>what the robot does</b>, not for the button — {@code
+ * shootButton()}, not {@code button1()}. The names are the 2026 ones, so a binding reads the same
+ * as it did in Rebuilt2026.
  */
 public class Triggers {
 
@@ -53,15 +58,47 @@ public class Triggers {
   // CONTROLLERS — private on purpose. See the class javadoc.
   // ============================================================================================
 
-  /** The driver's flight stick: translation and rotation. */
+  /** The flight stick (Thrustmaster). Drives by default. */
   private final CommandJoystick flightStick =
       new CommandJoystick(Constants.Controllers.FLIGHT_STICK_PORT);
 
-  /** The operator's Xbox controller: mechanisms and overrides. */
+  /** The Xbox controller. Overrides by default; drives when selected. */
   private final CommandXboxController xbox =
       new CommandXboxController(Constants.Controllers.XBOX_PORT);
 
+  /** The keyboard joystick the simulation bindings read. */
+  private final CommandJoystick simKeyboard =
+      new CommandJoystick(Constants.Controllers.SIM_KEYBOARD_PORT);
+
   private Triggers() {}
+
+  // ============================================================================================
+  // DRIVE-SOURCE GATING
+  // ============================================================================================
+
+  /** Latched at teleopInit. False: flight stick drives. True: Xbox drives. */
+  private boolean xboxDrives = false;
+
+  /**
+   * Applies the dashboard's drive-controller selection. Call only from {@code teleopInit} — the
+   * whole point of latching is that a mid-match dashboard change does nothing.
+   */
+  public void latchDriveController(boolean xboxDrives) {
+    this.xboxDrives = xboxDrives;
+  }
+
+  public boolean isXboxDriving() {
+    return xboxDrives;
+  }
+
+  /**
+   * Routes a function to the control it lives on in each mode. The parameters are MODE-based, not
+   * device-based: drive functions move flight stick to Xbox, override functions the other way.
+   */
+  private Trigger sourced(Trigger whenFlightStickDrives, Trigger whenXboxDrives) {
+    return new Trigger(
+        () -> xboxDrives ? whenXboxDrives.getAsBoolean() : whenFlightStickDrives.getAsBoolean());
+  }
 
   // ============================================================================================
   // DRIVE AXES
@@ -73,106 +110,249 @@ public class Triggers {
   //   driveY   +1 = left
   //   driveRot +1 = counter-clockwise
   //
-  // The sign flips live here rather than at the call site on purpose. A flight stick reports
-  // pushed-forward as NEGATIVE Y, which is the opposite of the robot's +X-forward convention,
-  // and every call site that re-derives that flip is a chance to get one of them backwards.
-  // Having it in one place means a command written by someone who has never thought about
-  // joystick sign conventions is still correct.
+  // 2026 negated these at every call site in RobotContainer (-getDriveY(), -getDriveX(),
+  // -getDriveRot()); the template does it here, once. Same values.
   //
-  // NO DEADBAND IS APPLIED HERE. DriveCommands applies it to the translation magnitude, which
-  // is what makes the deadband a circle rather than a plus-sign. Deadbanding per-axis here as
-  // well would reshape the response near center — a real bug, not a redundancy.
-  //
-  // Adding the dashboard controller swap means changing only these three methods and the button
-  // accessors below. See docs/drive-controller-mode.md.
+  // NO DEADBAND IS APPLIED HERE. DriveCommands applies it to the translation magnitude.
 
   /** Forward/backward. +1 is away from your alliance wall. */
   public double driveXSupplier() {
-    return -flightStick.getY();
+    return xboxDrives ? -xbox.getLeftY() : -flightStick.getY();
   }
 
   /** Left/right. +1 is left. */
   public double driveYSupplier() {
-    return -flightStick.getX();
+    return xboxDrives ? -xbox.getLeftX() : -flightStick.getX();
   }
 
   /** Rotation. +1 is counter-clockwise. */
   public double driveRotSupplier() {
-    return -flightStick.getTwist();
+    return xboxDrives ? -xbox.getRightX() : -flightStick.getTwist();
   }
 
   // ============================================================================================
-  // DRIVER BUTTONS — flight stick
+  // DRIVER BUTTONS — flight stick by default, Xbox when it drives
+  // ============================================================================================
+
+  /** Shoot at the hub in our zone, pass outside it. Xbox: right trigger. */
+  public Trigger shootButton() {
+    return sourced(
+        flightStick.button(1), xbox.rightTrigger(Constants.Controllers.TRIGGER_THRESHOLD));
+  }
+
+  /** Snap heading for driving through the trench. Xbox: X. */
+  public Trigger trenchAlignButton() {
+    return sourced(flightStick.button(2), xbox.x());
+  }
+
+  /** Retract the intake. Xbox: left bumper. */
+  public Trigger intakeInButton() {
+    return sourced(flightStick.button(3), xbox.leftBumper());
+  }
+
+  /** Deploy the intake. Xbox: right bumper. */
+  public Trigger intakeOutButton() {
+    return sourced(flightStick.button(4), xbox.rightBumper());
+  }
+
+  /** Run the intake roller. Xbox: left trigger. */
+  public Trigger intakeRollerButton() {
+    return sourced(
+        flightStick.button(5), xbox.leftTrigger(Constants.Controllers.TRIGGER_THRESHOLD));
+  }
+
+  /** Manual hopper compress. No Xbox-mode home — auto-compress on shoot still works there. */
+  public Trigger intakeCompressButton() {
+    return flightStick.button(6);
+  }
+
+  /** Fixed tower shot: spins everything up, compresses, sets the hood. Xbox: Y. */
+  public Trigger shootFromTowerButton() {
+    return sourced(flightStick.button(10), xbox.y());
+  }
+
+  /** Fixed pass: spins everything up, sets the hood. Xbox: D-pad up. */
+  public Trigger passButton() {
+    return sourced(flightStick.button(9), xbox.povUp());
+  }
+
+  /** Reset odometry to the spot in front of the tower (added at WVROX). Xbox: D-pad down. */
+  public Trigger wvroxOdometryReset() {
+    return sourced(flightStick.button(8), xbox.povDown());
+  }
+
+  /** Demo shot. Only bound while demo mode is on. */
+  public Trigger demoDistanceShot() {
+    return flightStick.button(7);
+  }
+
+  // ============================================================================================
+  // OVERRIDE BUTTONS — Xbox by default, flight stick when the Xbox drives
   // ============================================================================================
 
   /**
-   * Re-zeroes the gyro to the current heading.
-   *
-   * <p>Field-relative driving is only as good as this. Expect to use it after a collision that
-   * moves the robot without the wheels turning.
+   * Flip which alliance won auto (the hub-shift schedule). In Xbox drive mode, flight stick buttons
+   * 3 and 4 are BOTH mapped here, per drive team request.
    */
-  public Trigger resetGyro() {
-    return flightStick.button(2);
+  public Trigger allianceWinFlipper() {
+    return sourced(xbox.a(), flightStick.button(3).or(flightStick.button(4)));
   }
 
-  /** Holds a fixed heading while the driver still controls translation. */
-  public Trigger lockHeading() {
-    return flightStick.button(3);
+  /** Turn the hub-shift timer off entirely. */
+  public Trigger allianceWinDisabler() {
+    return sourced(xbox.y(), flightStick.button(2));
+  }
+
+  /** Cancel the automatic X while shooting, for the rest of this shoot press. */
+  public Trigger autoXOverride() {
+    return flightStick.button(12);
   }
 
   /**
-   * Points the wheels into an X so the robot resists being pushed.
-   *
-   * <p>Worth binding somewhere reachable — it is the only defense against being shoved off a
-   * scoring position.
+   * Toggle double compress for this shoot press. Only live while the flight stick drives; in Xbox
+   * drive mode B is deliberately dead.
    */
-  public Trigger stopWithX() {
-    return flightStick.button(4);
+  public Trigger doubleCompressOverride() {
+    return sourced(xbox.b(), new Trigger(() -> false));
   }
 
   // ============================================================================================
-  // OPERATOR BUTTONS — Xbox
+  // SIMULATION BUTTONS — keyboard joystick, plus two Xbox buttons 2026 borrowed
   // ============================================================================================
-  //
-  // Add one accessor per robot function as mechanisms land. Name them for the action, not the
-  // button. Analog triggers take Constants.Controllers.TRIGGER_THRESHOLD rather than being read
-  // as raw booleans — they rest near zero but not at it, and a resting hand produces spurious
-  // presses otherwise.
-  //
-  //   public Trigger intake() {
-  //     return xbox.leftTrigger(Constants.Controllers.TRIGGER_THRESHOLD);
-  //   }
-  //
-  //   public Trigger score() {
-  //     return xbox.rightTrigger(Constants.Controllers.TRIGGER_THRESHOLD);
-  //   }
-  //
-  //   public Trigger stow() {
-  //     return xbox.b();
-  //   }
+
+  public Trigger simShootButton() {
+    return simKeyboard.button(1);
+  }
+
+  public Trigger simTrenchAlignButton() {
+    return simKeyboard.button(2);
+  }
+
+  public Trigger simIntakeInButton() {
+    return simKeyboard.button(3);
+  }
+
+  public Trigger simIntakeOutButton() {
+    return simKeyboard.button(4);
+  }
+
+  public Trigger simIntakeRollerButton() {
+    return simKeyboard.button(5);
+  }
+
+  public Trigger simIntakeCompressButton() {
+    return simKeyboard.button(6);
+  }
+
+  public Trigger simPassButton() {
+    return simKeyboard.button(7);
+  }
+
+  public Trigger simAllianceWinFlipper() {
+    return simKeyboard.button(8);
+  }
+
+  public Trigger simBumpAlignButton() {
+    return xbox.y();
+  }
+
+  public Trigger simShootFromTowerButton() {
+    return xbox.x();
+  }
+
+  /** X the wheels. Xbox X — the same button as {@link #simShootFromTowerButton()}, as in 2026. */
+  public Trigger xWheels() {
+    return xbox.x();
+  }
+
+  /** Raw keyboard axes, NOT sign-corrected — 2026 passed them to the drive unnegated. */
+  public double simXSupplier() {
+    return simKeyboard.getRawAxis(0);
+  }
+
+  public double simYSupplier() {
+    return simKeyboard.getRawAxis(1);
+  }
+
+  public double simRotationSupplier() {
+    return simKeyboard.getRawAxis(2);
+  }
 
   // ============================================================================================
   // STATE TRIGGERS
   // ============================================================================================
   //
-  // Conditions built from robot state rather than from a button — "is the mechanism ready", "is
-  // the robot in a legal position to score", "has the game piece been held long enough to be
-  // seated".
+  // LoggedTrigger, so every condition is in the match log. The keys are the 2026 keys, so 2026
+  // AdvantageScope layouts still find them. Fields, not methods: built once, polled every loop.
+
+  /** In our alliance zone, so a shot can score from here. */
+  public final LoggedTrigger isShootSafeZone =
+      new LoggedTrigger(
+          "isShootSafeZone",
+          () -> RobotState.getInstance().getBroadZone() == BroadZone.ALLIANCE_ZONE);
+
+  /** Our hub is active now (with the flight-time fudge), or the timer is off, or demo mode. */
+  public final LoggedTrigger isShootSafeTime =
+      new LoggedTrigger(
+          "isShootSafeTime",
+          () ->
+              HubShiftUtil.getShiftedShiftInfo().active()
+                  || HubShiftUtil.disabled
+                  || ShotModes.isDemo());
+
+  /** Both: in our zone while our hub is active. */
+  public final LoggedTrigger isShootClear =
+      new LoggedTrigger("isShootClear", isShootSafeTime.and(isShootSafeZone));
+
+  /**
+   * In our zone while our hub is inactive — the one case the real-robot feed bindings refuse to
+   * shoot in. 2026 wrote this inline in each binding as {@code !(isShootSafeZone &&
+   * !isShootSafeTime)}.
+   */
+  public final LoggedTrigger isHubInactiveInZone =
+      new LoggedTrigger(
+          "isHubInactiveInZone",
+          () -> isShootSafeZone.getAsBoolean() && !isShootSafeTime.getAsBoolean());
+
+  /** Shot-tuning mode is on. See {@link ShotModes}. */
+  public final LoggedTrigger isShotTuningMode =
+      new LoggedTrigger("isShotTuningMode", ShotModes::isShotTuning);
+
+  /** Demo mode is on. See {@link ShotModes}. */
+  public final LoggedTrigger isDemoMode = new LoggedTrigger("isDemoMode", ShotModes::isDemo);
+
+  /** Tight alignment to whichever target this zone shoots at, held 0.3 s. */
+  public final LoggedTrigger isAlignedForCurrentShot =
+      new LoggedTrigger(
+              "isAlignedForCurrentShot",
+              () ->
+                  RobotState.getInstance().getBroadZone() == BroadZone.ALLIANCE_ZONE
+                      ? RobotState.getInstance().isAlignedToHub()
+                      : RobotState.getInstance().isAlignedToPass())
+          .debounce(0.3, DebounceType.kRising);
+
+  /** Loose alignment, held 0.3 s. What the real-robot bindings feed on. */
+  public final LoggedTrigger isAlignedLooser =
+      new LoggedTrigger(
+              "isAlignedLooser",
+              () ->
+                  RobotState.getInstance().getBroadZone() == BroadZone.ALLIANCE_ZONE
+                      ? RobotState.getInstance().isAlignedToHubLoose()
+                      : RobotState.getInstance().isAlignedToPassLoose())
+          .debounce(0.3, DebounceType.kRising);
+
+  // ---- Flywheel ----
   //
-  // Use LoggedTrigger rather than Trigger for these. It publishes the condition to the log every
-  // time it is polled, which is the difference between a match review that can answer "why
-  // didn't it fire" and one that cannot. Buttons do not need it — the DS already logs joystick
-  // state.
-  //
-  //   public final LoggedTrigger readyToScore =
-  //       new LoggedTrigger("Triggers/ReadyToScore", () -> shooter.isAtVelocity());
-  //
-  // Compose rather than duplicate. A trigger that repeats another's condition inline will drift
-  // out of sync with it the first time one is edited:
-  //
-  //   public final LoggedTrigger clearToFire =
-  //       new LoggedTrigger("Triggers/ClearToFire", readyToScore.and(inScoringZone));
-  //
-  // Fields, not methods, so composition happens once at construction instead of allocating a new
-  // Trigger on every call.
+  // In 2026 this trigger was a field on the Flywheel subsystem. Triggers live here, and Triggers
+  // cannot hold a subsystem, so RobotContainer hands over the predicate once at construction.
+
+  private BooleanSupplier flywheelSpunUp = () -> false;
+
+  /** Wiring only. Called once, from RobotContainer. */
+  public void setFlywheelSpunUpSupplier(BooleanSupplier spunUp) {
+    this.flywheelSpunUp = spunUp;
+  }
+
+  public final LoggedTrigger isFlywheelSpunUp =
+      new LoggedTrigger("isFlywheelSpunUp", () -> flywheelSpunUp.getAsBoolean());
 }

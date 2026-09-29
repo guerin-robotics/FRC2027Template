@@ -19,7 +19,12 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.lib.util.AllianceFlipUtil;
+import frc.lib.util.ContinuousConditionalCommand;
+import frc.lib.util.FieldConstants;
 import frc.lib.util.LoggedTunableProfiledPID;
+import frc.robot.RobotState;
+import frc.robot.Triggers;
+import frc.robot.Zones;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConstants;
 import java.text.DecimalFormat;
@@ -352,6 +357,201 @@ public class DriveCommands {
               Logger.recordOutput("AutoAim/DriveToPose/AngleErrorRad", 0.0);
             })
         .withName("Drive_ToPose");
+  }
+
+  // ============================================================================================
+  // 2026 REBUILT ALIGNMENT — ported from Rebuilt2026 DriveCommands
+  // ============================================================================================
+  //
+  // Every one of these is joystickDriveAtAngle with a heading supplier, except alignOrXForShoot
+  // (which switches to an X once aligned) and alignForDefenseShot (which pathfinds). The 2026
+  // shooter faces the rear; RobotState.getAngleToAllianceHub() already includes that half turn.
+
+  /**
+   * Aim at a heading while the driver translates; once aligned for the current shot and the stick
+   * is centered, X the wheels instead. Moving the stick again drops back to aiming, which is what
+   * allows shooting on the move.
+   */
+  public static Command alignOrXForShoot(
+      Drive drive,
+      DoubleSupplier xSupplier,
+      DoubleSupplier ySupplier,
+      Supplier<Rotation2d> rotationSupplier) {
+    return new ContinuousConditionalCommand(
+            stopWithX(drive),
+            joystickDriveAtAngle(drive, xSupplier, ySupplier, rotationSupplier),
+            () ->
+                Triggers.getInstance().isAlignedForCurrentShot.getAsBoolean()
+                    && Math.abs(xSupplier.getAsDouble()) < 0.1
+                    && Math.abs(ySupplier.getAsDouble()) < 0.1)
+        .withName("Drive_AlignOrXForShoot");
+  }
+
+  /**
+   * Pathfind to the nearer of two fixed shooting spots beside the hub, facing the shooter at it.
+   * The pathfinding command is scheduled on its own, so this command finishes immediately. Sim
+   * binding only in 2026.
+   */
+  public static Command alignForDefenseShot(Drive drive) {
+    return Commands.runOnce(
+            () -> {
+              double targetX = AllianceFlipUtil.applyX(3.5);
+              double targetY;
+              if (AllianceFlipUtil.applyY(RobotState.getInstance().getEstimatedPose().getY())
+                  >= 4.0) {
+                targetY = AllianceFlipUtil.applyY(6.5);
+              } else {
+                targetY = AllianceFlipUtil.applyY(1.5);
+              }
+
+              // Same as getAngleToAllianceHub(), from the target pose rather than the current one
+              Translation2d hubTarget2d =
+                  RobotState.getInstance().getAllianceHubTarget().toTranslation2d();
+              Translation2d robotToHub = hubTarget2d.minus(new Translation2d(targetX, targetY));
+              Rotation2d targetRotation =
+                  new Rotation2d(robotToHub.getX(), robotToHub.getY()).plus(Rotation2d.kPi);
+
+              drive.pathfindToPose(new Pose2d(targetX, targetY, targetRotation));
+            },
+            drive)
+        .withName("Drive_AlignForDefenseShot");
+  }
+
+  /**
+   * Snap to ±90° to drive through the trench: 90° clockwise below the field's center line, 90°
+   * counter-clockwise above it. Flipped after the shooter rebuild so fuel heads toward the hub
+   * while passing through.
+   */
+  public static Command joystickDriveAlignForTrench(
+      Drive drive, DoubleSupplier xSupplier, DoubleSupplier ySupplier) {
+    return joystickDriveAtAngle(
+            drive,
+            xSupplier,
+            ySupplier,
+            () -> {
+              double currentY = RobotState.getInstance().getEstimatedPose().getY();
+              if (currentY < FieldConstants.LinesHorizontal.center) {
+                return Rotation2d.kCW_90deg;
+              } else {
+                return Rotation2d.kCCW_90deg;
+              }
+            })
+        .withName("Drive_AlignForTrench");
+  }
+
+  /** Snap to the nearest diagonal for crossing the bump. Sim binding only in 2026. */
+  public static Command joystickDriveAlignForBump(
+      Drive drive, DoubleSupplier xSupplier, DoubleSupplier ySupplier) {
+    return joystickDriveAtAngle(
+            drive,
+            xSupplier,
+            ySupplier,
+            () -> {
+              double currentRadians = drive.getRotation().getRadians();
+              if (Math.abs(currentRadians) <= Math.PI / 2.0) {
+                return Rotation2d.fromRadians(Math.PI / 4.0); // 45°
+              } else if (Math.abs(currentRadians) <= Math.PI) {
+                return Rotation2d.fromRadians((3 * Math.PI) / 4.0); // 135°
+              } else if (Math.abs(currentRadians) <= ((3 * Math.PI) / 2.0)) {
+                return Rotation2d.fromRadians((5 * Math.PI) / 4.0); // 225°
+              } else {
+                return Rotation2d.fromRadians((7 * Math.PI) / 4.0); // 315°
+              }
+            })
+        .withName("Drive_AlignForBump");
+  }
+
+  /** Unbound in 2026. */
+  public static Command joystickDriveAlignForTower(
+      Drive drive, DoubleSupplier xSupplier, DoubleSupplier ySupplier) {
+    return joystickDriveAtAngle(
+            drive,
+            xSupplier,
+            ySupplier,
+            () -> {
+              double currentY =
+                  AllianceFlipUtil.applyY(RobotState.getInstance().getEstimatedPose().getY());
+              if (currentY > FieldConstants.LinesHorizontal.center) {
+                Logger.recordOutput("RobotState/towerAlign", "farSide");
+                return AllianceFlipUtil.apply(Rotation2d.kCW_90deg);
+              } else {
+                Logger.recordOutput("RobotState/towerAlign", "nearSide");
+                return AllianceFlipUtil.apply(Rotation2d.kCCW_90deg);
+              }
+            })
+        .withName("Drive_AlignForTower");
+  }
+
+  /** Unbound in 2026. */
+  public static Command joystickDriveAlignForWall(
+      Drive drive, DoubleSupplier xSupplier, DoubleSupplier ySupplier) {
+    return joystickDriveAtAngle(
+            drive,
+            xSupplier,
+            ySupplier,
+            () -> {
+              double currentY = RobotState.getInstance().getEstimatedPose().getY();
+              if (currentY > FieldConstants.fieldWidth + Zones.ZONE_OFFSET) {
+                return Rotation2d.kCCW_Pi_2;
+              } else if (currentY < Zones.ZONE_OFFSET) {
+                return Rotation2d.kCW_Pi_2;
+              } else {
+                return Rotation2d.kPi;
+              }
+            })
+        .withName("Drive_AlignForWall");
+  }
+
+  /** Unbound in 2026. */
+  public static Command joystickDriveAlignForSweepToAllianceZone(
+      Drive drive, DoubleSupplier xSupplier, DoubleSupplier ySupplier) {
+    return joystickDriveAtAngle(
+            drive,
+            xSupplier,
+            ySupplier,
+            () -> {
+              double fieldSide =
+                  AllianceFlipUtil.applyY(RobotState.getInstance().getEstimatedPose().getY());
+              Rotation2d targetRotation;
+              if (fieldSide < (FieldConstants.fieldWidth / 2)) {
+                targetRotation = Rotation2d.fromRadians((5 * Math.PI) / 4);
+              } else {
+                targetRotation = Rotation2d.fromRadians((3 * Math.PI) / 4);
+              }
+              return AllianceFlipUtil.apply(targetRotation);
+            })
+        .withName("Drive_AlignForSweepToAllianceZone");
+  }
+
+  /** Unbound in 2026. */
+  public static Command joystickDriveAlignForSweep(
+      Drive drive, DoubleSupplier xSupplier, DoubleSupplier ySupplier) {
+    return joystickDriveAtAngle(
+            drive,
+            xSupplier,
+            ySupplier,
+            () -> {
+              Rotation2d currentRotation = AllianceFlipUtil.apply(drive.getRotation());
+              double currentRadians = currentRotation.getRadians();
+              double fieldSide =
+                  AllianceFlipUtil.applyY(RobotState.getInstance().getEstimatedPose().getY());
+              Rotation2d targetRotation;
+              if (fieldSide < (FieldConstants.fieldWidth / 2)) {
+                if (currentRadians > (Math.PI / 2) && currentRadians < ((3 * Math.PI) / 2)) {
+                  targetRotation = Rotation2d.fromRadians((5 * Math.PI) / 4);
+                } else {
+                  targetRotation = Rotation2d.fromRadians((7 * Math.PI) / 4);
+                }
+              } else {
+                if (currentRadians > (Math.PI / 2) && currentRadians < ((3 * Math.PI) / 2)) {
+                  targetRotation = Rotation2d.fromRadians((3 * Math.PI) / 4);
+                } else {
+                  targetRotation = Rotation2d.fromRadians(Math.PI / 4);
+                }
+              }
+              return AllianceFlipUtil.apply(targetRotation);
+            })
+        .withName("Drive_AlignForSweep");
   }
 
   /**
