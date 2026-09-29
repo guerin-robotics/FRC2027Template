@@ -23,6 +23,8 @@ import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIO;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
+import frc.robot.subsystems.intakeRoller.IntakeRoller;
+import frc.robot.subsystems.intakeRoller.IntakeRollerConstants;
 import frc.robot.subsystems.lowerFeeder.LowerFeeder;
 import frc.robot.subsystems.lowerFeeder.LowerFeederConstants;
 import frc.robot.subsystems.prestage.Prestage;
@@ -59,6 +61,7 @@ public class RobotContainer {
   private final UpperFeeder upperFeeder;
   private final LowerFeeder lowerFeeder;
   private final Prestage prestage;
+  private final IntakeRoller intakeRoller;
 
   // Controllers live in Triggers, not here. This class binds triggers to commands; it does not
   // own input devices and never touches a controller object directly.
@@ -102,6 +105,9 @@ public class RobotContainer {
         prestage =
             new Prestage(
                 RollerMechanism.real(PrestageConstants.CONFIG, PrestageConstants.SETTINGS));
+        intakeRoller =
+            new IntakeRoller(
+                RollerMechanism.real(IntakeRollerConstants.CONFIG, IntakeRollerConstants.SETTINGS));
         break;
 
       case SIM:
@@ -146,6 +152,12 @@ public class RobotContainer {
             new Prestage(
                 RollerMechanism.sim(
                     PrestageConstants.CONFIG, PrestageConstants.SETTINGS, PrestageConstants.SIM));
+        intakeRoller =
+            new IntakeRoller(
+                RollerMechanism.sim(
+                    IntakeRollerConstants.CONFIG,
+                    IntakeRollerConstants.SETTINGS,
+                    IntakeRollerConstants.SIM));
         break;
 
       default:
@@ -178,6 +190,10 @@ public class RobotContainer {
         prestage =
             new Prestage(
                 RollerMechanism.replay(PrestageConstants.CONFIG, PrestageConstants.SETTINGS));
+        intakeRoller =
+            new IntakeRoller(
+                RollerMechanism.replay(
+                    IntakeRollerConstants.CONFIG, IntakeRollerConstants.SETTINGS));
         break;
     }
 
@@ -243,6 +259,7 @@ public class RobotContainer {
     upperFeeder.registerFaultMonitors();
     lowerFeeder.registerFaultMonitors();
     prestage.registerFaultMonitors();
+    intakeRoller.registerFaultMonitors();
 
     // Configure the button bindings
     configureButtonBindings();

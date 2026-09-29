@@ -141,6 +141,10 @@ public final class Constants {
     // number, and a device on the wrong bus is simply not found at startup. IDs 0-12 belong to
     // swerve (see TunerConstants), so mechanisms start at 20.
 
+    // Intake
+    public static final int INTAKE_ROLLER_LEADER = 42; // RIO CAN
+    public static final int INTAKE_ROLLER_FOLLOWER = 43; // RIO CAN
+
     // Prestage
     public static final int PRESTAGE_LEADER = 38; // RIO CAN
     public static final int PRESTAGE_FOLLOWER = 37; // RIO CAN
