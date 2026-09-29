@@ -13,6 +13,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.lib.mechanism.roller.RollerMechanism;
 import frc.lib.util.FaultMonitor;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
@@ -22,6 +23,8 @@ import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIO;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
+import frc.robot.subsystems.transport.Transport;
+import frc.robot.subsystems.transport.TransportConstants;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.io.VisionIO;
@@ -44,6 +47,9 @@ public class RobotContainer {
   // Subsystems
   private final Drive drive;
   private final Vision vision;
+
+  // Mechanisms
+  private final Transport transport;
 
   // Controllers live in Triggers, not here. This class binds triggers to commands; it does not
   // own input devices and never touches a controller object directly.
@@ -75,6 +81,9 @@ public class RobotContainer {
                     VisionConstants.camera2Name, VisionConstants.robotToCamera2),
                 new VisionIOPhotonVision(
                     VisionConstants.camera3Name, VisionConstants.robotToCamera3));
+        transport =
+            new Transport(
+                RollerMechanism.real(TransportConstants.CONFIG, TransportConstants.SETTINGS));
         break;
 
       case SIM:
@@ -97,6 +106,12 @@ public class RobotContainer {
                     VisionConstants.camera2Name, VisionConstants.robotToCamera2, drive::getPose),
                 new VisionIOPhotonVisionSim(
                     VisionConstants.camera3Name, VisionConstants.robotToCamera3, drive::getPose));
+        transport =
+            new Transport(
+                RollerMechanism.sim(
+                    TransportConstants.CONFIG,
+                    TransportConstants.SETTINGS,
+                    TransportConstants.SIM));
         break;
 
       default:
@@ -117,6 +132,9 @@ public class RobotContainer {
                 new VisionIO() {},
                 new VisionIO() {},
                 new VisionIO() {});
+        transport =
+            new Transport(
+                RollerMechanism.replay(TransportConstants.CONFIG, TransportConstants.SETTINGS));
         break;
     }
 
@@ -176,6 +194,9 @@ public class RobotContainer {
               () ->
                   vision.isCameraConnected(cameraIndex) && !vision.isCameraCalibrated(cameraIndex));
     }
+
+    // Mechanism health: disconnected, rebooted, over temperature, hardware fault.
+    transport.registerFaultMonitors();
 
     // Configure the button bindings
     configureButtonBindings();

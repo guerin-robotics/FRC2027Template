@@ -135,19 +135,14 @@ public final class Constants {
      */
     public static final CANBus RIO_BUS = new CANBus("rio");
 
-    // ---- No IDs yet ----
-    //
-    // Deliberately empty. The scaffolds in template/src/ reference
-    // Constants.CanIds.EXAMPLE_ROLLER_MOTOR, EXAMPLE_ARM_MOTOR, EXAMPLE_ARM_ENCODER and
-    // EXAMPLE_LIFT_MOTOR, and none of those are defined here on purpose: copying a scaffold
-    // should fail to compile until you supply a real ID, rather than building against a
-    // fictional one that could ship to a competition robot.
+    // ---- The 2026 competition robot (Rebuilt2026 HardwareConstants.CanIds) ----
     //
     // Add one line per device, with the bus in a comment — the bus is not visible from the
     // number, and a device on the wrong bus is simply not found at startup. IDs 0-12 belong to
     // swerve (see TunerConstants), so mechanisms start at 20.
-    //
-    //   public static final int INTAKE_ROLLER_LEADER = 20;   // RIO CAN
+
+    // Transport
+    public static final int TRANSPORT_MOTOR = 40; // RIO CAN
   }
 
   // ============================================================================================
@@ -279,6 +274,20 @@ public final class Constants {
      * #MECHANISM_READY_SECONDS}, since phase two is given the difference.
      */
     public static final double TOTAL_TIMEOUT_SECONDS = 1.5;
+
+    // ---- The 2026 competition robot (Rebuilt2026 HardwareConstants.CompConstants.Waits) ----
+
+    /** Fixed wait before any feed stage starts, so the flywheel has begun spinning up. */
+    public static final double FLYWHEEL_SPINUP_SECONDS = 0.5;
+
+    /**
+     * Total budget from button press to feeding, whether or not the robot is aimed. Phase two of
+     * every "after wait" factory gets this minus {@link #FLYWHEEL_SPINUP_SECONDS}.
+     */
+    public static final double ALIGNMENT_TIMEOUT_SECONDS = 1.5;
+
+    /** How long a shot waits for the flywheel to reach speed before feeding anyway. */
+    public static final double SPIN_UP_TIMEOUT_SECONDS = 1.0;
   }
 
   // ============================================================================================
