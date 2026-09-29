@@ -1,0 +1,96 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 2.8280000000000003,
+        "y": 5.390036144578313
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 2.9945671581282483,
+        "y": 5.154211817742971
+      },
+      "isLocked": false,
+      "linkedName": "Left-End-Pos"
+    },
+    {
+      "anchor": {
+        "x": 3.066100622106482,
+        "y": 7.378381510416666
+      },
+      "prevControl": {
+        "x": 1.6046930858614363,
+        "y": 6.342826126816268
+      },
+      "nextControl": {
+        "x": 3.2700809505205277,
+        "y": 7.522922250763802
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 6.423850839120371,
+        "y": 7.414598524305555
+      },
+      "prevControl": {
+        "x": 4.915192290787623,
+        "y": 7.398029788590014
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": null
+    }
+  ],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 0.9928316596194506,
+      "rotationDegrees": 0.0
+    }
+  ],
+  "constraintZones": [
+    {
+      "name": "Slow-Zone",
+      "minWaypointRelativePos": 0.973092480964467,
+      "maxWaypointRelativePos": 1.2711175444162437,
+      "constraints": {
+        "maxVelocity": 1.75,
+        "maxAcceleration": 6.0,
+        "maxAngularVelocity": 540.0,
+        "maxAngularAcceleration": 1020.0,
+        "nominalVoltage": 12.0,
+        "unlimited": false
+      }
+    }
+  ],
+  "pointTowardsZones": [],
+  "eventMarkers": [
+    {
+      "name": "RunIntake",
+      "waypointRelativePos": 0.0,
+      "endWaypointRelativePos": 2.0,
+      "command": null
+    }
+  ],
+  "globalConstraints": {
+    "maxVelocity": 4.0,
+    "maxAcceleration": 6.0,
+    "maxAngularVelocity": 450.0,
+    "maxAngularAcceleration": 1020.0,
+    "nominalVoltage": 12.0,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": 0.0
+  },
+  "reversed": false,
+  "folder": "WVRoX-Paths",
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": 137.4895529219991
+  },
+  "useDefaultConstraints": true
+}

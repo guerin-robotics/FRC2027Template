@@ -1,0 +1,93 @@
+{
+  "version": "2025.0",
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Old-Champs-Safe-Right-1"
+          }
+        },
+        {
+          "type": "race",
+          "data": {
+            "commands": [
+              {
+                "type": "named",
+                "data": {
+                  "name": "Shoot"
+                }
+              },
+              {
+                "type": "wait",
+                "data": {
+                  "waitTime": 3.0
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "DeployIntake"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "stopAll"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Old-Champs-Safe-Right-2"
+          }
+        },
+        {
+          "type": "race",
+          "data": {
+            "commands": [
+              {
+                "type": "named",
+                "data": {
+                  "name": "Shoot"
+                }
+              },
+              {
+                "type": "wait",
+                "data": {
+                  "waitTime": 3.25
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "DeployIntake"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "stopAll"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Old-Champs-Safe-Right-3"
+          }
+        }
+      ]
+    }
+  },
+  "resetOdom": true,
+  "folder": "Pre-WVRoX",
+  "choreoAuto": false
+}
