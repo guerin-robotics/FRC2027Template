@@ -141,6 +141,9 @@ public final class Constants {
     // number, and a device on the wrong bus is simply not found at startup. IDs 0-12 belong to
     // swerve (see TunerConstants), so mechanisms start at 20.
 
+    // Feeders
+    public static final int UPPER_FEEDER_MOTOR = 36; // RIO CAN
+
     // Transport
     public static final int TRANSPORT_MOTOR = 40; // RIO CAN
   }

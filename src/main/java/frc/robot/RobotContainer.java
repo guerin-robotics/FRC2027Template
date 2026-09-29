@@ -25,6 +25,8 @@ import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
 import frc.robot.subsystems.transport.Transport;
 import frc.robot.subsystems.transport.TransportConstants;
+import frc.robot.subsystems.upperFeeder.UpperFeeder;
+import frc.robot.subsystems.upperFeeder.UpperFeederConstants;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.io.VisionIO;
@@ -50,6 +52,7 @@ public class RobotContainer {
 
   // Mechanisms
   private final Transport transport;
+  private final UpperFeeder upperFeeder;
 
   // Controllers live in Triggers, not here. This class binds triggers to commands; it does not
   // own input devices and never touches a controller object directly.
@@ -84,6 +87,9 @@ public class RobotContainer {
         transport =
             new Transport(
                 RollerMechanism.real(TransportConstants.CONFIG, TransportConstants.SETTINGS));
+        upperFeeder =
+            new UpperFeeder(
+                RollerMechanism.real(UpperFeederConstants.CONFIG, UpperFeederConstants.SETTINGS));
         break;
 
       case SIM:
@@ -112,6 +118,12 @@ public class RobotContainer {
                     TransportConstants.CONFIG,
                     TransportConstants.SETTINGS,
                     TransportConstants.SIM));
+        upperFeeder =
+            new UpperFeeder(
+                RollerMechanism.sim(
+                    UpperFeederConstants.CONFIG,
+                    UpperFeederConstants.SETTINGS,
+                    UpperFeederConstants.SIM));
         break;
 
       default:
@@ -135,6 +147,9 @@ public class RobotContainer {
         transport =
             new Transport(
                 RollerMechanism.replay(TransportConstants.CONFIG, TransportConstants.SETTINGS));
+        upperFeeder =
+            new UpperFeeder(
+                RollerMechanism.replay(UpperFeederConstants.CONFIG, UpperFeederConstants.SETTINGS));
         break;
     }
 
@@ -197,6 +212,7 @@ public class RobotContainer {
 
     // Mechanism health: disconnected, rebooted, over temperature, hardware fault.
     transport.registerFaultMonitors();
+    upperFeeder.registerFaultMonitors();
 
     // Configure the button bindings
     configureButtonBindings();
