@@ -45,9 +45,7 @@ import org.littletonrobotics.junction.Logger;
  *
  * <p>Two cases, which between them cover both exits. {@code finallyDo} is one block on one command:
  * the path that restores the bound after an interruption is the same path that restores it after a
- * normal finish, so pinning the interrupted case pins both. The routine running start to finish
- * against real physics is covered by {@code
- * LinearMechanismSimTest.theZeroingRoutineDrivesToTheStopAndDetectsTheStall}.
+ * normal finish, so pinning the interrupted case pins both.
  */
 class LinearZeroingSoftLimitTest {
 

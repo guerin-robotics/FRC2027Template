@@ -323,10 +323,10 @@ See [docs/testing.md](../../../docs/testing.md).
 - Pure logic — interpolation tables, readiness bands, zone math. Use
   `.claude/prompts/write-test.md`; known-correct cases come from measurement, not from the
   code.
-- A sim convergence test for any closed-loop mechanism, shaped like
-  `RollerMechanismSimTest` or `RotaryMechanismSimTest` in `src/test/java/frc/lib/mechanism/`.
-  Those run the configured gains against a simulated Talon, so a passing test means something.
-  Two harness details are load-bearing and are commented in those files: the test must let
+- Optionally, a sim convergence test for a closed-loop mechanism. The template no longer ships
+  one; if the user wants it, recover the matching `*MechanismSimTest` from commit `f9b09f9` in
+  `src/test/java/frc/lib/mechanism/`. Two harness details are load-bearing and are commented in
+  those files: the test must let
   wall-clock time pass, because Phoenix's device simulation does not advance on the FPGA sim
   clock; and it must wait for a condition to hold rather than run a fixed loop count, or it
   races how loaded the machine is.

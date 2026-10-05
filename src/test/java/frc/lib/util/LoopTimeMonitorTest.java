@@ -24,8 +24,7 @@ import org.littletonrobotics.junction.Logger;
  * <p><b>Timing is controlled, not measured.</b> {@link SimHooks#pauseTiming()} freezes the FPGA
  * clock and {@link SimHooks#stepTiming} advances it by an exact amount, so a "17 ms loop" here is
  * exactly 17 ms rather than however long the test machine happened to take. That makes these
- * assertions deterministic — this test says nothing about how fast any real code runs, which is
- * {@link frc.robot.subsystems.drive.DrivePeriodicBudgetTest}'s job.
+ * assertions deterministic — this test says nothing about how fast any real code runs.
  */
 class LoopTimeMonitorTest {
 

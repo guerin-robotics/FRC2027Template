@@ -20,8 +20,8 @@ nobody trusts is not.
 | **Config validation** | Instantly, no HAL | CAN ID collisions, a `MotorConfig` missing an unguessable value |
 | **Wiring** | HAL sim | `RobotContainer` failing to construct or resolve |
 | **Filter logic** | HAL sim, no physics | Vision pose rejection |
-| **Mechanism library** | HAL sim + Phoenix device sim | Geometry, gravity frame, zeroing, encoder seeding, replay schema |
-| **Simulation** | HAL sim + physics | Commands not converging, loop budget regressions |
+| **Mechanism library** | HAL sim | Config validation, geometry, zeroing, replay schema |
+| **Simulation** | HAL sim + physics | Drive commands not converging, odometry sign errors |
 
 ---
 
@@ -63,10 +63,12 @@ empty in the template, so that assertion passes vacuously until the first 2027 a
 |---|---|
 | `MotorConfigTest` | The builder refuses to build without a current limit, ratio, gains or — on a position mechanism — travel bounds, and derives the torque clamp and follower config correctly |
 | `MotorIOReplayTest` | Follower and encoder groups survive replay |
-| `MotorIOTalonFXSimEncoderTest` | The simulated CANcoder gets its magnet offset and direction |
-| `roller/RollerMechanismSimTest` | Velocity convergence |
-| `rotary/RotaryMechanismSimTest`, `rotary/RotaryGravityFrameTest` | Position convergence and clamping; an arm hanging at rest stays there, so the gravity frame agrees between config and sim |
-| `linear/LinearMechanismSimTest`, `linear/LinearGeometryTest`, `linear/LinearZeroingSoftLimitTest` | Convergence; drum/stage arithmetic; the reverse bound is dropped while zeroing and restored after |
+| `linear/LinearGeometryTest`, `linear/LinearZeroingSoftLimitTest` | Drum/stage arithmetic; the reverse bound is dropped while zeroing and restored after |
+
+The Phoenix device-sim tests (roller, rotary and linear convergence, the arm gravity frame, and
+CANcoder seeding) were removed to keep the build fast — they slept on wall-clock time. They are
+in git history at commit `f9b09f9` under `src/test/java/frc/lib/mechanism/` if a mechanism ever
+needs one back.
 
 These are what make a two-file mechanism trustworthy — the scaffolds cannot be tested, the
 library they sit on is.
@@ -89,17 +91,13 @@ deliberate: the values were earned from real 2026 match logs and are the source 
 | `commands/DriveToPoseSimTest` | `driveToPose` converges against the physics sim |
 | `commands/JoystickDriveAtAngleSimTest` | Heading hold converges |
 | `subsystems/drive/DriveOdometrySimTest` | Odometry integrates correctly |
-| `subsystems/drive/DrivePeriodicBudgetTest` | `Drive.periodic()` staying inside the loop budget |
 | `frc/lib/util/LoopTimeMonitorTest` | The watchdog that reports an over-budget loop |
 | `frc/robot/GainSweepTest` | The gain-sweep harness `/pid-tune` drives |
 
 `LoopTimeMonitorTest` drives timing with `SimHooks.pauseTiming()`/`stepTiming()`, so its
 assertions about the 20 ms budget and the 25 ms alert threshold are exact rather than
-machine-dependent. `DrivePeriodicBudgetTest` is the opposite: it measures wall-clock time on a
-dev laptop or CI runner, not a roboRIO. A RIO is far slower, so passing is necessary, not sufficient. What it reliably
-catches is a *structural* regression — an accidental O(n²), a blocking call added to the hot
-path, a heavyweight object rebuilt every cycle. Those show up as multiples, not percentages.
-The real check is watching `LoopTiming/AverageMs` from the first day the robot drives.
+machine-dependent. Nothing in the suite measures how fast real code runs; the real check is
+watching `LoopTiming/AverageMs` from the first day the robot drives.
 
 ---
 
@@ -131,12 +129,11 @@ thing standing between the codebase and these regressions. Read it before mergin
 1. **CAN IDs** — nothing to write. `CanIdUniquenessTest` picks up new IDs automatically.
 2. **Wiring** — nothing to write. `RobotContainerSmokeTest` reflects over `RobotContainer`'s
    fields, so a new subsystem is covered the moment it is wired in.
-3. **Closed-loop mechanisms get a sim convergence test.** Copy the one for the matching kind
-   in `src/test/java/frc/lib/mechanism/` — `RollerMechanismSimTest`, `RotaryMechanismSimTest` or
-   `LinearMechanismSimTest` — rather than `DriveToPoseSimTest`, which is a different harness. A
-   mechanism built on `frc/lib/mechanism` always has physics, and the configured gains run on a
-   simulated Talon, so what the test measures is what the robot will do. See the harness rules
-   below before you write one; two of them will otherwise waste an afternoon.
+3. **A sim convergence test is optional.** The template no longer ships one for mechanisms. If
+   you want one, recover the matching kind from commit `f9b09f9`
+   (`src/test/java/frc/lib/mechanism/{roller,rotary,linear}/*MechanismSimTest.java`) rather than
+   copying `DriveToPoseSimTest`, which is a different harness. See the harness rules below
+   before you write one; two of them will otherwise waste an afternoon.
 4. **Pure logic gets a unit test only when it is worth one** — an interpolation table, a
    readiness band, zone math. Use `.claude/prompts/write-test.md`; the known-correct cases come
    from measurement, not from reading the code. A test that just restates the implementation is
@@ -176,7 +173,7 @@ RobotController.setTimeSource(RobotController::getFPGATime);
 
 WPILib's `Timer` reads `RobotController.getTime()`, which `IterativeRobotBase` advances once per
 loop. There is no robot base in a unit test, so without this every `WaitCommand` and every
-`withTimeout` waits forever — `LinearMechanismSimTest` does it for the zeroing routine.
+`withTimeout` waits forever.
 
 ### The cleanup rule for sim tests
 
