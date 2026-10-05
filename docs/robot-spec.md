@@ -372,7 +372,6 @@ No game logic here. Ever.
 | 491 brownouts across 23 matches; battery to ~6.3 V at 390 A p95 | Motor cutouts mid-match |
 | Pose divergence detected but not guarded | A bad estimate persists until good vision arrives |
 | `maxPoseJumpMeters` filter written but never tuned or enabled | One less defense against bad poses |
-| Jam detection exists (`RollerMechanism`) but has no measured thresholds | Jams stay silent until the 2027 intake's thresholds are logged and set |
 | Autos overran the auto period; last path truncated every match | Lost auto points |
 | `Measure`-typed log fields record in SI base units | Temperatures read as Kelvin |
 

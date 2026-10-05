@@ -40,7 +40,7 @@ State queries needed (for Triggers or commands):
 
 Setpoints (what it gets commanded to) — velocities in RPM, rotating positions in
 degrees, linear positions in inches:
-- [e.g.: intake velocity 1800 RPM, unjam velocity -1200 RPM]
+- [e.g.: intake velocity 1800 RPM, outtake velocity -1200 RPM]
 - [e.g.: stow height 0 in, score height 24 in]
 - [e.g.: stow angle 0 deg, deployed angle 95 deg]
 - Put these in Constants.Setpoints, not in the subsystem constants file and not

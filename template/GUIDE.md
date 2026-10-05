@@ -44,7 +44,7 @@ Worth reading before you pick, because the differences are not cosmetic:
 | Knows position at boot | does not care | yes, absolute | **no — must be zeroed** |
 | Sim model | `FlywheelSim` | `SingleJointedArmSim` | `ElevatorSim` |
 | Visualizer | none, deliberately | yes | yes |
-| Extra block | jam detection | — | zeroing routine |
+| Extra block | — | — | zeroing routine |
 
 Two of those get copied wrong often enough to call out:
 
@@ -357,21 +357,7 @@ silently. The template is lighter simply because there is less code, and that wi
 true as mechanisms are added. Check the number the first day the robot drives, and again
 after each subsystem lands.
 
-### 3. Jam detection has a pattern now, but no numbers
-
-2026 ran open-loop rollers and belts with no feedback, so jams were silent.
-
-`RollerMechanism` now implements the detector — the conjunction of commanded-motion AND
-velocity-far-below-commanded AND high stator current, held for a dwell — and it is covered by
-tests. What is still open is that **none of its four thresholds can be guessed**. They come from
-logging stator current during a real jam *and* during a normal pickup, since telling those two
-apart is the entire job.
-
-So the structure is solved and the numbers are not. Collect them on the 2027 intake early, put them
-in that mechanism's `RollerSettings`, and bind `RollerCommands.unjam` or a `FaultMonitor` condition
-to `isJammed()` so a mechanism jamming repeatedly reaches the pit rather than only the log.
-
-### 4. Implicit readiness instead of a state machine
+### 3. Implicit readiness instead of a state machine
 
 2026 determined "ready to score" by chaining `waitUntil(isSpunUp)` and
 `waitUntil(isAligned)` with timeouts. It worked, but you could not ask "what state is the
@@ -379,7 +365,7 @@ scoring mechanism in right now?" without reconstructing it from the command tree
 an explicit enum state machine in a coordinator class if the 2027 scoring flow is
 comparably complex.
 
-### 5. `RobotContainer` growth
+### 4. `RobotContainer` growth
 
 It is small and readable today. In 2026 it reached 1300 lines. Split bindings into
 per-subsystem `configureXxxBindings()` methods before it gets there. Triggers already live in
@@ -458,7 +444,7 @@ That last split is about what a wrong setpoint does. A position mechanism sent s
 reach drives into its own hard stop with everything the limit allows and holds there, so the two
 position scaffolds start deliberately weak and are raised once a log shows what the mechanism
 actually draws. A roller sent to a speed it cannot reach just spins slower, so it starts at a
-working value; a roller that *can* stall is covered by the jam detector rather than by a low limit.
+working value.
 
 **The torque-current clamp now follows the stator limit automatically.** `MotorConfig` derives
 ±clamp from the stator limit unless you override it, so the 2026 trap of raising one without the

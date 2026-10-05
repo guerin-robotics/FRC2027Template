@@ -182,7 +182,7 @@ class RollerMechanismSimTest {
     roller.stop();
     assertTrue(
         roller.getGoalVelocity().in(RPM) == 0.0,
-        "stop() must clear the goal, or the jam detector keeps comparing against a setpoint"
+        "stop() must clear the goal, or isAtVelocity() keeps comparing against a setpoint"
             + " nobody is commanding");
 
     run(roller, 5);
@@ -203,17 +203,5 @@ class RollerMechanismSimTest {
         roller.getVelocity().in(RPM) < -1000.0,
         "commanding -3000 RPM should produce clearly negative motion; got "
             + roller.getVelocity().in(RPM));
-  }
-
-  @Test
-  void aMechanismWithNoJamDetectionNeverReportsAJam() {
-    RollerMechanismSim roller = newRoller(44);
-    roller.setVelocity(TARGET);
-    settles(roller);
-
-    // RollerSettings.of() configures no jam detection, and "this cannot jam" has to mean the
-    // detector is absent rather than merely quiet.
-    assertFalse(roller.isJammed());
-    assertTrue(roller.getJamCount() == 0);
   }
 }

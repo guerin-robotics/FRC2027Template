@@ -1,11 +1,8 @@
 package frc.lib.mechanism.roller;
 
-import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
-import static edu.wpi.first.units.Units.Seconds;
 
-import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Voltage;
@@ -40,24 +37,9 @@ public class RollerMechanism extends Mechanism {
   private final RollerSettings settings;
 
   private final LoggedTunableNumber toleranceRpm;
-  private final LoggedTunableNumber jamMinCommandedRpm;
-  private final LoggedTunableNumber jamVelocityFraction;
-  private final LoggedTunableNumber jamStatorAmps;
-
-  /**
-   * Debounces the jam condition.
-   *
-   * <p>Null when the mechanism has no jam detection configured, which is the honest representation
-   * of "this cannot jam" — a flywheel in free air has no jam signature to look for.
-   */
-  private final Debouncer jamDebounce;
 
   /** Last commanded velocity, so {@link #isAtVelocity()} has something to compare against. */
   private AngularVelocity goalVelocity = RotationsPerSecond.of(0);
-
-  private boolean jammed = false;
-  private boolean wasJammed = false;
-  private int jamCount = 0;
 
   protected RollerMechanism(MotorConfig config, RollerSettings settings, MotorIO io) {
     super(config, io);
@@ -76,24 +58,6 @@ public class RollerMechanism extends Mechanism {
     this.toleranceRpm =
         new LoggedTunableNumber(
             config.name() + "/ToleranceRpm", settings.velocityTolerance().in(RPM));
-
-    if (settings.jam().isPresent()) {
-      RollerSettings.JamDetection jam = settings.jam().get();
-      jamMinCommandedRpm =
-          new LoggedTunableNumber(
-              config.name() + "/Jam/MinCommandedRpm", jam.minCommandedVelocity().in(RPM));
-      jamVelocityFraction =
-          new LoggedTunableNumber(config.name() + "/Jam/VelocityFraction", jam.velocityFraction());
-      jamStatorAmps =
-          new LoggedTunableNumber(
-              config.name() + "/Jam/StatorAmps", jam.statorThreshold().in(Amps));
-      jamDebounce = new Debouncer(jam.dwell().in(Seconds), Debouncer.DebounceType.kRising);
-    } else {
-      jamMinCommandedRpm = null;
-      jamVelocityFraction = null;
-      jamStatorAmps = null;
-      jamDebounce = null;
-    }
   }
 
   /** Real hardware. */
@@ -104,8 +68,8 @@ public class RollerMechanism extends Mechanism {
   /**
    * Log replay. The IO does nothing; AdvantageKit feeds the inputs class straight from the log.
    *
-   * <p>The mechanism's own logic still runs, which is the point — a tolerance or a jam threshold
-   * changed after a match can be replayed against the log from that match.
+   * <p>The mechanism's own logic still runs, which is the point — a tolerance changed after a
+   * match can be replayed against the log from that match.
    */
   public static RollerMechanism replay(MotorConfig config, RollerSettings settings) {
     return new RollerMechanism(config, settings, MotorIO.replay(config));
@@ -120,8 +84,6 @@ public class RollerMechanism extends Mechanism {
   @Override
   public void periodic() {
     super.periodic();
-
-    updateJamDetection();
 
     // The goal is logged beside the measurement. Without it a log shows the mechanism at 2000 RPM
     // and cannot say whether that was right.
@@ -145,9 +107,8 @@ public class RollerMechanism extends Mechanism {
     return goalVelocity;
   }
 
-  // The open-loop paths clear the goal, which the jam detector depends on. Without this it keeps
-  // comparing against a setpoint nobody is commanding any more, and reports a jam the moment an
-  // open-loop command runs the mechanism slower than the last closed-loop request.
+  // The open-loop paths clear the goal, so isAtVelocity() and the logged goal stop describing a
+  // setpoint nobody is commanding any more.
 
   @Override
   public void setVoltage(Voltage volts) {
@@ -183,61 +144,6 @@ public class RollerMechanism extends Mechanism {
    */
   public boolean isAtVelocity() {
     return Math.abs(inputs.velocity.in(RPM) - goalVelocity.in(RPM)) < toleranceRpm.get();
-  }
-
-  /**
-   * True while the mechanism is jammed. Clears when the jam does.
-   *
-   * <p>Always false on a mechanism with no jam detection configured. Safe to poll from anywhere —
-   * the debouncer is advanced exactly once per loop in {@link #periodic()}, never from in here. A
-   * debouncer advances its timer every time it is polled, so calling it from a getter would make
-   * the dwell depend on how many callers happened to ask: a command polling it and a {@code
-   * FaultMonitor} condition reading it in the same loop would trip it in half the time.
-   */
-  public boolean isJammed() {
-    return jammed;
-  }
-
-  /** How many distinct jams since boot. Worth an alert when it climbs across a match. */
-  public int getJamCount() {
-    return jamCount;
-  }
-
-  /**
-   * Detects jams, once per loop.
-   *
-   * <p>Detection lives here; the response does not. Reversing to clear a jam is a policy decision
-   * with a game-strategy answer — it can eject a piece the driver wanted — so the mechanism owns
-   * the signal and a command factory owns what to do about it.
-   */
-  private void updateJamDetection() {
-    if (jamDebounce == null) {
-      return;
-    }
-
-    boolean raw = isJamConditionPresent();
-    jammed = jamDebounce.calculate(raw);
-    if (jammed && !wasJammed) {
-      jamCount++;
-    }
-    wasJammed = jammed;
-
-    Logger.recordOutput(name + "/Jammed", jammed);
-    Logger.recordOutput(name + "/JamCount", jamCount);
-    // The raw conjunction too. Comparing it against Jammed in a log is how you tell "threshold too
-    // low, it keeps flickering" from "dwell too long, it never latches".
-    Logger.recordOutput(name + "/JamConditionRaw", raw);
-  }
-
-  private boolean isJamConditionPresent() {
-    double commandedRpm = Math.abs(goalVelocity.in(RPM));
-    if (commandedRpm < jamMinCommandedRpm.get()) {
-      return false; // idle is not jammed
-    }
-    boolean notTurning =
-        Math.abs(inputs.velocity.in(RPM)) < commandedRpm * jamVelocityFraction.get();
-    boolean workingHard = Math.abs(inputs.statorAmps.in(Amps)) > jamStatorAmps.get();
-    return notTurning && workingHard;
   }
 
   /** The settings this mechanism was built with. */

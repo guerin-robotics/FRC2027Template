@@ -88,11 +88,6 @@ public class RollerSubsystem extends SubsystemBase {
     return roller.isAtVelocity();
   }
 
-  /** Always false on a mechanism with no jam detection configured. */
-  public boolean isJammed() {
-    return roller.isJammed();
-  }
-
   /** Is every device on this mechanism present? */
   public boolean isConnected() {
     return roller.isConnected();

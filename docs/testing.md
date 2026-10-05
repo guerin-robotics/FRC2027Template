@@ -20,7 +20,7 @@ nobody trusts is not.
 | **Config validation** | Instantly, no HAL | CAN ID collisions, a `MotorConfig` missing an unguessable value |
 | **Wiring** | HAL sim | `RobotContainer` failing to construct or resolve |
 | **Filter logic** | HAL sim, no physics | Vision pose rejection |
-| **Mechanism library** | HAL sim + Phoenix device sim | Geometry, gravity frame, zeroing, jam detection, encoder seeding, replay schema |
+| **Mechanism library** | HAL sim + Phoenix device sim | Geometry, gravity frame, zeroing, encoder seeding, replay schema |
 | **Simulation** | HAL sim + physics | Commands not converging, loop budget regressions |
 
 ---
@@ -64,7 +64,7 @@ empty in the template, so that assertion passes vacuously until the first 2027 a
 | `MotorConfigTest` | The builder refuses to build without a current limit, ratio, gains or — on a position mechanism — travel bounds, and derives the torque clamp and follower config correctly |
 | `MotorIOReplayTest` | Follower and encoder groups survive replay |
 | `MotorIOTalonFXSimEncoderTest` | The simulated CANcoder gets its magnet offset and direction |
-| `roller/RollerMechanismSimTest`, `roller/RollerJamDetectionTest` | Velocity convergence; the jam detector fires on a jam and not on a normal load |
+| `roller/RollerMechanismSimTest` | Velocity convergence |
 | `rotary/RotaryMechanismSimTest`, `rotary/RotaryGravityFrameTest` | Position convergence and clamping; an arm hanging at rest stays there, so the gravity frame agrees between config and sim |
 | `linear/LinearMechanismSimTest`, `linear/LinearGeometryTest`, `linear/LinearZeroingSoftLimitTest` | Convergence; drum/stage arithmetic; the reverse bound is dropped while zeroing and restored after |
 

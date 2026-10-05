@@ -89,21 +89,4 @@ public final class RollerCommands {
             Commands.waitUntil(roller::isAtVelocity).withTimeout(timeout))
         .withName(roller.getName() + "_SpinUp");
   }
-
-  /**
-   * Reverses for a fixed time to clear a jam.
-   *
-   * <p>The response to a jam, kept separate from its detection deliberately. Reversing can eject a
-   * game piece the driver wanted, which makes it a game-strategy decision rather than a hardware
-   * one — the mechanism owns the signal, and the caller decides whether and when to act on it.
-   *
-   * <p>Bind it with {@code new Trigger(roller::isJammed).onTrue(unjam(...))} when the answer is
-   * always yes, or leave it on a driver button when it is not.
-   */
-  public static Command unjam(
-      RollerSubsystem roller, AngularVelocity reverseVelocity, Time duration) {
-    return Commands.startEnd(() -> roller.setVelocity(reverseVelocity), roller::stop, roller)
-        .withTimeout(duration)
-        .withName(roller.getName() + "_Unjam");
-  }
 }
