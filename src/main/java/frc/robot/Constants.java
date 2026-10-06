@@ -150,6 +150,21 @@ public final class Constants {
     //   public static final int INTAKE_ROLLER_LEADER = 20;   // RIO CAN
   }
 
+  /**
+   * roboRIO DIO ports: beam breaks, limit switches, anything wired to the DIO header.
+   *
+   * <p>Like {@link CanIds}, never inline a port number in an IO constructor, and mirror every entry
+   * into {@code docs/hardware-layout.md}. Two inputs on one port is the DIO version of a duplicate
+   * CAN ID: the second {@code DigitalInput} throws at boot, which is at least loud.
+   */
+  public static final class DioPorts {
+
+    private DioPorts() {}
+
+    // Example:
+    //   public static final int INDEXER_BEAM_BREAK = 0;
+  }
+
   // ============================================================================================
   // CONTROLLERS
   // ============================================================================================
