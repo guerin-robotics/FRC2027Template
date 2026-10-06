@@ -150,6 +150,17 @@ public class Triggers {
   //   public Trigger stow() {
   //     return xbox.b();
   //   }
+  //
+  // Pit-stepping a point-to-point auto (PointToPointAutos.stepThrough) wants two of these.
+  // Pick buttons nothing else uses, since the step command holds the drive while it runs:
+  //
+  //   public Trigger stepAutoForward() {
+  //     return xbox.povRight();
+  //   }
+  //
+  //   public Trigger stepAutoBack() {
+  //     return xbox.povLeft();
+  //   }
 
   // ============================================================================================
   // STATE TRIGGERS

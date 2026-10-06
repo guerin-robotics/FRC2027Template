@@ -7,6 +7,10 @@
 
 package frc.robot.commands;
 
+import static edu.wpi.first.units.Units.Meters;
+import static edu.wpi.first.units.Units.Radians;
+import static edu.wpi.first.units.Units.Seconds;
+
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -18,6 +22,7 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import frc.lib.auto.Waypoint;
 import frc.lib.util.AllianceFlipUtil;
 import frc.lib.util.LoggedTunableProfiledPID;
 import frc.robot.subsystems.drive.Drive;
@@ -352,6 +357,35 @@ public class DriveCommands {
               Logger.recordOutput("AutoAim/DriveToPose/AngleErrorRad", 0.0);
             })
         .withName("Drive_ToPose");
+  }
+
+  /**
+   * {@link #driveToPose} that finishes: ends once the robot is within the waypoint's tolerances, or
+   * when its timeout runs out — whichever comes first. The building block of a point-to-point auto.
+   *
+   * <p>The waypoint is blue-origin and flipped here for red, read every loop, so the alliance can
+   * be known late. Uses the same untuned {@code driveController} as {@link #driveToPose}; tune that
+   * before trusting any point-to-point auto.
+   *
+   * @param drive Drive subsystem
+   * @param waypoint Pose, tolerances and timeout
+   */
+  public static Command driveToWaypoint(Drive drive, Waypoint waypoint) {
+    Supplier<Pose2d> target = () -> AllianceFlipUtil.apply(waypoint.pose());
+    double positionTolerance = waypoint.positionTolerance().in(Meters);
+    double headingTolerance = waypoint.headingTolerance().in(Radians);
+    return driveToPose(drive, target)
+        .until(
+            () -> {
+              Pose2d current = drive.getPose();
+              Pose2d goal = target.get();
+              return current.getTranslation().getDistance(goal.getTranslation())
+                      <= positionTolerance
+                  && Math.abs(goal.getRotation().minus(current.getRotation()).getRadians())
+                      <= headingTolerance;
+            })
+        .withTimeout(waypoint.timeout().in(Seconds))
+        .withName("Drive_ToWaypoint");
   }
 
   /**

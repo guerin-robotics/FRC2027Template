@@ -13,7 +13,9 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.lib.auto.WaypointAuto;
 import frc.lib.util.FaultMonitor;
+import frc.robot.autos.PointToPointAutos;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.Drive;
@@ -153,6 +155,12 @@ public class RobotContainer {
         "Drive SysId (Dynamic Forward)", drive.sysIdDynamic(SysIdRoutine.Direction.kForward));
     autoChooser.addOption(
         "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+
+    // Point-to-point autos sit beside the PathPlanner ones in the same chooser. Each is data in
+    // PointToPointAutos; adding one there is all it takes to list it here.
+    for (WaypointAuto auto : PointToPointAutos.all()) {
+      autoChooser.addOption(auto.name(), PointToPointAutos.build(drive, auto));
+    }
 
     // Register fault conditions. These roll up into a single "Robot OK" dashboard boolean
     // plus a named fault list, so the pit does not have to check a dozen indicators

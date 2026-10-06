@@ -294,6 +294,14 @@ public final class Constants {
      * #MECHANISM_READY_SECONDS}, since phase two is given the difference.
      */
     public static final double TOTAL_TIMEOUT_SECONDS = 1.5;
+
+    /**
+     * Default per-waypoint timeout for a point-to-point auto. A waypoint that has not been reached
+     * by then is abandoned and the auto continues from wherever the robot is — so the auto as a
+     * whole always ends, but a short value cuts long segments off. Size it from the slowest segment
+     * timed in sim, with margin.
+     */
+    public static final double WAYPOINT_TIMEOUT_SECONDS = 3.0;
   }
 
   // ============================================================================================
@@ -316,6 +324,15 @@ public final class Constants {
 
     // public static final double ALIGNMENT_TOLERANCE_DEGREES = 2.0;
     // public static final double VELOCITY_TOLERANCE_RPM = 100.0;
+
+    /**
+     * Default "arrived" translation error for a point-to-point waypoint. Tighter means more time
+     * spent settling at each stop; looser means the next segment starts from further off.
+     */
+    public static final double WAYPOINT_POSITION_TOLERANCE_METERS = 0.05;
+
+    /** Default "arrived" heading error for a point-to-point waypoint. */
+    public static final double WAYPOINT_HEADING_TOLERANCE_DEGREES = 3.0;
   }
 
   // ============================================================================================
