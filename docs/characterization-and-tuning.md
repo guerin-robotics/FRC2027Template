@@ -159,8 +159,9 @@ plausible and are wrong.
 | 9 | Steer tuning (manual) | steer `kP`/`kD`/`kS` | Independent of drive, but do it before driving hard |
 | 10 | **Slip current** | `kSlipCurrent` | Needs the drivetrain running properly to push against a wall |
 | 11 | **Top speed** | `kSpeedAt12Volts` | Needs correct wheel radius *and* working feedforward |
-| 12 | Mass / MOI / wheel COF | `PP_CONFIG` in `Drive.java` | Path following inputs |
-| 13 | PathPlanner PID | `AutoBuilder.configure()` | Needs all of the above |
+| 12 | Mass / MOI / wheel COF | Choreo GUI robot config (`deploy/choreo/*.chor`) | Trajectory generation inputs |
+| 13 | Trajectory follower PID | `Drive.java` (`trajectoryX/Y/HeadingController`) | Needs all of the above |
+| 13b | Drive-to-pose PID and FF radii | `DriveCommands` (`driveController`, `Drive/ToPose/FF*`) | Same — the PID-to-pose finish and point-to-point autos |
 | 14 | Heading-hold gains | `ANGLE_KP` / `ANGLE_KD` | Needs a drivetrain that tracks velocity |
 
 The three easiest mistakes, all of which produce confident nonsense:
@@ -344,7 +345,7 @@ steady-state velocity — it fights viscous drag and gearbox losses.
 ### Step 2: kA (optional, but do it if you run path-following)
 
 `feedforwardCharacterization` does **not** measure `kA` — there is no acceleration term in
-its fit. PathPlanner benefits from a real `kA`, so measure it separately:
+its fit. Trajectory following benefits from a real `kA`, so measure it separately:
 
 1. Command a step change in velocity (e.g. 0 → 2 m/s) with `kP = 0` and your measured
    `kS`/`kV` applied

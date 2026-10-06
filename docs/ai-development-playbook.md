@@ -202,7 +202,7 @@ Every future season, the first postseason task is updating these files with what
 
 ### What we can add next
 
-- **Custom team skills** — e.g., a `/new-auto` skill that takes a path description and produces a Choreo trajectory plus registered named commands; a `/match-debrief` skill that ingests a match log and produces a findings report automatically after every match.
+- **Custom team skills** — e.g., a `/new-auto` skill that takes a path description and produces a Choreo trajectory plus its bound event markers; a `/match-debrief` skill that ingests a match log and produces a findings report automatically after every match.
 - **CI integration** — every pull request automatically built, formatted, and AI-reviewed on GitHub before a human ever looks at it.
 - **Scheduled agents** — nightly automated codebase health review during build season; automatic post-practice log analysis.
 - **MCP integrations** — connect the AI to our Slack (post build results to the team channel), scouting data, or match schedules.

@@ -24,6 +24,10 @@ current limits, gear ratio, sim parameters, interpolation maps. There is deliber
 separate `HardwareConstants`; 2026 had both and the split meant remembering which of two
 files a value lived in while a match clock was running.
 
+**Every IO that constructs a CAN device calls `CanIdRegistry.claim(id, bus, owner)` first.**
+`MotorIOTalonFX` and every IO under `frc/lib/device` already do; a new device class must too. A
+duplicate then stops boot with both owners named instead of half-working.
+
 Keep a `docs/hardware-layout.md` in this repo listing every device, its ID, and its bus.
 The 2026 repo had one and it was the fastest way to answer "what is on ID 14?".
 

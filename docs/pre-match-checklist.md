@@ -41,13 +41,16 @@ two in sync — edit both or neither.
 ## Software
 
 - [ ] **Phoenix Tuner: device count matches expected.** Write the number here once known:
-      `____ devices`. A missing device is the single fastest thing this check catches
+      `____ devices`. A missing device is the single fastest thing this check catches.
+      **LaserCANs do not appear in Phoenix Tuner** — check them in GrappleHook, or confirm each
+      `frc/lib/device` sensor reads `connected` on the dashboard
 - [ ] No CAN error indicators; CANivore bus utilization normal
 - [ ] Correct code deployed — check `GitSHA` / `GitDirty` metadata in the log or dashboard
 - [ ] `GitDirty` reads "All changes committed". Uncommitted code at an event means the log
       cannot be matched to source later
 - [ ] Tuning mode OFF, demo mode OFF *(a deploy from an `event*` branch refuses `tuningMode`; demo mode is still on you)*
-- [ ] Correct auto selected on the dashboard
+- [ ] Correct auto selected on the dashboard (Choreo, Choreo + PID finish, or point-to-point —
+      the name says which)
 - [ ] Robot placed to match the selected auto's starting pose
 
 ## Function Check (on the cart or in the pit, before queueing)

@@ -11,18 +11,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.pathplanner.lib.auto.NamedCommands;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj.simulation.DriverStationSim;
 import edu.wpi.first.wpilibj.simulation.RoboRioSim;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Subsystem;
+import frc.robot.autos.ChoreoAutos;
 import frc.robot.subsystems.drive.Drive;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -32,12 +33,12 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 /**
  * Builds a real {@link RobotContainer} and asserts the wiring came out intact.
  *
- * <p>Everything {@code RobotContainer} does happens in a constructor: subsystems are built, {@code
- * AutoBuilder} is configured, fault conditions are registered, the auto chooser is assembled, and
- * every button binding is made. None of that is exercised by a unit test of any individual class,
- * and all of it runs exactly once — at robot boot, on the field. A null supplier, a subsystem
- * constructed in the wrong order, or a chooser built before its named commands were registered
- * throws or silently misbehaves there and nowhere else.
+ * <p>Everything {@code RobotContainer} does happens in a constructor: subsystems are built, the
+ * Choreo {@code AutoFactory} is created, fault conditions are registered, the auto chooser is
+ * assembled, and every button binding is made. None of that is exercised by a unit test of any
+ * individual class, and all of it runs exactly once — at robot boot, on the field. A null supplier,
+ * a subsystem constructed in the wrong order, or an event marker nothing was bound to throws or
+ * silently misbehaves there and nowhere else.
  *
  * <p>This is the guardrail on {@code /add-subsystem} in particular. That skill scaffolds wiring
  * into all three mode branches; this test is what proves the scaffold it produced actually
@@ -115,9 +116,9 @@ class RobotContainerSmokeTest {
     assertNotNull(
         auto,
         "The auto chooser yielded no command after a dashboard cycle."
-            + " AutoBuilder.buildAutoChooser() always installs a \"None\" default that maps to"
-            + " Commands.none(), so null here means the chooser was never built or its options"
-            + " were not copied — and Robot.autonomousInit would schedule nothing.");
+            + " RobotContainer installs a \"None\" default that supplies Commands.none(), so null"
+            + " here means the chooser was never built or its supplier returned null — and"
+            + " Robot.autonomousInit would schedule nothing.");
   }
 
   @Test
@@ -157,23 +158,23 @@ class RobotContainerSmokeTest {
   }
 
   @Test
-  void everyNamedCommandReferencedByAnAutoIsRegistered() {
-    Set<String> referenced = PathPlannerAssets.namedCommandsReferencedByAutos();
-    List<String> unregistered =
-        referenced.stream().filter(name -> !NamedCommands.hasCommand(name)).toList();
+  void everyChoreoEventMarkerIsBound() {
+    Set<String> referenced = ChoreoAssets.eventMarkersReferencedByTrajectories();
+    List<String> unbound =
+        referenced.stream().filter(name -> !ChoreoAutos.boundEvents().contains(name)).toList();
 
     assertTrue(
-        unregistered.isEmpty(),
+        unbound.isEmpty(),
         () ->
-            "Autos reference named commands that were never registered: "
-                + unregistered
-                + "\n\nThis does not throw on the robot. NamedCommands.getCommand() logs a warning"
-                + " to the driver station and substitutes Commands.none(), so the auto drives its"
-                + " paths on schedule while the mechanism does nothing — the failure looks like a"
-                + " broken mechanism, not a wiring mistake."
-                + "\n\nRegister it in RobotContainer BEFORE AutoBuilder.buildAutoChooser(): the"
-                + " chooser resolves named commands at build time, and anything registered after"
-                + " that line is ignored (.claude/rules/01-architecture.md).");
+            "Choreo trajectories use event markers nothing is bound to: "
+                + unbound
+                + "\n\nThis does not throw on the robot. ChoreoLib fires the marker, finds no"
+                + " command, and does nothing — the auto drives its trajectory on schedule while"
+                + " the mechanism sits still, which looks like a broken mechanism, not a wiring"
+                + " mistake."
+                + "\n\nBind it with ChoreoAutos.bind(...) in RobotContainer BEFORE any routine is"
+                + " built: a routine only sees bindings that existed when it was created"
+                + " (.claude/rules/01-architecture.md).");
   }
 
   /**
@@ -207,8 +208,8 @@ class RobotContainerSmokeTest {
 
   /** {@link RobotContainer}'s auto chooser, which it does not expose. */
   @SuppressWarnings("unchecked")
-  private static LoggedDashboardChooser<Command> autoChooser() {
-    return (LoggedDashboardChooser<Command>) readField("autoChooser");
+  private static LoggedDashboardChooser<Supplier<Command>> autoChooser() {
+    return (LoggedDashboardChooser<Supplier<Command>>) readField("autoChooser");
   }
 
   private static Object readField(String name) {

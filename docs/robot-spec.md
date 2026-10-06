@@ -40,7 +40,8 @@ existed, not just what it did. It is worth the half hour.
 | Logging / replay | AdvantageKit (`LoggedRobot`, IO layer, `@AutoLog`) |
 | Motor control | CTRE Phoenix 6 (TalonFX, TalonFXS, CANcoder, Pigeon2) |
 | Vision | PhotonVision over NetworkTables |
-| Path following | PathPlannerLib (`AutoBuilder`, `LocalADStarAK` pathfinder) |
+| Trajectories | ChoreoLib (`AutoFactory`, trajectories from the Choreo GUI in `deploy/choreo`), plus PID-to-pose finishes and point-to-point autos (`frc/lib/auto`) |
+| Distance sensing | CTRE CANrange (Phoenix 6), Grapple LaserCAN (`libgrapplefrc`) |
 | Dashboard | Elastic + AdvantageScope |
 | Formatting | Spotless / Google Java Format (runs on `compileJava`) |
 | Java | 17 |
@@ -59,11 +60,16 @@ Versions live in `vendordeps/` — see `docs/hardware-layout.md` for the table.
 ```
 frc/lib/util/                ALL shared utilities — see docs/subsystem-ownership.md
 frc/lib/mechanism/           motor abstraction and the three mechanism kinds
+frc/lib/device/              non-motor devices (encoder, distance, beam break, lights) + CanIdRegistry
+frc/lib/auto/                Waypoint, WaypointAuto — point-to-point autos as data
+frc/lib/command/             command infrastructure (SteppableCommandGroup)
 frc/robot/                   Main, Robot, RobotContainer, RobotState, Constants, BuildConstants
 frc/robot/generated/         TunerConstants (Tuner X generated — never hand-edit)
 frc/robot/subsystems/drive/  Drive, Module, Gyro/Module IO, PhoenixOdometryThread
 frc/robot/subsystems/vision/ Vision, VisionConstants, io/
 frc/robot/commands/          DriveCommands (+ one file per mechanism)
+frc/robot/autos/             ChoreoAutos (AutoFactory, event bindings, thenAlign),
+                             PointToPointAutos (static factories over WaypointAuto)
 ```
 
 Tests mirror this structure under `src/test/java`. See [testing.md](testing.md) for what each
@@ -180,14 +186,15 @@ drains those queues under `odometryLock` and feeds `poseEstimator.updateWithTime
 constructor. If the gyro disconnects, heading falls back to integrating module deltas via
 `kinematics.toTwist2d()` and an `Alert` is raised.
 
-**PathPlanner.** `AutoBuilder.configure()` lives in `Drive.configureAutoBuilder()`, which
-`RobotContainer` calls once before `AutoBuilder.buildAutoChooser()`. It is a method rather than
-constructor code because `AutoBuilder` is global state and a second `Drive` would rebind it.
-Path-following gains and `PP_CONFIG` (mass, MOI, wheel COF) are in that method — all 2026
-values, all need re-measuring.
+**Choreo.** `Drive.followTrajectory(SwerveSample)` follows a trajectory sample: its velocity as
+feedforward plus PID on x, y and heading (`trajectoryX/Y/HeadingController`, gains carried over
+from the 2026 PathPlanner controller — re-tune once a `.traj` exists). `ChoreoAutos.createFactory`
+builds the one `AutoFactory` around it. Mass, MOI and wheel COF now live in the Choreo GUI project
+(`deploy/choreo/*.chor`), not in code. There is no pathfinding: Choreo has none, and
+`driveToPose` is straight-line only.
 
 **Commands.** `joystickDrive`, `joystickDriveLimited`, `joystickDriveAtAngle`, `driveToPose`,
-`alignForScore`, `stopWithX`, `feedforwardCharacterization`, `wheelRadiusCharacterization`.
+`driveToPoseWithin`, `driveToWaypoint`, `alignForScore`, `stopWithX`, `feedforwardCharacterization`, `wheelRadiusCharacterization`.
 A heading-only align passes a heading supplier to `joystickDriveAtAngle`; a full-pose align
 uses `driveToPose`. See [target-alignment.md](target-alignment.md).
 
@@ -332,12 +339,14 @@ Patterns that must survive the season:
 ## 15. RobotContainer — Binding Logic
 
 Wiring layer. Constructs subsystems per `Constants.currentMode` (REAL / SIM / REPLAY),
-registers PathPlanner named commands and event triggers **before**
-`AutoBuilder.buildAutoChooser()`, builds the auto chooser, then configures bindings.
+creates the Choreo `AutoFactory`, binds event markers with `ChoreoAutos.bind` **before** any
+routine is built, builds the auto chooser, then configures bindings.
 
 Current bindings: default `joystickDrive`, plus the three flight-stick accessors in §13. The
-auto chooser is a `LoggedDashboardChooser` built from `AutoBuilder.buildAutoChooser()` plus the
-SysId and characterization routines.
+auto chooser is a `LoggedDashboardChooser<Supplier<Command>>`: "None", Choreo routines
+(`ChoreoAutos.all`), point-to-point autos (`PointToPointAutos.all`), and the SysId and
+characterization routines. Each option is built when auto starts, so only the selected auto's
+trajectories load, and the selection is logged for replay.
 
 No game logic here. Ever.
 
@@ -352,7 +361,6 @@ No game logic here. Ever.
 | `FieldConstants` | Field dimensions + AprilTag layout; gains game geometry each season |
 | `BatteryLogger` | Per-subsystem current accounting for brownout analysis |
 | `PhoenixUtil` | `tryUntilOk` — retries CTRE config until it sticks |
-| `LocalADStarAK` | Replay-safe PathPlanner pathfinder |
 | `LoggedTrigger` | Trigger wrapper that logs its own state |
 | `Elastic` | Dashboard notifications and tab switching |
 | `ThrowingRunnable` | Functional interface for throwing config calls |

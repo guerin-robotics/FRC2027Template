@@ -242,6 +242,12 @@ Non-negotiables, each of which has burned this team or is load-bearing for repla
   2026.
 - Supply current, not stator, goes to `BatteryLogger.reportCurrentUsage()`.
 
+**Sensors and lights come from `frc/lib/device/`, never a hand-written IO.** A beam break, distance
+sensor, absolute encoder or LED strip is a wrapper the subsystem owns and calls `periodic()` on,
+with its IO chosen per mode in `RobotContainer` exactly like the mechanism's. Its ID goes in
+`Constants.CanIds` or `Constants.DioPorts`, and its `registerFaultMonitors()` is called once. See
+`docs/devices.md`.
+
 ---
 
 ## Step 3 — Constants go in the right file
@@ -350,7 +356,7 @@ mode of this skill.
 Do not, without being asked:
 
 - Change existing subsystem code
-- Add the mechanism to an auto routine or a PathPlanner named command
+- Add the mechanism to an auto routine or bind it to a Choreo event marker
 - Change CAN IDs of existing devices
 - Invent setpoints for game actions nobody described
 

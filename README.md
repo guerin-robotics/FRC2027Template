@@ -7,7 +7,8 @@ infrastructure work from two competition seasons — with every 2026 mechanism a
 piece of 2026 game logic stripped out.
 
 Build it, deploy it, and the robot drives with field-relative swerve, AprilTag pose
-estimation, PathPlanner autos, and full AdvantageKit logging and replay. Nothing else.
+estimation, Choreo trajectory following and point-to-point autos, and full AdvantageKit logging
+and replay. Nothing else.
 
 ---
 
@@ -17,8 +18,10 @@ Every January the team rebuilt the same drivetrain, the same vision pipeline and
 logging setup, and spent kickoff week doing it instead of working on the game. This repo
 ends that. Four goals:
 
-1. **The robot drives on day one.** Field-relative swerve, AprilTag pose estimation and
-   PathPlanner autos are already here and already work. Kickoff week goes to the game.
+1. **The robot drives on day one.** Field-relative swerve, AprilTag pose estimation and the
+   auto framework (Choreo plus PID-to-pose) are already here. Swerve and vision ran all of 2026;
+   the auto framework is wired in but untested on a robot, and needs a Choreo project before it
+   has anything to run. Kickoff week goes to the game.
 2. **Keep what was earned; drop what expires.** Vision rejection thresholds, current limits
    and instrumentation came out of real match logs and stay. Mechanisms, game logic and 2026
    field geometry are gone — they do not transfer and pretending they do is worse than an
@@ -139,7 +142,8 @@ moves the robot as needing a human at the driver station.
 
 - `subsystems/drive` — full AdvantageKit swerve: `Drive`, `Module`, `PhoenixOdometryThread`,
   and IO implementations for TalonFX, TalonFXS, sim, and replay. Gyro IO for Pigeon2 and
-  NavX. Owns the single `SwerveDrivePoseEstimator` and the PathPlanner `AutoBuilder` wiring.
+  NavX. Owns the single `SwerveDrivePoseEstimator` and the Choreo trajectory follower
+  (`followTrajectory`).
   Logs torque current on both drive and steer motors alongside stator and supply current, so
   module load is readable straight from a match log.
 - `subsystems/vision` — multi-camera PhotonVision AprilTag pose estimation with the
@@ -154,8 +158,19 @@ each with its subsystem, command factories, physics sim and (for the position ki
 visualizer. A new mechanism is two files on top of it. In the build; the config builder is under
 test (`MotorConfigTest`).
 
+**Device library** — `frc/lib/device`: CANcoder absolute encoder, CANrange and LaserCAN
+distance sensors, DIO and LaserCAN beam breaks, CANdle lights — each a wrapper a subsystem owns
+plus real, sim and replay IOs — and `CanIdRegistry`, which stops boot on a duplicate CAN ID. See
+[docs/library.md](docs/library.md) for how `frc/lib` is laid out and how it relates to 3467's
+W8-Library.
+
+**Autos** — three layers in one chooser: Choreo trajectories (`frc/robot/autos/ChoreoAutos`,
+followed by `Drive.followTrajectory`), a Choreo trajectory with a PID-to-pose finish
+(`ChoreoAutos.thenAlign`), and code-only point-to-point autos (`PointToPointAutos`, built from
+`frc/lib/auto` waypoints). The last two share `DriveCommands.driveToPose`. See [docs/autos.md](docs/autos.md).
+
 **Commands** — `commands/DriveCommands`: `joystickDrive`, `joystickDriveLimited`,
-`joystickDriveAtAngle`, `driveToPose`, `alignForScore`, `stopWithX`,
+`joystickDriveAtAngle`, `driveToPose`, `driveToWaypoint`, `alignForScore`, `stopWithX`,
 `feedforwardCharacterization`, `wheelRadiusCharacterization`.
 
 **Bindings** — `Triggers.java` owns both controllers (flight stick drives, Xbox operates) and
@@ -196,7 +211,6 @@ All in `frc/lib/util/`.
 | `lib/MatchMetadataLogger` | Event and match identity, for triaging logs |
 | `lib/PhoenixSignalLogger` | CTRE hoot logging, started on enable and stopped on disable |
 | `lib/PhoenixUtil` | `tryUntilOk` — retries CTRE config until it sticks |
-| `lib/LocalADStarAK` | Replay-safe PathPlanner pathfinder |
 | `lib/LoggedTrigger` | Trigger wrapper that logs its state |
 | `lib/Elastic` | Elastic dashboard notifications and tab switching |
 | `lib/ThrowingRunnable` | Functional interface for throwing config calls |
@@ -240,7 +254,7 @@ wpilib-agent-tools (Python CLI for sim, NT4 recording, log analysis). See
 All 2026 mechanisms (flywheel, hood, prestage, upper/lower feeder, transport, intake pivot,
 intake roller), their commands and sequences, `HardwareConstants` (folded into `Constants`), the
 2026 `Triggers` bindings (`Triggers.java` is back, rebuilt around the drive controls), `HubShiftUtil`, `RobotModelVisualizer`, the 2026 field geometry in `FieldConstants`, the
-2026 PathPlanner autos and paths, and the `ALPHA`/`COMP` robot-type switch —
+2026 PathPlanner autos and paths (PathPlanner itself was later replaced by Choreo), and the `ALPHA`/`COMP` robot-type switch —
 `COMP_TunerConstants` is now simply `TunerConstants`.
 
 ---
@@ -259,8 +273,9 @@ Everything carried over describes the **2026** robot. In rough order:
    cameras the robot doesn't have — the count must match in all three `RobotContainer`
    branches (REAL, SIM, REPLAY).
 4. **`lib/FieldConstants.java`** — update `aprilTagLayout` when WPILib ships the 2027 field.
-5. **`subsystems/drive/Drive.java`** — `ROBOT_MASS_KG`, `ROBOT_MOI` and `WHEEL_COF` in
-   `PP_CONFIG`, plus the PathPlanner PID gains.
+5. **`src/main/deploy/choreo/`** — create the Choreo project with the 2027 robot's mass, MOI,
+   wheel COF and bumpers (2026 values are in its README), then tune the follower gains in
+   `Drive.java` (`trajectoryX/Y/HeadingController`).
 6. **`commands/DriveCommands.java`** — `ANGLE_KP` / `ANGLE_KD` for heading hold.
 
 Vision filter thresholds are geometry-independent and were earned from real match logs.

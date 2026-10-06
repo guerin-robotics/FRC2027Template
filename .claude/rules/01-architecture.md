@@ -133,30 +133,36 @@ every call. At 50 Hz this creates GC pressure and unpredictable `periodic()` tim
 
 ---
 
-## PathPlanner Wiring
+## Choreo Wiring
 
-**Rule:** `AutoBuilder.configure()` lives in `Drive.java` — in `Drive.configureAutoBuilder()`,
-not in `RobotContainer`. The gains, `PP_CONFIG` and the output consumer belong with the
-drivetrain.
+Autos come in three layers: Choreo trajectories (followed by `Drive.followTrajectory`), a Choreo
+trajectory with a PID-to-pose finish (`ChoreoAutos.thenAlign`), and code-only point-to-point
+waypoints (`PointToPointAutos`). The last two share `DriveCommands.driveToPose`. See [docs/autos.md](../../docs/autos.md).
 
-**Rule:** `RobotContainer` calls `drive.configureAutoBuilder()` once, before
-`AutoBuilder.buildAutoChooser()`.
+**Rule:** The trajectory follower lives in `Drive.java` — `Drive.followTrajectory(SwerveSample)`
+— not in `RobotContainer` or `ChoreoAutos`. The follower gains and the output path belong with
+the drivetrain.
 
-**Why it is a method and not the constructor:** `AutoBuilder`, the pathfinder and the logging
-callbacks are PathPlanner *global* state, one set per JVM. Configuring them from a constructor
-means building a second `Drive` silently rebinds them — which is exactly what the sim tests do,
-four times, and it made PathPlanner report an error on every test run. Forgetting the call is
-loud rather than silent: `buildAutoChooser()` throws `AutoBuilderException`, and
-`RobotContainerSmokeTest` catches it.
+**Rule:** There is exactly one Choreo `AutoFactory`, created by `ChoreoAutos.createFactory(drive)`
+in `RobotContainer`. Routines are static factories in `robot/autos/ChoreoAutos.java` that take it.
 
-**Rule:** Named commands and event triggers must be registered before
-`AutoBuilder.buildAutoChooser()` is called.
+**Rule:** Event markers are bound with `ChoreoAutos.bind(factory, name, command)` in
+`RobotContainer`, **before any routine is built**. A routine only sees bindings that existed when
+it was created, and an unbound marker does nothing on the field — silently.
+`RobotContainerSmokeTest` fails if a `.traj` uses a marker name nothing is bound to.
 
-**Rule:** Event triggers use `Commands.runOnce()` without subsystem requirements to
-avoid interrupting the path-following command.
+**Rule:** A command bound to an event marker or a trajectory trigger (`atTime`, `done`) must not
+require the drive. It is scheduled alongside the trajectory command, which requires the drive, so
+sharing that requirement interrupts the trajectory mid-path.
 
-**Why:** PathPlanner resolves named commands at chooser-build time. Commands registered
-after that call are silently ignored.
+**Rule:** The auto chooser is AdvantageKit's `LoggedDashboardChooser<Supplier<Command>>`, never
+Choreo's `AutoChooser`. The selection is then a logged input and replays; the supplier builds the
+routine at auto start, so only the selected auto's trajectories load.
+
+**Why the robot config is not in code any more:** Choreo optimises trajectories against the mass,
+MOI, wheel COF and bumpers set in the GUI project (`src/main/deploy/choreo/*.chor`). The robot only
+follows what the GUI produced. A wrong mass there makes trajectories the robot cannot follow, and no
+code change fixes it — re-export from the GUI.
 
 ---
 

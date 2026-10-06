@@ -34,7 +34,7 @@ drives anything, these must be revisited:
 | Swerve CAN IDs, encoder offsets, geometry, gains | `generated/TunerConstants.java` | Regenerate with CTRE Tuner X against the real robot |
 | Camera names and `robotToCameraN` transforms | `subsystems/vision/VisionConstants.java` | Identity placeholders — measure on the real robot |
 | AprilTag layout | `frc/lib/util/FieldConstants.java` | Points at the 2026 field; update when WPILib ships 2027 |
-| PathPlanner robot config (mass, MOI, wheel COF) | `subsystems/drive/Drive.java` | `ROBOT_MASS_KG`, `ROBOT_MOI`, `WHEEL_COF` are 2026 values |
+| Choreo robot config (mass, MOI, wheel COF, bumpers) | `src/main/deploy/choreo/*.chor` (Choreo GUI) | No project yet — create it; 2026 values are in `deploy/choreo/README.md` |
 | Heading-hold gains | `commands/DriveCommands.java` | `ANGLE_KP` / `ANGLE_KD` tuned on the 2026 chassis |
 | Team number | `.wpilib/wpilib_preferences.json` | Verify |
 
@@ -53,7 +53,7 @@ NEVER change swerve encoder offsets (magnet calibration)
 NEVER change PID / feedforward gains outside a tuning session
 NEVER remove Logger.processInputs() from any periodic() method
 NEVER add hardware calls (TalonFX, CANcoder, etc.) inside a subsystem class
-NEVER modify PathPlanner .auto files by hand
+NEVER modify Choreo .traj / .chor files by hand
 NEVER change motor inversion flags
 NEVER disable or remove a safety timeout
 NEVER change an AdvantageKit IO interface (@AutoLog fields) without updating real + sim
@@ -72,7 +72,7 @@ Classify every proposed change before making it:
 | Level | Description | Behavior |
 |---|---|---|
 | **Safe** | Comment, rename, log addition, new command factory | Proceed |
-| **Low risk** | New subsystem (no existing wiring), new auto named command | Proceed, note what was added |
+| **Low risk** | New subsystem (no existing wiring), new Choreo event-marker binding or auto routine | Proceed, note what was added |
 | **Medium risk** | Modifying existing command logic, changing wait timeouts, tuning thresholds | Proceed with explicit summary of behavioral change |
 | **High risk** | Changing PID gains, swerve constants, vision filter thresholds, button bindings | Ask for confirmation, describe the failure mode |
 | **Blocked** | Any Hard Stop above | Stop. Ask explicitly. |
@@ -153,7 +153,7 @@ or in `RobotState`.
 - Adding a `.withName()` call to a command
 - Fixing a compile error
 - Writing a new subsystem from scratch following the vision/drive IO pattern
-- Adding a new named command to `RobotContainer`
+- Binding a new Choreo event marker in `RobotContainer`
 
 **Ask before acting:**
 
@@ -229,6 +229,11 @@ A mechanism is **two files**: the subsystem and its constants. Everything else l
 `frc/lib/mechanism/` — the motor IO, the log schema, the config builder, the simulation, the
 visualizers and the common command factories. That library is in the build, and `MotorConfigTest`
 pins its config builder — which the scaffolds never could be.
+
+A mechanism that has sensors or lights owns them too: `frc/lib/device/` holds the absolute
+encoder, distance sensor, beam break and lights, each a wrapper the subsystem calls `periodic()`
+on, with real, sim and replay IOs. [docs/library.md](docs/library.md) maps all of `frc/lib`; it is
+our own version of 3467's W8-Library, written fresh because theirs is GPL-3.0.
 
 `template/` holds **three** scaffolds of the two-file pattern, one per kind of mechanism. Copy the
 one that matches; each is complete, with nothing to delete and no commented-out fork to choose

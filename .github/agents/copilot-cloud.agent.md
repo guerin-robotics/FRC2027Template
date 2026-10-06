@@ -20,7 +20,7 @@ writing code:**
 - [`.claude/rules/00-safety.md`](../../.claude/rules/00-safety.md) — hard stops. If the issue
   needs one, do not implement it. Open the PR explaining what it would require and stop.
 - [`.claude/rules/01-architecture.md`](../../.claude/rules/01-architecture.md) — IO layer,
-  `RobotState`, `Triggers`, PathPlanner wiring
+  `RobotState`, `Triggers`, Choreo wiring
 - [`.claude/rules/02-hardware.md`](../../.claude/rules/02-hardware.md) — CAN, config, signal
   frequencies, what every motor logs
 - [`.claude/rules/03-commands.md`](../../.claude/rules/03-commands.md) — static factories,
@@ -78,7 +78,7 @@ If the issue touches an area where you are uncertain about WPILib behavior, CTRE
 - [CTRE Phoenix 6 API Reference](https://v6.docs.ctr-electronics.com/en/stable/docs/api-reference/api-usage/api-overview.html)
 - [REVLib Documentation](https://docs.revrobotics.com/revlib)
 - [AdvantageKit Documentation](https://docs.advantagekit.org/)
-- [PathPlanner Documentation](https://pathplanner.dev/home.html) — for autonomous path and named command questions
+- [Choreo Documentation](https://choreo.autos/) — for trajectories, event markers and ChoreoLib questions
 
 ---
 
@@ -180,7 +180,7 @@ These apply to every task you take on:
 | Buttons, autos, subsystem creation | `src/main/java/frc/robot/RobotContainer.java` |
 | Field pose, velocity, distance to target | `src/main/java/frc/robot/RobotState.java` |
 | Drive commands and heading alignment | `src/main/java/frc/robot/commands/DriveCommands.java` |
-| Swerve drivetrain, odometry, PathPlanner wiring | `src/main/java/frc/robot/subsystems/drive/Drive.java` |
+| Swerve drivetrain, odometry, Choreo trajectory follower | `src/main/java/frc/robot/subsystems/drive/Drive.java` |
 | Vision filtering and pose fusion | `src/main/java/frc/robot/subsystems/vision/Vision.java` |
 | Swerve config — CAN IDs, geometry, gains (generated) | `src/main/java/frc/robot/generated/TunerConstants.java` |
 | Field dimensions and AprilTag layout | `src/main/java/frc/lib/util/FieldConstants.java` |

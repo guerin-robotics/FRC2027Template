@@ -561,7 +561,7 @@ review-change, write-test. Fill brackets, don't freestyle.
 
 **Never without explicit confirmation:** CAN IDs, PID/FF gains, encoder
 offsets, inversions, current limits, safety timeouts,
-`Logger.processInputs()`, `.auto` files.
+`Logger.processInputs()`, Choreo `.traj` / `.chor` files.
 
 **Always:** every `waitUntil` gets `.withTimeout()`. Every command gets
 `.withName()`. Hardware only inside IO classes. Every fixed bug gets a regression

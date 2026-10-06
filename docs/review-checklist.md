@@ -70,6 +70,7 @@ rather than assuming a green build means they hold.
 ## 5. Hardware Check (only for changes touching hardware config)
 
 - [ ] No CAN IDs changed *(collisions and out-of-range IDs are caught by `CanIdUniquenessTest`; a valid ID pointing at the wrong device is not)*
+- [ ] Any new CAN device class calls `CanIdRegistry.claim(...)` before constructing the device *(the runtime duplicate check only covers devices that claim)*
 - [ ] No motor inversion flags changed
 - [ ] No swerve encoder offsets changed
 - [ ] All new TalonFX configurations use `PhoenixUtil.tryUntilOk(5, ...)`
@@ -87,11 +88,14 @@ rather than assuming a green build means they hold.
 
 ---
 
-## 7. PathPlanner Check (only for auto changes)
+## 7. Auto Check (only for auto changes)
 
-- [ ] Named commands registered before `AutoBuilder.buildAutoChooser()`
-- [ ] Event triggers have no subsystem requirements
-- [ ] No `.auto` files edited in code (use PathPlanner GUI)
+- [ ] Choreo event markers bound with `ChoreoAutos.bind` before any routine is built
+- [ ] No bound command or trajectory-trigger command requires the drive (`thenAlign` on `done()`
+      is the one exception)
+- [ ] Every PID-to-pose step in an auto finishes — `driveToPoseWithin` / `driveToWaypoint`, never
+      bare `driveToPose`
+- [ ] No `.traj` / `.chor` files edited in code (use the Choreo GUI)
 - [ ] Auto still fits inside the auto period (time it — 2026 overran every match)
 
 ---
@@ -121,7 +125,8 @@ rather than assuming a green build means they hold.
 | Other CAN IDs | `Constants.CanIds` |
 | Setpoints / timeouts / tolerances | `Constants.Setpoints` / `.Waits` / `.Thresholds` — never inline |
 | PID gains (mechanisms) | `[Subsystem]Constants.java` or IO implementation |
-| Path-following gains | `Drive.java` (`configureAutoBuilder()`) |
+| Trajectory-following gains | `Drive.java` (`trajectoryX/Y/HeadingController`) |
+| Drive-to-pose gains / FF radii | `DriveCommands.java` (`driveController`, `Drive/ToPose/FF*`) |
 | Heading-hold gains | `DriveCommands.java` (`ANGLE_KP` / `ANGLE_KD`) |
 | Vision thresholds | `subsystems/vision/VisionConstants.java` |
 | Field dimensions / AprilTag layout | `frc/lib/util/FieldConstants.java` |
@@ -129,4 +134,5 @@ rather than assuming a green build means they hold.
 | Button objects | `Triggers.java` — never in `RobotContainer` |
 | Subsystem wiring | `RobotContainer.java` |
 | Multi-subsystem sequences | a dedicated sequences file |
-| Named commands | `RobotContainer.java` (registered before `buildAutoChooser`) |
+| Choreo event-marker bindings | `RobotContainer.java` (`ChoreoAutos.bind`, before any routine is built) |
+| Auto routines | `robot/autos/ChoreoAutos.java`, `robot/autos/PointToPointAutos.java` |
