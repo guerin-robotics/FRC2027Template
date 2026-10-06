@@ -241,14 +241,6 @@ Non-negotiables, each of which has burned this team or is load-bearing for repla
 - `Follower(int, MotorAlignmentValue)`. The old boolean overload does not exist in Phoenix 6
   2026.
 - Supply current, not stator, goes to `BatteryLogger.reportCurrentUsage()`.
-- **If the mechanism can stall against a game piece, it gets jam detection.** Rollers, feeders,
-  intakes, transports. 2026 ran these open-loop and jams were silent — the mechanism stopped
-  working and nothing in the log said why. Copy the JAM DETECTION block from
-  `ExampleRoller` and `ExampleRollerConstants`: the conjunction of commanded-motion AND
-  not-turning AND high **stator** current, debounced for longer than spin-up takes. Detect in
-  the subsystem, respond in a command, register it with `FaultMonitor`. Ask for the thresholds
-  or mark them unmeasured — telling a jam from a normal pickup is the whole job, and it needs
-  real current data.
 
 ---
 
@@ -331,10 +323,10 @@ See [docs/testing.md](../../../docs/testing.md).
 - Pure logic — interpolation tables, readiness bands, zone math. Use
   `.claude/prompts/write-test.md`; known-correct cases come from measurement, not from the
   code.
-- A sim convergence test for any closed-loop mechanism, shaped like
-  `RollerMechanismSimTest` or `RotaryMechanismSimTest` in `src/test/java/frc/lib/mechanism/`.
-  Those run the configured gains against a simulated Talon, so a passing test means something.
-  Two harness details are load-bearing and are commented in those files: the test must let
+- Optionally, a sim convergence test for a closed-loop mechanism. The template no longer ships
+  one; if the user wants it, recover the matching `*MechanismSimTest` from commit `f9b09f9` in
+  `src/test/java/frc/lib/mechanism/`. Two harness details are load-bearing and are commented in
+  those files: the test must let
   wall-clock time pass, because Phoenix's device simulation does not advance on the FPGA sim
   clock; and it must wait for a condition to hold rather than run a fixed loop count, or it
   races how loaded the machine is.

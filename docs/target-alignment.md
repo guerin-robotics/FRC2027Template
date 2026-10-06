@@ -103,7 +103,7 @@ loop the command runs, so a match log can confirm exactly when (or whether) it a
 
 **Before binding this to a button:** `driveController`'s gains are an untuned placeholder — see
 the `TODO(2027)` comment on that field in `DriveCommands.java`. Run a `/pid-tune` (or in-sim)
-session on the real chassis first. `DriveToPoseSimTest` (below) proves the command *converges*
+session on the real chassis first. A sim run proves at most that the command *converges*
 against a generic sim model; it is not evidence the gains are *good* on hardware.
 
 ---
@@ -144,45 +144,24 @@ into a real, game-named class (2025's was `Reef`, 2024's was `Speaker`) inside
 ## Testing an alignment command in sim before wiring it up
 
 Per `.claude/rules/04-build.md`, verify command-logic changes in simulation before calling them
-done. Two existing tests are the pattern to copy for a new game-specific alignment command:
+done — run `./gradlew simulateJava` and watch `AutoAim/DriveToPose/*` in AdvantageScope.
 
-- [`DriveToPoseSimTest`](../src/test/java/frc/robot/commands/DriveToPoseSimTest.java) — schedules
-  `driveToPose` against a physics-sim `Drive` (`ModuleIOSim`, the same wiring `RobotContainer` uses
-  for `SIM`) and asserts the pose converges on a target.
-- [`JoystickDriveAtAngleSimTest`](../src/test/java/frc/robot/commands/JoystickDriveAtAngleSimTest.java)
-  — same idea for the heading-only command.
+The template no longer ships drive sim tests (see `docs/testing.md`). If you want one as a
+regression guard, recover the pattern from commit `7b81e48`:
 
-Both classes' javadoc explains two things worth reading before copying them: why `ModuleIOSim`
-needs no wall-clock sleeping to produce real odometry samples, and — more important — why
-`CommandScheduler.getInstance().cancelAll()` in `@AfterEach` is mandatory rather than optional.
-`CommandScheduler` is a JVM-wide singleton and Gradle runs every test class in one JVM, so a
-command left scheduled at the end of one test keeps running during every later test. That bug is
-what caused `JoystickDriveAtAngleSimTest` to fail the first time it was added: a stale
-`driveToPose` command was still calling into the shared static `angleController` and corrupting
-its state. Any new `CommandScheduler.schedule(...)`-based test needs the same teardown.
+- `src/test/java/frc/robot/commands/DriveToPoseSimTest.java` — schedules `driveToPose` against a
+  physics-sim `Drive` and asserts the pose converges. `JoystickDriveAtAngleSimTest` beside it does
+  the same for heading.
+- `src/test/java/frc/robot/subsystems/drive/DriveOdometrySimTest.java` — checks that `+X`/`+Y`/
+  `+omega` move odometry the way WPILib's convention says. Worth re-running after any change to
+  `TunerConstants`, module inversion, or `Drive`'s kinematics.
 
-[`DriveOdometrySimTest`](../src/test/java/frc/robot/subsystems/drive/DriveOdometrySimTest.java) is
-a level below either command — it commands raw `ChassisSpeeds` directly and checks that `+X`/`+Y`/
-`+omega` odometry moves the way WPILib's convention says it should. Re-run it (or its pattern)
-after any change to `TunerConstants`, module inversion, or `Drive`'s kinematics — those are exactly
-the failure classes `.claude/rules/00-safety.md` calls out as high-risk and hard to notice.
+Any test that schedules commands needs `CommandScheduler.getInstance().cancelAll()` in its
+teardown: the scheduler is a JVM-wide singleton, and a command left scheduled keeps running —
+and keeps writing the shared static `angleController` — during every later test.
 
 ### Loop timing
 
 A new alignment command runs `angleController` (and maybe `driveController`) every cycle, so it
-adds to the 20 ms budget. Two tests guard that budget from opposite ends:
-
-- [`LoopTimeMonitorTest`](../src/test/java/frc/lib/util/LoopTimeMonitorTest.java) — pins down the
-  watchdog itself: that a sustained ~33 ms loop (the 2026 robot's actual rate) is reported, that a
-  startup spike is not, that the deliberate gap between the 20 ms budget and the 25 ms alert
-  threshold is preserved, and that the alert clears on recovery. Timing is controlled with
-  `SimHooks.pauseTiming()`/`stepTiming()`, so these assertions are exact rather than
-  machine-dependent.
-- [`DrivePeriodicBudgetTest`](../src/test/java/frc/robot/subsystems/drive/DrivePeriodicBudgetTest.java)
-  — measures `Drive.periodic()`, the largest known contributor, and fails if its median jumps by
-  more than an order of magnitude. Copy this pattern for any 2027 subsystem whose `periodic()` does
-  real work.
-
-Neither replaces watching `LoopTiming/AverageMs` on the actual robot from the first day it drives —
-a dev laptop is not a roboRIO. They catch structural regressions early, which is when they are
-cheap to fix.
+adds to the 20 ms budget. Watch `LoopTiming/AverageMs` on the actual robot from the first day it
+drives; `LoopTimeMonitor` raises an alert when the loop runs over.

@@ -92,7 +92,9 @@ Before declaring a change ready to deploy:
 1. Compile locally: `./gradlew compileJava`
 2. Check `Constants.currentMode` resolves to `REAL` on the robot — in particular that
    `simMode` was not left on `REPLAY` after a debugging session
-3. Check any tuning/demo mode flags are `false` (unless intentional)
+3. Check any tuning/demo mode flags are `false` (unless intentional). `tuningMode` is gated
+   automatically: `checkConstantsDeploy` refuses a deploy from an `event*` branch with it on,
+   and CI's `build` refuses to merge it
 4. Verify the USB drive is present for log writing
 
 ### First deploy of the season — extra gate

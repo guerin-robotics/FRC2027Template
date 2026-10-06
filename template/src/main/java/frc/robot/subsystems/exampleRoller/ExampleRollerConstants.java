@@ -3,7 +3,6 @@ package frc.robot.subsystems.exampleRoller;
 import static edu.wpi.first.units.Units.KilogramSquareMeters;
 import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
-import static edu.wpi.first.units.Units.Seconds;
 
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import frc.lib.mechanism.Gains;
@@ -111,7 +110,6 @@ public final class ExampleRollerConstants {
 
           // Cruise velocity is meaningless under MotionMagicVelocity — the commanded velocity is
           // the target and this only governs the ramp to it. rampOnly() says that deliberately.
-          // Keep the acceleration honest: the jam detector's dwell has to exceed spin-up time.
           .motionProfile(MotionProfile.rampOnly(RotationsPerSecondPerSecond.of(50.0)))
           .build();
 
@@ -128,30 +126,8 @@ public final class ExampleRollerConstants {
    */
   public static final double MAX_SPEED_RPM = MOTOR.maxMechanismRpm(CONFIG.rotorToMechanismRatio());
 
-  /**
-   * How this mechanism behaves: what counts as at speed, and what a jam looks like.
-   *
-   * <p>Delete the jam detection for a flywheel spinning in free air — it has no jam signature to
-   * look for, and "this cannot jam" should mean the detector is absent rather than merely quiet.
-   * Keep it for anything that can stall against a game piece: a roller, feeder, intake or
-   * transport. 2026 ran its rollers open-loop with no feedback and jams were <b>silent</b>.
-   */
-  public static final RollerSettings SETTINGS =
-      RollerSettings.of(RPM.of(100))
-          .withJamDetection(
-              new RollerSettings.JamDetection(
-                  // Below this the mechanism is idle and cannot be jammed.
-                  RPM.of(500),
-                  // Fraction of the commanded speed below which it counts as "not turning".
-                  0.2,
-                  // Stator, not supply — at the low-speed high-load condition that defines a jam,
-                  // supply sits much closer to the noise floor.
-                  edu.wpi.first.units.Units.Amps.of(45),
-                  // MUST exceed spin-up time. During a normal spin-up the command is high, the
-                  // measurement is low and the current is high — exactly the jam signature — so a
-                  // shorter dwell fires on every single start. Check it against the acceleration
-                  // above, and raise it if that ever drops.
-                  Seconds.of(0.5)));
+  /** How this mechanism behaves: what counts as at speed. */
+  public static final RollerSettings SETTINGS = RollerSettings.of(RPM.of(100));
 
   /**
    * The physics simulation obeys.

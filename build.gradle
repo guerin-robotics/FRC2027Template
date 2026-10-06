@@ -137,6 +137,30 @@ tasks.withType(JavaCompile) {
     options.compilerArgs.add '-XDstringConcat=inline'
 }
 
+// Constant gates, modelled on 6328's. The checks themselves live at the bottom of
+// Constants.java; see docs/testing.md.
+//
+// Before every deploy: refuse tuningMode on an event branch.
+task(checkConstantsDeploy, dependsOn: "classes", type: JavaExec) {
+    mainClass = "frc.robot.Constants\$CheckDeploy"
+    classpath = sourceSets.main.runtimeClasspath
+    args = [
+        'git branch --show-current'.execute().text.trim()
+    ]
+}
+deployroborio.dependsOn(checkConstantsDeploy)
+
+// In CI: refuse to merge with tuningMode on. Hooked into `check` only when the CI
+// environment variable is "true" (GitHub Actions always sets it), so the existing
+// `./gradlew build` step runs it and a local build during a tuning session does not.
+task(checkConstantsPullRequest, dependsOn: "classes", type: JavaExec) {
+    mainClass = "frc.robot.Constants\$CheckPullRequest"
+    classpath = sourceSets.main.runtimeClasspath
+}
+if ("true".equalsIgnoreCase(System.getenv("CI"))) {
+    check.dependsOn(checkConstantsPullRequest)
+}
+
 // Create version file
 project.compileJava.dependsOn(createVersionFile)
 gversion {

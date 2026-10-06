@@ -322,8 +322,7 @@ the quality of the context it gets.
 [BEHAVIOR] If stator current exceeds 60 A for more than 250 ms while the
            intake command is active, stop the roller and log a warning.
 [WHERE]    IntakeRoller subsystem. Threshold constants in Constants.Thresholds.
-[VERIFY]   Show me it working in a unit test that fakes the current spike,
-           like RollerJamDetectionTest does.
+[VERIFY]   Show me it working in a unit test that fakes the current spike.
 ```
 
 (That example assumes a 2027 robot with an intake roller — substitute your own

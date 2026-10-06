@@ -40,11 +40,12 @@ repeatable, automatic, and becomes a permanent asset. The 2026 season had a
 `PathFollowingGainSweepTest` that swept PathPlanner gains and found the retune
 values without touching the robot.
 
-**That harness already exists here: `src/test/java/frc/robot/GainSweepTest.java`.**
-Read it before writing anything — it sweeps a gain range against the physics sim
-and reports the metrics below, so a new mechanism usually needs a new case rather
-than a new harness. `DriveToPoseSimTest` and `JoystickDriveAtAngleSimTest` are the
-convergence-check pattern to copy for a closed-loop command.
+**The template no longer ships the harness in the build** — the test suite was cut to a
+6328-style minimum (see `docs/testing.md`). Recover it rather than starting from scratch:
+`git show 7b81e48:src/test/java/frc/robot/GainSweepTest.java` is the sweep harness, and
+`DriveToPoseSimTest` / `JoystickDriveAtAngleSimTest` at the same commit are the
+convergence-check pattern for a closed-loop command. Ask the user whether the recovered
+harness should be committed or kept local to the tuning session.
 
 The harness must:
 - Drive the mechanism's simulation — `<Kind>Mechanism.sim(...)` — through the test motion
@@ -62,7 +63,8 @@ What it still cannot tell you: whether the inertia or mass in the sim model is r
 mechanism binds, or how it behaves with a game piece in it. Say which of your conclusions depend on
 those.
 
-Two harness details, both commented in `src/test/java/frc/lib/mechanism/`: the loop must let
+Two harness details, both commented in the mechanism sim tests at commit `f9b09f9`
+(`src/test/java/frc/lib/mechanism/`) and in `docs/testing.md`: the loop must let
 wall-clock time pass, because Phoenix's device simulation does not advance on the FPGA sim clock;
 and it must wait for a condition to hold rather than run a fixed loop count.
 
@@ -102,8 +104,8 @@ Deliver:
 3. **Behavioral consequence** — in plain words: "stiffer response, settles
    0.4 s faster, ~3% overshoot vs none before"
 4. **Failure mode if wrong** — per `.claude/rules/00-safety.md`
-5. **The sweep test committed** as a regression asset, so next season's
-   retune starts from a working harness
+5. **The sweep test** — committed as a regression asset only if the user
+   wants it; the template keeps its build suite minimal
 
 Then **ask for explicit confirmation** before writing the new gains into the
 constants (High risk per the rules). After confirmation, apply via the

@@ -50,9 +50,8 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
  *
  * <p><b>Cleanup matters.</b> {@code CommandScheduler} is a JVM-wide singleton shared with every
  * other test in this module, and {@code SubsystemBase}'s constructor registers into it. Left alone,
- * the {@code Drive} and {@code Vision} built here would keep running {@code periodic()} during
- * {@code DriveToPoseSimTest} and friends. {@link #unregisterSubsystems()} is what prevents that —
- * see the same warning on {@code DriveToPoseSimTest}.
+ * the {@code Drive} and {@code Vision} built here would keep running {@code periodic()} during any
+ * later test that builds its own. {@link #unregisterSubsystems()} is what prevents that.
  */
 class RobotContainerSmokeTest {
 
@@ -60,7 +59,9 @@ class RobotContainerSmokeTest {
 
   @BeforeAll
   static void buildContainer() {
-    // See GainSweepTest's javadoc for why this must not be inside a Java assert.
+    // JUnit's assertTrue, deliberately not the Java `assert` keyword. It always runs and fails
+    // right here if HAL.initialize returns false. An `assert` statement is skipped entirely
+    // without -ea, which would skip the initialization and fail later inside the HAL instead.
     assertTrue(HAL.initialize(500, 0), "HAL failed to initialize; sim-backed tests cannot run");
     RoboRioSim.setVInVoltage(12.0);
     DriverStationSim.setEnabled(false);
