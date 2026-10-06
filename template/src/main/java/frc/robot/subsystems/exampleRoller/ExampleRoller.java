@@ -17,10 +17,10 @@ import frc.lib.mechanism.roller.RollerSubsystem;
  * <h2>Why this file is almost empty</h2>
  *
  * <p>Reading inputs, logging them, reporting supply current, pushing tuned gains to the device,
- * tracking the goal, deciding what counts as "at speed" — all of that lives in
- * {@link RollerMechanism}, because none of it varies between one roller and the next. Through 2026
- * every mechanism carried its own copy, and the differences between those copies were accidents
- * more often than decisions.
+ * tracking the goal, deciding what counts as "at speed" — all of that lives in {@link
+ * RollerMechanism}, because none of it varies between one roller and the next. Through 2026 every
+ * mechanism carried its own copy, and the differences between those copies were accidents more
+ * often than decisions.
  *
  * <p>What belongs <i>here</i> is whatever is true of <b>this</b> mechanism and no other. Usually
  * that is a predicate or two with a name the rest of the code can read:

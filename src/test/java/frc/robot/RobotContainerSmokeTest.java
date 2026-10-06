@@ -50,8 +50,8 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
  *
  * <p><b>Cleanup matters.</b> {@code CommandScheduler} is a JVM-wide singleton shared with every
  * other test in this module, and {@code SubsystemBase}'s constructor registers into it. Left alone,
- * the {@code Drive} and {@code Vision} built here would keep running {@code periodic()} during
- * any later test that builds its own. {@link #unregisterSubsystems()} is what prevents that.
+ * the {@code Drive} and {@code Vision} built here would keep running {@code periodic()} during any
+ * later test that builds its own. {@link #unregisterSubsystems()} is what prevents that.
  */
 class RobotContainerSmokeTest {
 

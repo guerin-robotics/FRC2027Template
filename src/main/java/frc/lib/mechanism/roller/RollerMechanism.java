@@ -68,8 +68,8 @@ public class RollerMechanism extends Mechanism {
   /**
    * Log replay. The IO does nothing; AdvantageKit feeds the inputs class straight from the log.
    *
-   * <p>The mechanism's own logic still runs, which is the point — a tolerance changed after a
-   * match can be replayed against the log from that match.
+   * <p>The mechanism's own logic still runs, which is the point — a tolerance changed after a match
+   * can be replayed against the log from that match.
    */
   public static RollerMechanism replay(MotorConfig config, RollerSettings settings) {
     return new RollerMechanism(config, settings, MotorIO.replay(config));
