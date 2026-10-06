@@ -156,6 +156,7 @@ the file is right and this table is stale.
 | AdvantageKit | see vendordep | `vendordeps/AdvantageKit.json` |
 | PathPlannerLib | see vendordep | `vendordeps/PathplannerLib.json` |
 | Studica (NavX) | see vendordep | `vendordeps/Studica.json` |
+| Grapple (LaserCAN) | 2026.0.0 | `vendordeps/libgrapplefrc2026.json` |
 
 Update vendor libraries at the start of each season. Do not update mid-season unless
 fixing a known critical bug.

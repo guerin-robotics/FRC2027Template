@@ -154,8 +154,17 @@ each with its subsystem, command factories, physics sim and (for the position ki
 visualizer. A new mechanism is two files on top of it. In the build; the config builder is under
 test (`MotorConfigTest`).
 
+**Device library** — `frc/lib/device`: CANcoder absolute encoder, CANrange and LaserCAN
+distance sensors, DIO and LaserCAN beam breaks, CANdle lights — each a wrapper a subsystem owns
+plus real, sim and replay IOs — and `CanIdRegistry`, which stops boot on a duplicate CAN ID. See
+[docs/library.md](docs/library.md) for how `frc/lib` is laid out and how it relates to 3467's
+W8-Library.
+
+**Autos** — PathPlanner, plus point-to-point autos (`frc/robot/autos/PointToPointAutos`, built
+from `frc/lib/auto` waypoints) in the same chooser. See [docs/autos.md](docs/autos.md).
+
 **Commands** — `commands/DriveCommands`: `joystickDrive`, `joystickDriveLimited`,
-`joystickDriveAtAngle`, `driveToPose`, `alignForScore`, `stopWithX`,
+`joystickDriveAtAngle`, `driveToPose`, `driveToWaypoint`, `alignForScore`, `stopWithX`,
 `feedforwardCharacterization`, `wheelRadiusCharacterization`.
 
 **Bindings** — `Triggers.java` owns both controllers (flight stick drives, Xbox operates) and

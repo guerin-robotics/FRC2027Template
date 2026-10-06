@@ -394,14 +394,21 @@ src/main/java/frc/robot/
 ├── commands/
 │   ├── DriveCommands.java    ← carried over; add game alignment commands here
 │   └── [new commands]/       ← only for verbs the mechanism library does not already have
+├── autos/
+│   └── PointToPointAutos.java ← waypoint autos; PathPlanner autos live in deploy/pathplanner
 
 frc/lib/
 ├── util/                     ← ALL shared utilities: field/alliance, hardware helpers,
 │                                health monitors, tuning. Carried over; add to it,
 │                                don't rewrite it. There is no frc/robot/util.
-└── mechanism/                ← the motor abstraction and the three mechanism kinds.
-                                 In the build, and tested. Add a kind here, not a copy
-                                 of one in a subsystem package.
+├── mechanism/                ← the motor abstraction and the three mechanism kinds.
+│                                In the build, and tested. Add a kind here, not a copy
+│                                of one in a subsystem package.
+├── device/                   ← encoders, distance sensors, beam breaks, lights, and the
+│                                runtime CAN ID check. A subsystem owns these alongside
+│                                its mechanism — see docs/devices.md.
+├── auto/                     ← Waypoint / WaypointAuto, point-to-point autos as data
+└── command/                  ← command infrastructure (SteppableCommandGroup)
 ```
 
 ---

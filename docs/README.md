@@ -26,6 +26,9 @@ Process and workflow docs. Nothing in them depends on a particular robot or game
 | [target-alignment.md](target-alignment.md) | How to use `joystickDriveAtAngle` and `driveToPose`, the FieldConstants pattern for turning AprilTag poses into scoring targets, and the sim tests to copy before wiring a new one up |
 | [2027-migration.md](2027-migration.md) | The audit for the WPILib 2027 / Systemcore port, re-checked against alpha-7: what breaks, which vendors are ready, and a gated checklist that ports the platform on V2 first and V3 second. **The port is deliberately not started** — read this before anyone bumps a version |
 | [commands-v3.md](commands-v3.md) | What every command rule in this repo becomes under Commands V3 — factory table, timeouts, Ready → Align → Act, default commands, triggers, and a verdict on each `frc/lib` command class. Doctrine only; the code is still V2 |
+| [library.md](library.md) | The map of `frc/lib`: mechanisms, devices, autos, commands, utilities, the one IO pattern they all follow, and how it relates to 3467's W8-Library. Start here before adding anything shared |
+| [devices.md](devices.md) | Absolute encoder, distance sensor, beam break and lights: wiring each into a subsystem in all three modes, and what `connected` vs `valid` means per sensor |
+| [autos.md](autos.md) | Point-to-point autos beside PathPlanner — when to use which, adding a `WaypointAuto`, stepping one through in the pit, and the time budget |
 | [testing.md](testing.md) | The deliberately minimal suite — `RobotContainer` wiring, CAN ID validation, `MotorConfig` safety values — the `tuningMode` deploy and merge gates, every removed test with the commit to recover it from, and the architecture rules that nothing checks automatically. Read before adding a mechanism |
 
 ## Procedure kept, data needs filling in

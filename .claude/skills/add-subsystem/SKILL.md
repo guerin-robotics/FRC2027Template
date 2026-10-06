@@ -242,6 +242,12 @@ Non-negotiables, each of which has burned this team or is load-bearing for repla
   2026.
 - Supply current, not stator, goes to `BatteryLogger.reportCurrentUsage()`.
 
+**Sensors and lights come from `frc/lib/device/`, never a hand-written IO.** A beam break, distance
+sensor, absolute encoder or LED strip is a wrapper the subsystem owns and calls `periodic()` on,
+with its IO chosen per mode in `RobotContainer` exactly like the mechanism's. Its ID goes in
+`Constants.CanIds` or `Constants.DioPorts`, and its `registerFaultMonitors()` is called once. See
+`docs/devices.md`.
+
 ---
 
 ## Step 3 — Constants go in the right file

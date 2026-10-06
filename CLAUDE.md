@@ -230,6 +230,11 @@ A mechanism is **two files**: the subsystem and its constants. Everything else l
 visualizers and the common command factories. That library is in the build, and `MotorConfigTest`
 pins its config builder — which the scaffolds never could be.
 
+A mechanism that has sensors or lights owns them too: `frc/lib/device/` holds the absolute
+encoder, distance sensor, beam break and lights, each a wrapper the subsystem calls `periodic()`
+on, with real, sim and replay IOs. [docs/library.md](docs/library.md) maps all of `frc/lib`; it is
+our own version of 3467's W8-Library, written fresh because theirs is GPL-3.0.
+
 `template/` holds **three** scaffolds of the two-file pattern, one per kind of mechanism. Copy the
 one that matches; each is complete, with nothing to delete and no commented-out fork to choose
 between.

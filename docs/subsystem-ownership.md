@@ -132,7 +132,9 @@ not your code reads it. Delete the annotation when a method loses its last calle
 ## Utility (shared, no owner)
 
 All shared utilities live in `frc/lib/` — the general-purpose helpers under
-`frc/lib/util/`, the mechanism library under `frc/lib/mechanism/`. There is no
+`frc/lib/util/`, the mechanism library under `frc/lib/mechanism/`, devices under
+`frc/lib/device/`, and point-to-point auto data under `frc/lib/auto/` (see
+[library.md](library.md)). There is no
 `frc/robot/util/` — utilities either belong to every robot, in which case they go here, or
 they belong to a subsystem, in which case they go in that subsystem's package.
 

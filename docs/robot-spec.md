@@ -40,7 +40,8 @@ existed, not just what it did. It is worth the half hour.
 | Logging / replay | AdvantageKit (`LoggedRobot`, IO layer, `@AutoLog`) |
 | Motor control | CTRE Phoenix 6 (TalonFX, TalonFXS, CANcoder, Pigeon2) |
 | Vision | PhotonVision over NetworkTables |
-| Path following | PathPlannerLib (`AutoBuilder`, `LocalADStarAK` pathfinder) |
+| Path following | PathPlannerLib (`AutoBuilder`, `LocalADStarAK` pathfinder), plus point-to-point autos (`frc/lib/auto`) |
+| Distance sensing | CTRE CANrange (Phoenix 6), Grapple LaserCAN (`libgrapplefrc`) |
 | Dashboard | Elastic + AdvantageScope |
 | Formatting | Spotless / Google Java Format (runs on `compileJava`) |
 | Java | 17 |
@@ -59,11 +60,15 @@ Versions live in `vendordeps/` — see `docs/hardware-layout.md` for the table.
 ```
 frc/lib/util/                ALL shared utilities — see docs/subsystem-ownership.md
 frc/lib/mechanism/           motor abstraction and the three mechanism kinds
+frc/lib/device/              non-motor devices (encoder, distance, beam break, lights) + CanIdRegistry
+frc/lib/auto/                Waypoint, WaypointAuto — point-to-point autos as data
+frc/lib/command/             command infrastructure (SteppableCommandGroup)
 frc/robot/                   Main, Robot, RobotContainer, RobotState, Constants, BuildConstants
 frc/robot/generated/         TunerConstants (Tuner X generated — never hand-edit)
 frc/robot/subsystems/drive/  Drive, Module, Gyro/Module IO, PhoenixOdometryThread
 frc/robot/subsystems/vision/ Vision, VisionConstants, io/
 frc/robot/commands/          DriveCommands (+ one file per mechanism)
+frc/robot/autos/             PointToPointAutos (static factories over WaypointAuto)
 ```
 
 Tests mirror this structure under `src/test/java`. See [testing.md](testing.md) for what each

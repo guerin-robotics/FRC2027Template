@@ -29,6 +29,8 @@ copy-paste.
 | `frc/lib/util/Elastic.java` | Gold87 / Elastic dashboard | MIT | Vendor-published helper |
 | `frc/lib/util/PointInPolygon.java` | Ours | — | Ray-casting crossing-number. 3467 has a GPL file of the same name using `java.awt.geom.Path2D`; unrelated implementation |
 | `frc/lib/util/MotorSpecs.java` | Ours | — | Reads free speeds from WPILib `DCMotor` |
+| `frc/lib/device/**`, `frc/lib/auto/**`, `frc/lib/command/SteppableCommandGroup.java`, `frc/robot/autos/PointToPointAutos.java` | Ours | — | Design modelled on FRC 3467's W8-Library (GPLv3). **No code copied** — written fresh against our rules; `SteppableCommandGroup` shares their class name and idea only |
+| `vendordeps/libgrapplefrc2026.json` | Grapple Robotics | Vendor metadata | Fetched from Grapple's published `jsonUrl` |
 | `subsystems/drive/`, `Robot`, `RobotContainer` | AdvantageKit swerve template | BSD | Littleton Robotics |
 
 ---
