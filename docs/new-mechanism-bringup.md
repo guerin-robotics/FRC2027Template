@@ -133,7 +133,7 @@ Work at low output, 1–2 V, with a hand on disable.
    - **With a follower, halve the current.** The follower mirrors the leader in hardware, so the
      force into the stop doubles.
 
-   **Verify it on the robot; simulation cannot.** The sim tests cover the moving parts — that it
+   **Verify it on the robot; simulation cannot.** Simulation can show the moving parts — that it
    travels to the stop, detects the stall and finishes rather than timing out — but not the answer.
    In simulation the device's position is overwritten from the physics model every loop, and the
    model is always right about where the carriage is, so there is no offset to correct. On the real
@@ -265,7 +265,8 @@ and read them off the end of the run. That is a recovery path, not a workflow.
 
 Then:
 
-- Set `Constants.tuningMode = false`. It must be false for competition.
+- Set `Constants.tuningMode = false`. It must be false for competition, and CI will not merge it
+  on.
 - Move any value the drive team will ask about into `Constants.Setpoints`.
 - Run `./gradlew build` and commit.
 

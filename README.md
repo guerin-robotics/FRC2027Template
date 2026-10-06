@@ -151,7 +151,8 @@ moves the robot as needing a human at the driver station.
 `MotorIOTalonFXSim`, the `MotorConfig` builder that refuses to build without current limits,
 ratios and gains — plus travel bounds on a position mechanism — and three mechanism kinds — `roller/`, `rotary/`, `linear/` —
 each with its subsystem, command factories, physics sim and (for the position kinds) a
-visualizer. A new mechanism is two files on top of it. In the build and under test.
+visualizer. A new mechanism is two files on top of it. In the build; the config builder is under
+test (`MotorConfigTest`).
 
 **Commands** — `commands/DriveCommands`: `joystickDrive`, `joystickDriveLimited`,
 `joystickDriveAtAngle`, `driveToPose`, `alignForScore`, `stopWithX`,
@@ -276,7 +277,9 @@ Keep them.
 ./gradlew simulateJava     # run in simulation
 ```
 
-Deploy with the WPILib VS Code extension, or `./gradlew deploy`.
+Deploy with the WPILib VS Code extension, or `./gradlew deploy`. Every deploy runs
+`checkConstantsDeploy` first, which refuses one with `tuningMode` on from an `event*` branch or a
+detached checkout. See [docs/testing.md](docs/testing.md) for that gate and the three test classes.
 
 Logs are written to `/U/logs` on the robot's USB drive. Replay a log with
 `./gradlew replayWatch`, or set `Constants.simMode = Mode.REPLAY`.

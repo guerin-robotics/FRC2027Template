@@ -37,7 +37,8 @@ Rules:
   refactoring production code for testability, STOP and surface that as a
   separate, higher-risk change. Do not restructure working robot code as a
   side effect of adding a test.
-- A regression test is part of the bug fix. The fix is not "done" until the
-  test exists and is green in CI.
+- The suite is minimal on purpose (`docs/testing.md`), so only write a test
+  someone asked for or agreed to. Once a regression test is part of a fix, the
+  fix is not "done" until that test is green in CI.
 - If the expected values are guesses rather than measurements, say so in a
   comment in the test — a test asserting a guess locks in the guess.

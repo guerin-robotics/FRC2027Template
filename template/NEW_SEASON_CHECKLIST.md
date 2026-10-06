@@ -207,6 +207,7 @@ before the robot is enabled for the first time. Short version:
 - [ ] Phoenix Tuner device count matches what the code expects
 - [ ] `Constants.currentMode` resolves to `REAL`; `simMode` not left on `REPLAY`
 - [ ] `Constants.tuningMode` is FALSE — tunables must not be dashboard-adjustable at an event
+      (CI and `event*`-branch deploys refuse it, but check it anyway)
 - [ ] Any gain found during a tuning session has been written back into the constants and
       committed; dashboard values do not survive a reboot
 - [ ] USB drive present for logging

@@ -183,9 +183,10 @@ of reviewing. **Never approve code you don't understand.**
 
 ### Step 5 — Test: Claude verifies, you spot-check
 
-Claude runs the whole verification ladder itself — build, unit tests, sim —
-and writes unit tests for the new logic automatically. Details in §8. Your
-part: watch the change work in AdvantageScope, in sim, with your own eyes.
+Claude runs the whole verification ladder itself — build, unit tests, sim.
+The test suite is deliberately minimal, so the main evidence is sim, not new
+tests. Details in §8. Your part: watch the change work in AdvantageScope, in
+sim, with your own eyes.
 
 ### Step 6 — Pull request
 
@@ -350,19 +351,24 @@ Claude runs all four itself before reporting a task complete, simulates the
 change, tries values, and reports what it observed — you should never have to
 ask "did you build it?"
 
-### Unit tests are automatic
+### Unit tests are kept minimal
 
-**Every piece of hardware-independent logic gets a unit test, and Claude
-writes it as part of the change — you don't have to ask.** Calculators,
-interpolation, zone math, alliance flipping, command sequencing, timeout
-behavior. And **every bug that ever bit us gets a regression test**: the fix
-isn't done until a test exists that fails on the old code and passes on the
-new. That's how a bug can only cost us once, ever, across all future seasons.
+**The suite is deliberately small** — three classes, modelled on what top
+teams actually ship (6328 carries one test). It covers the failures that are
+silent: `RobotContainer` not constructing, two devices on one CAN ID, a motor
+config missing a safety value. Behavior is proved in sim and on the robot, not
+in tests. See [testing.md](testing.md).
 
-Your job in testing is the part that needs game knowledge: the known-correct
-cases. *"At 3.0 m the shot table says 2400 RPM and 34°"* comes from real
-measurement — Claude turns it into a test. Review tests like code: a test
-that can't fail is not a test (ask Claude: *"show me this test failing"*).
+So Claude does **not** add a test by default. It proposes one when the logic
+earns it — an interpolation table, zone math, a bug that already cost us a
+match — and asks before adding it. Removed tests are listed in testing.md with
+the commit to recover them from, so a harness that existed once never has to
+be rewritten.
+
+When a test is added, your job is the part that needs game knowledge: the
+known-correct cases. *"At 3.0 m the shot table says 2400 RPM and 34°"* comes
+from real measurement — Claude turns it into a test. Review tests like code: a
+test that can't fail is not a test (ask Claude: *"show me this test failing"*).
 
 Tests live in `src/test/java`, never touch hardware, and run in CI on every
 PR.
@@ -540,9 +546,9 @@ Claude knows this rule — the reviewer checks both files changed.
 Constraints optional — the built-in rules cover the standard ones.
 
 **Claude runs the verification itself:** compile → spotless → build + unit
-tests → sim. It writes unit tests for new logic automatically, and a
-regression test for every bug fix. Your job: spot-check in AdvantageScope and
-supply the known-correct numbers.
+tests → sim. The suite is minimal on purpose; Claude proposes a new test only
+when the logic earns one. Your job: spot-check in AdvantageScope and supply
+the known-correct numbers.
 
 **The season arc:** ① initial robot spec (guessed values OK — mark them
 UNTESTED; keep current limits LOW) → ② auto specs (sim-verify every path) →

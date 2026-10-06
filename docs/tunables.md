@@ -247,9 +247,11 @@ If a session ends before anyone writes them down, open the log in AdvantageScope
 off the end of the run. Treat that as a recovery path, not a workflow — a value that exists
 only in a log is not a value the robot will use.
 
-**`tuningMode` must be false for competition.** With it on, every tunable does NetworkTables
-traffic inside the 20 ms loop, and the robot is one stray dashboard edit away from a different
-gain set. It is on the pre-match checklist for this reason.
+**`tuningMode` must be false for competition.** With it on, every tunable does NetworkTables traffic
+inside the 20 ms loop, and the robot is one stray dashboard edit away from a different gain set. It
+is on the pre-match checklist for this reason, and the build enforces it: CI refuses to merge it on,
+and `checkConstantsDeploy` refuses to deploy it from an `event*` branch — see
+[testing.md](testing.md#constant-gates--not-tests-but-run-by-gradle).
 
 **Change one gain at a time.** Two at once and the result teaches you nothing.
 

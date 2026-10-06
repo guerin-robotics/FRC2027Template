@@ -54,8 +54,9 @@ In priority order. Read each in full — no summaries, no partial reads.
 4. `src/main/java/frc/robot/RobotState.java`
 5. `src/main/java/frc/robot/Robot.java`
 6. `src/main/java/frc/robot/subsystems/**/*.java`
-7. `src/test/java/**/*.java` when behavior changed — a fixed bug with no regression test is an
-   incomplete fix.
+7. `src/test/java/**/*.java` when behavior changed. The suite is minimal on purpose
+   ([testing.md](../../docs/testing.md)), so a fix without a new test is not by itself a finding —
+   but a change that breaks an existing test is.
 
 Follow the call chain past this list whenever you need to judge correctness. If a command
 calls a subsystem method, read that method.

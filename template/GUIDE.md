@@ -114,8 +114,9 @@ frc/lib/mechanism/
 └── linear/    ← LinearMechanism, LinearSubsystem, LinearCommands, LinearGeometry, sim, visualizer
 ```
 
-Unlike `template/`, this **is** in the build, and it has tests. That is the point of moving it: the
-scaffolds could only ever be proof-read, and the library can be proved to work.
+Unlike `template/`, this **is** in the build, so it compiles on every PR and `MotorConfigTest` pins
+the builder's safety checks. The scaffolds could only ever be proof-read. Its simulation tests were
+removed to keep the build fast; `docs/testing.md` lists the commit to recover them from.
 
 Two things it gives you that the old scaffolds could not:
 
@@ -293,7 +294,7 @@ competition seasons. Don't rewrite them; extend them.
 | `PhoenixUtil.tryUntilOk` | CTRE silently ignores configs on a busy bus; this retries until they stick |
 | `LocalADStarAK` | Required for PathPlanner pathfinding to work under replay |
 | `LoggedDashboardChooser` | Logs which auto was selected — essential for post-match review |
-| The test suite in `src/test/` | CAN ID validation, `RobotContainer` wiring, vision filtering and sim convergence. The first two cover a new mechanism the moment it exists — see `docs/testing.md` |
+| The test suite in `src/test/` | `RobotContainer` wiring, CAN ID validation and `MotorConfig` safety values. All three cover a new mechanism the moment it exists — see `docs/testing.md` |
 
 ---
 

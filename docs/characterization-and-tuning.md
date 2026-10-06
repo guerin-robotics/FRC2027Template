@@ -92,9 +92,11 @@ Two rules, both learned the hard way by teams every year:
    recoverable from the log under `NetworkInputs/Tuning/...` if nobody wrote them down, but that
    is a recovery path, not a workflow — see `docs/tunables.md`. A session that ends without a commit
    accomplished nothing.
-2. **`tuningMode` must be false for competition.** With it on, every tunable does NT traffic
-   inside the 20 ms loop, and the robot is one stray dashboard edit away from a different gain
-   set. Turning it off is on the pre-competition checklist.
+2. **`tuningMode` must be false for competition.** With it on, every tunable does NT traffic inside
+   the 20 ms loop, and the robot is one stray dashboard edit away from a different gain set. Turning
+   it off is on the pre-competition checklist, and the build enforces it: CI refuses to merge it on,
+   and `checkConstantsDeploy` refuses to deploy it from an `event*` branch — see
+   [testing.md](testing.md#constant-gates--not-tests-but-run-by-gradle).
 
 ---
 

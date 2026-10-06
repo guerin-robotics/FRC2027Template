@@ -46,7 +46,7 @@ two in sync — edit both or neither.
 - [ ] Correct code deployed — check `GitSHA` / `GitDirty` metadata in the log or dashboard
 - [ ] `GitDirty` reads "All changes committed". Uncommitted code at an event means the log
       cannot be matched to source later
-- [ ] Tuning mode OFF, demo mode OFF
+- [ ] Tuning mode OFF, demo mode OFF *(a deploy from an `event*` branch refuses `tuningMode`; demo mode is still on you)*
 - [ ] Correct auto selected on the dashboard
 - [ ] Robot placed to match the selected auto's starting pose
 

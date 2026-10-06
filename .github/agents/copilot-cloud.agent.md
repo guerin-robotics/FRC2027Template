@@ -104,8 +104,8 @@ They are in [`.claude/rules/01-architecture.md`](../../.claude/rules/01-architec
 [`03-commands.md`](../../.claude/rules/03-commands.md) — read them rather than working from a
 summary here. A summary is a second copy, and second copies drift.
 
-**Nothing automated enforces them** — the test suite covers CAN IDs, wiring, vision filtering
-and sim convergence, not architecture. A violation reaches a human reviewer, or it reaches the
+**Nothing automated enforces them** — the test suite covers CAN IDs, wiring and motor-config
+safety values, not architecture. A violation reaches a human reviewer, or it reaches the
 robot. Five that are missed most often: every command factory calls `.withName("Subsystem_Action")`;
 every `waitUntil()` has a `.withTimeout()`; setpoints come from `Constants.Setpoints` as factory
 parameters, never inline; hardware stays inside `*IO*` classes; and IO implementations sit where

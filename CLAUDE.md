@@ -227,8 +227,8 @@ behavior after you changed it is worse than no doc — update it in the same com
 
 A mechanism is **two files**: the subsystem and its constants. Everything else lives in
 `frc/lib/mechanism/` — the motor IO, the log schema, the config builder, the simulation, the
-visualizers and the common command factories. That library is in the build and is covered by tests,
-which the scaffolds never could be.
+visualizers and the common command factories. That library is in the build, and `MotorConfigTest`
+pins its config builder — which the scaffolds never could be.
 
 `template/` holds **three** scaffolds of the two-file pattern, one per kind of mechanism. Copy the
 one that matches; each is complete, with nothing to delete and no commented-out fork to choose

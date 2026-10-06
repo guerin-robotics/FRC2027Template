@@ -139,7 +139,8 @@ remembering which of the two a value lived in while a match clock was running. T
 Constants
 ├── Mode / simMode / currentMode   runtime mode selection
 ├── disableHAL                     unit-test escape hatch
-├── tuningMode                     enables dashboard-adjustable constants; FALSE for competition
+├── tuningMode                     dashboard-adjustable constants; FALSE for competition
+│                                  (CI and event-branch deploys refuse it — CheckDeploy/CheckPullRequest)
 ├── CanIds                         every non-swerve CAN ID, each with // CANivore or // RIO CAN
 ├── Setpoints                      voltages, velocities, positions a mechanism is commanded to
 ├── Waits                          every command timeout — nothing inline

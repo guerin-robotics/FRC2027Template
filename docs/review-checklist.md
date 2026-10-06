@@ -22,7 +22,8 @@ For changes to `@AutoLog` inputs classes:
 ```
 
 **The build covers very little of what follows.** The suite checks CAN ID collisions,
-`RobotContainer` wiring, vision filtering and sim convergence — see [testing.md](testing.md).
+`RobotContainer` wiring and `MotorConfig` safety values — see [testing.md](testing.md). Vision
+filtering and sim convergence are no longer tested, so a change to either is reviewed by hand.
 The architecture rules below are enforced by *this checklist* and nothing else, so read them
 rather than assuming a green build means they hold.
 
