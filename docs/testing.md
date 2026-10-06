@@ -28,6 +28,12 @@ and the other is silently never heard from. The test reads `TunerConstants` and 
 It cannot check whether a constant matches the ID actually flashed into the device. That lives
 in Phoenix Tuner X and `docs/hardware-layout.md`.
 
+**At runtime, `frc/lib/device/CanIdRegistry` is the second net.** Every CTRE or Grapple IO —
+`MotorIOTalonFX` and its Phoenix sim subclass, and each real IO under `frc/lib/device` — claims
+its ID when constructed, and a second claim on the same bus stops robot code at boot naming both
+owners. That covers what the test cannot see: an ID typed into a constructor, or two mechanisms
+built from one constant. Swerve devices do not claim; the test covers them.
+
 ### Wiring
 
 **`frc/robot/RobotContainerSmokeTest`** builds a real `RobotContainer` in SIM and asserts the

@@ -24,6 +24,7 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Temperature;
 import edu.wpi.first.units.measure.Voltage;
+import frc.lib.device.CanIdRegistry;
 import frc.lib.util.PhoenixUtil;
 import java.util.function.Function;
 
@@ -136,6 +137,18 @@ public class MotorIOTalonFX implements MotorIO {
   public MotorIOTalonFX(MotorConfig motorConfig) {
     this.motorConfig = motorConfig;
     this.config = motorConfig.toTalonFXConfiguration();
+
+    // Claim every ID before constructing anything, so a collision stops boot with both owners
+    // named rather than leaving two devices answering to one ID.
+    String name = motorConfig.name();
+    CanIdRegistry.claim(motorConfig.canId(), motorConfig.bus(), name + " leader");
+    for (int i = 0; i < motorConfig.followers().size(); i++) {
+      CanIdRegistry.claim(
+          motorConfig.followers().get(i).canId(), motorConfig.bus(), name + " follower " + i);
+    }
+    if (motorConfig.hasEncoder()) {
+      CanIdRegistry.claim(motorConfig.encoderCanId(), motorConfig.bus(), name + " encoder");
+    }
 
     // ---- Encoder first, if there is one ----
     //
