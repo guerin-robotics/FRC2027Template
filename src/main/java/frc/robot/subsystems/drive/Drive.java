@@ -9,18 +9,12 @@ package frc.robot.subsystems.drive;
 
 import static edu.wpi.first.units.Units.*;
 
-import com.pathplanner.lib.auto.AutoBuilder;
-import com.pathplanner.lib.config.ModuleConfig;
-import com.pathplanner.lib.config.PIDConstants;
-import com.pathplanner.lib.config.RobotConfig;
-import com.pathplanner.lib.controllers.PPHolonomicDriveController;
-import com.pathplanner.lib.path.PathConstraints;
-import com.pathplanner.lib.pathfinding.Pathfinding;
-import com.pathplanner.lib.util.PathPlannerLogging;
+import choreo.trajectory.SwerveSample;
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -32,18 +26,14 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
-import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.lib.util.CommandLogger;
 import frc.lib.util.FieldConstants;
-import frc.lib.util.LocalADStarAK;
 import frc.robot.Constants;
 import frc.robot.Constants.Mode;
 import frc.robot.Robot;
@@ -107,23 +97,14 @@ public class Drive extends SubsystemBase {
               Math.hypot(TunerConstants.BackLeft.LocationX, TunerConstants.BackLeft.LocationY),
               Math.hypot(TunerConstants.BackRight.LocationX, TunerConstants.BackRight.LocationY)));
 
-  // PathPlanner config constants
-  private static final double ROBOT_MASS_KG = 63.503;
-  private static final double ROBOT_MOI = 5.162;
-  private static final double WHEEL_COF = 2.225;
-  private static final RobotConfig PP_CONFIG =
-      new RobotConfig(
-          ROBOT_MASS_KG,
-          ROBOT_MOI,
-          new ModuleConfig(
-              TunerConstants.FrontLeft.WheelRadius,
-              TunerConstants.kSpeedAt12Volts.in(MetersPerSecond),
-              WHEEL_COF,
-              DCMotor.getKrakenX60Foc(1)
-                  .withReduction(TunerConstants.FrontLeft.DriveMotorGearRatio),
-              TunerConstants.FrontLeft.SlipCurrent,
-              1),
-          getModuleTranslations());
+  // Choreo trajectory follower. Gains carried over unchanged from the PathPlanner controller this
+  // replaced: translation kP 10.0, heading kP 7.1 / kD 0.1 — same units (m/s per m of error,
+  // rad/s per rad), so it is the same controller, not a retune. History: kP 50 saturated the
+  // modules and amplified vision pose corrections into velocity steps; the last real-robot values
+  // from 2026 drive practice were 40.0 / 35.0. Re-tune with /pid-tune once a .traj exists.
+  private final PIDController trajectoryXController = new PIDController(10.0, 0.0, 0.0);
+  private final PIDController trajectoryYController = new PIDController(10.0, 0.0, 0.0);
+  private final PIDController trajectoryHeadingController = new PIDController(7.1, 0.0, 0.1);
 
   static final Lock odometryLock = new ReentrantLock();
   private final GyroIO gyroIO;
@@ -151,6 +132,8 @@ public class Drive extends SubsystemBase {
       ModuleIO frModuleIO,
       ModuleIO blModuleIO,
       ModuleIO brModuleIO) {
+    trajectoryHeadingController.enableContinuousInput(-Math.PI, Math.PI);
+
     this.gyroIO = gyroIO;
     modules[0] = new Module(flModuleIO, 0, TunerConstants.FrontLeft);
     modules[1] = new Module(frModuleIO, 1, TunerConstants.FrontRight);
@@ -162,9 +145,6 @@ public class Drive extends SubsystemBase {
 
     // Start odometry thread
     PhoenixOdometryThread.getInstance().start();
-
-    // PathPlanner wiring is NOT done here — see configureAutoBuilder(), called by
-    // RobotContainer. It mutates PathPlanner's global state, which a constructor should not.
 
     // Configure SysId
     //
@@ -192,49 +172,28 @@ public class Drive extends SubsystemBase {
   }
 
   /**
-   * Wires this drivetrain into PathPlanner. Call once, from {@code RobotContainer}, and <b>before
-   * {@code AutoBuilder.buildAutoChooser()}</b>.
+   * Follows one sample of a Choreo trajectory: the sample's field-relative velocity as feedforward,
+   * plus PID on x, y and heading to pull the robot back onto the sample's pose. Choreo's {@code
+   * AutoFactory} calls this every loop while a trajectory runs; see {@code
+   * frc.robot.autos.ChoreoAutos}.
    *
-   * <p>The configuration itself stays here rather than in {@code RobotContainer} — the gains, the
-   * robot config and the output consumer all belong with the drivetrain, and {@code
-   * .claude/rules/01-architecture.md} requires it. What moved out of the constructor is only
-   * <i>when</i> it runs.
+   * <p>The follower lives here rather than in {@code ChoreoAutos} for the same reason the
+   * PathPlanner controller did: the gains and the output path belong with the drivetrain ({@code
+   * .claude/rules/01-architecture.md}).
    *
-   * <p><b>Why it is not in the constructor.</b> Every call below mutates PathPlanner's global
-   * static state: one `AutoBuilder`, one pathfinder, one pair of logging callbacks, shared by the
-   * whole JVM. Constructing a `Drive` therefore reached outside itself and reconfigured a
-   * singleton, which meant a second `Drive` — four sim tests build one — silently stole the binding
-   * from the first and made PathPlanner report an error on every test run.
-   *
-   * <p><b>If you forget to call this</b>, {@code AutoBuilder.buildAutoChooser()} throws {@code
-   * AutoBuilderException: AutoBuilder was not configured}, taking out the whole auto chooser rather
-   * than one routine. That is loud by design, and {@code RobotContainerSmokeTest} catches it before
-   * it reaches a robot.
+   * @param sample Field-relative, already alliance-flipped by {@code AutoFactory}
    */
-  public void configureAutoBuilder() {
-    AutoBuilder.configure(
-        this::getPose,
-        this::setPose,
-        this::getChassisSpeeds,
-        this::runVelocity,
-        // Gains tuned via PathFollowingGainSweepTest (kP 50 saturated the modules and amplified
-        // vision pose corrections into velocity steps, causing chop)
-        // Sim-derived values (10.0 / 7.5); last real-robot tested values from drive
-        // practice were 40.0 / 35.0 (PR #91)
-        new PPHolonomicDriveController(
-            new PIDConstants(10.0, 0.0, 0.0), new PIDConstants(7.1, 0.0, 0.1)),
-        PP_CONFIG,
-        () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
-        this);
-    Pathfinding.setPathfinder(new LocalADStarAK());
-    PathPlannerLogging.setLogActivePathCallback(
-        (activePath) -> {
-          Logger.recordOutput("Odometry/Trajectory", activePath.toArray(new Pose2d[0]));
-        });
-    PathPlannerLogging.setLogTargetPoseCallback(
-        (targetPose) -> {
-          Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
-        });
+  public void followTrajectory(SwerveSample sample) {
+    Pose2d pose = getPose();
+    ChassisSpeeds fieldSpeeds =
+        new ChassisSpeeds(
+            sample.vx + trajectoryXController.calculate(pose.getX(), sample.x),
+            sample.vy + trajectoryYController.calculate(pose.getY(), sample.y),
+            sample.omega
+                + trajectoryHeadingController.calculate(
+                    pose.getRotation().getRadians(), sample.heading));
+    Logger.recordOutput("Odometry/TrajectorySetpoint", sample.getPose());
+    runVelocity(ChassisSpeeds.fromFieldRelativeSpeeds(fieldSpeeds, pose.getRotation()));
   }
 
   @Override
@@ -406,26 +365,6 @@ public class Drive extends SubsystemBase {
     }
     kinematics.resetHeadings(headings);
     stop();
-  }
-
-  /**
-   * Schedules a PathPlanner pathfinding command that drives the robot to {@code targetPose}.
-   *
-   * <p>In 2026 this backed the "drive to the defensive shooting spot" button. It is left here as a
-   * general capability — give it any field pose and PathPlanner will navigate to it around the
-   * configured obstacles.
-   *
-   * <p>Note this schedules the command itself rather than returning it, so the caller does not need
-   * to compose it. That also means it will interrupt whatever else currently requires this
-   * subsystem.
-   *
-   * @param targetPose Field-relative pose to drive to
-   */
-  public void pathfindToPose(Pose2d targetPose) {
-    Command followCommand =
-        AutoBuilder.pathfindToPose(targetPose, PathConstraints.unlimitedConstraints(12));
-    Logger.recordOutput("Drive/PathfindTargetPose", targetPose);
-    CommandScheduler.getInstance().schedule(followCommand);
   }
 
   /** Returns a command to run a quasistatic test in the specified direction. */

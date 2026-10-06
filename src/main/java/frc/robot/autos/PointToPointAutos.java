@@ -22,11 +22,13 @@ import org.littletonrobotics.junction.Logger;
 
 /**
  * Point-to-point autos: drive straight from waypoint to waypoint with {@link
- * DriveCommands#driveToWaypoint}, no paths and no PathPlanner GUI.
+ * DriveCommands#driveToWaypoint}, no trajectories and no GUI.
  *
- * <p>These sit <b>beside</b> PathPlanner, not instead of it. Reach for one when an auto is a few
- * fixed stops with nothing in between to avoid; reach for PathPlanner when the route itself matters
- * (curves, speed through a gap, event markers mid-path). Both end up in the same auto chooser.
+ * <p>The third of three auto layers (see {@code docs/autos.md}). Reach for one when an auto is a
+ * few fixed stops with nothing in between to avoid; reach for a Choreo trajectory ({@code
+ * ChoreoAutos}) when the route itself matters — curves, speed through a gap, event markers
+ * mid-path. All of them end up in the same auto chooser and drive through the same {@code
+ * driveToPose}.
  *
  * <p>An auto is data — a {@link WaypointAuto} — and the factories here turn it into a command. Add
  * one by writing a method like {@link #example()} and listing it in {@link #all()}.

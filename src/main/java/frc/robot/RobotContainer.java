@@ -7,7 +7,7 @@
 
 package frc.robot;
 
-import com.pathplanner.lib.auto.AutoBuilder;
+import choreo.auto.AutoFactory;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -15,6 +15,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.lib.auto.WaypointAuto;
 import frc.lib.util.FaultMonitor;
+import frc.robot.autos.ChoreoAutos;
 import frc.robot.autos.PointToPointAutos;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
@@ -29,6 +30,7 @@ import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.io.VisionIO;
 import frc.robot.subsystems.vision.io.VisionIOPhotonVision;
 import frc.robot.subsystems.vision.io.VisionIOPhotonVisionSim;
+import java.util.function.Supplier;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -52,7 +54,7 @@ public class RobotContainer {
   // See .claude/rules/01-architecture.md.
 
   // Dashboard inputs
-  private final LoggedDashboardChooser<Command> autoChooser;
+  private final LoggedDashboardChooser<Supplier<Command>> autoChooser;
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -122,45 +124,43 @@ public class RobotContainer {
         break;
     }
 
-    // Wire the drivetrain into PathPlanner. The configuration lives in Drive.java; only the
-    // timing is decided here, because it mutates PathPlanner's global state and a constructor
-    // is the wrong place to do that. Must come before buildAutoChooser() below — without it
-    // that call throws AutoBuilderException and takes out the whole chooser.
-    drive.configureAutoBuilder();
-
-    // IMPORTANT: register PathPlanner named commands and event triggers BEFORE building the
-    // auto chooser. AutoBuilder.buildAutoChooser() parses the .auto files and resolves named
-    // commands at build time — anything registered after this line is silently ignored.
+    // ---- Autos ----
     //
-    //   NamedCommands.registerCommand("Score", ScoringSequences.score(...));
+    // Choreo trajectories, Choreo + PID finish, and point-to-point waypoints all share one chooser.
+    // Each option is a SUPPLIER, built when auto starts: the selected Choreo routine loads only
+    // its own trajectories, and nothing is constructed for autos that never run. The chooser is
+    // AdvantageKit's, so the selection is logged and replays correctly. See docs/autos.md.
+    AutoFactory choreo = ChoreoAutos.createFactory(drive);
+
+    // Bind Choreo event markers BEFORE building any routine — a routine only sees bindings that
+    // existed when it was created. Bound commands run alongside the trajectory, so they must NOT
+    // require the drive (.claude/rules/03-commands.md).
     //
-    // Event triggers must NOT declare subsystem requirements, or they will interrupt the
-    // path-following command. See .claude/rules/03-commands.md.
+    //   ChoreoAutos.bind(choreo, "Intake", IntakeCommands.deploy(intake));
 
-    // Set up auto routines
-    autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
+    autoChooser = new LoggedDashboardChooser<>("Auto Choices");
+    autoChooser.addDefaultOption("None", Commands::none);
+    ChoreoAutos.all(choreo, drive).forEach(autoChooser::addOption);
+    for (WaypointAuto auto : PointToPointAutos.all()) {
+      autoChooser.addOption(auto.name(), () -> PointToPointAutos.build(drive, auto));
+    }
 
-    // Set up SysId routines
+    // Characterization and SysId routines
     autoChooser.addOption(
-        "Drive Wheel Radius Characterization", DriveCommands.wheelRadiusCharacterization(drive));
+        "Drive Wheel Radius Characterization",
+        () -> DriveCommands.wheelRadiusCharacterization(drive));
     autoChooser.addOption(
-        "Drive Simple FF Characterization", DriveCommands.feedforwardCharacterization(drive));
+        "Drive Simple FF Characterization", () -> DriveCommands.feedforwardCharacterization(drive));
     autoChooser.addOption(
         "Drive SysId (Quasistatic Forward)",
-        drive.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
+        () -> drive.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
     autoChooser.addOption(
         "Drive SysId (Quasistatic Reverse)",
-        drive.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
+        () -> drive.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
     autoChooser.addOption(
-        "Drive SysId (Dynamic Forward)", drive.sysIdDynamic(SysIdRoutine.Direction.kForward));
+        "Drive SysId (Dynamic Forward)", () -> drive.sysIdDynamic(SysIdRoutine.Direction.kForward));
     autoChooser.addOption(
-        "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-
-    // Point-to-point autos sit beside the PathPlanner ones in the same chooser. Each is data in
-    // PointToPointAutos; adding one there is all it takes to list it here.
-    for (WaypointAuto auto : PointToPointAutos.all()) {
-      autoChooser.addOption(auto.name(), PointToPointAutos.build(drive, auto));
-    }
+        "Drive SysId (Dynamic Reverse)", () -> drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
     // Register fault conditions. These roll up into a single "Robot OK" dashboard boolean
     // plus a named fault list, so the pit does not have to check a dozen indicators
@@ -235,7 +235,8 @@ public class RobotContainer {
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    return autoChooser.get();
+    Supplier<Command> selected = autoChooser.get();
+    return selected == null ? Commands.none() : selected.get();
   }
 
   /** Brake/coast passthrough for {@link Robot}'s disabled-coast handling. */
