@@ -30,9 +30,9 @@ External references: [WPILib Command-Based](https://docs.wpilib.org/en/stable/do
 ## Do not spend review effort on what the build proves
 
 `CanIdUniquenessTest` and `RobotContainerSmokeTest` cover CAN ID collisions, unregistered
-PathPlanner named commands, and wiring that will not construct. `VisionFilterTest` covers the
-pose-rejection ladder. **If the build is green, those are already true** — do not re-report
-them.
+PathPlanner named commands, and wiring that will not construct. **If the build is green, those
+are already true** — do not re-report them. Nothing tests the vision pose-rejection ladder any
+more, so a change to it does need review.
 
 Everything else is yours, including every architecture rule in `.claude/rules/`. Nothing
 automated checks those. Spend the attention here:

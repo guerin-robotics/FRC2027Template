@@ -84,8 +84,8 @@ public class DriveCommands {
   // can run at a time, and sharing means one set of dashboard keys instead of two.
   //
   // TODO(2027): run a /pid-tune (or in-sim) session on the real chassis and commit the result
-  // here before binding driveToPose to a button. DriveToPoseSimTest only proves the command
-  // converges against a generic sim model — it is not evidence these gains are good on hardware.
+  // here before binding driveToPose to a button. A sim run only proves the command converges
+  // against a generic sim model — it is not evidence these gains are good on hardware.
   private static final LoggedTunableProfiledPID driveController =
       new LoggedTunableProfiledPID("Drive/ToPose", 3.0, 0.0, 0.0, 3.0, 3.0);
 

@@ -167,8 +167,9 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
 - [ ] Use MotionMagic for anything with real inertia or travel; set cruise velocity and
       acceleration deliberately (they are Hard Stop items)
 - [ ] `kI = 0` everywhere unless you can explain the windup behavior during a stall
-- [ ] **Copy the sim gain-sweep harness** for the first mechanism you tune. `GainSweepTest`
-      already exists and is what `/pid-tune` drives — it sweeps gains against the physics sim
+- [ ] **Recover the sim gain-sweep harness** for the first mechanism you tune —
+      `git show 7b81e48:src/test/java/frc/robot/GainSweepTest.java`. It is what `/pid-tune`
+      drives — it sweeps gains against the physics sim
       and reports rise time, overshoot and steady-state error, the same way the 2026 season
       found its PathPlanner gains without touching the robot. Point it at the new mechanism's
       library's `*Mechanism.sim(...)` rather than building a harness from scratch

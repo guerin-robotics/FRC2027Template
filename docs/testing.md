@@ -1,27 +1,16 @@
 # Testing
 
-What is under test, what each layer catches, and what to add when you build a mechanism.
+What is under test, what each check catches, and what to add when you build a mechanism.
 
-Everything here runs on `./gradlew build` and in CI on every PR and push to main. No test
-touches hardware; the sim-backed ones use the HAL simulator, `ModuleIOSim` for the drivetrain,
-and `MotorIOTalonFXSim` plus the per-kind `*MechanismSim` for mechanisms.
-
-The suite is deliberately targeted — about 95 tests across 19 classes, most of them in
-`frc/lib/mechanism`. It covers the things that fail *silently*, and leaves everything else to
-review. Adding a test is cheap; maintaining one that
+The suite is deliberately minimal, modelled on 6328's public robot code (one
+`RobotContainerTest`, plus constant checks wired into deploy and PRs): **3 test classes**, all
+fast, none touching hardware. It covers the failures that are *silent* — a robot that will not
+construct, two devices on one CAN ID, a motor config missing a safety value — and leaves
+behaviour to simulation, logs and practice time. Adding a test is cheap; maintaining one that
 nobody trusts is not.
 
----
-
-## The layers
-
-| Layer | Runs | Catches |
-|---|---|---|
-| **Config validation** | Instantly, no HAL | CAN ID collisions, a `MotorConfig` missing an unguessable value |
-| **Wiring** | HAL sim | `RobotContainer` failing to construct or resolve |
-| **Filter logic** | HAL sim, no physics | Vision pose rejection |
-| **Mechanism library** | HAL sim | Config validation, geometry, zeroing, replay schema |
-| **Simulation** | HAL sim + physics | Drive commands not converging, odometry sign errors |
+`./gradlew build` runs them, and CI runs `spotlessCheck`, `checkConstantsPullRequest` and
+`build` on every PR and push to main.
 
 ---
 
@@ -57,47 +46,46 @@ covered automatically — nothing in that file names `Drive` or `Vision`.
 `src/main/deploy/pathplanner` for the named commands the autos reference. Those directories are
 empty in the template, so that assertion passes vacuously until the first 2027 auto exists.
 
-### Mechanism library — `src/test/java/frc/lib/mechanism/`
+### Mechanism library
 
 | Test | Covers |
 |---|---|
 | `MotorConfigTest` | The builder refuses to build without a current limit, ratio, gains or — on a position mechanism — travel bounds, and derives the torque clamp and follower config correctly |
-| `MotorIOReplayTest` | Follower and encoder groups survive replay |
-| `linear/LinearGeometryTest`, `linear/LinearZeroingSoftLimitTest` | Drum/stage arithmetic; the reverse bound is dropped while zeroing and restored after |
 
-The Phoenix device-sim tests (roller, rotary and linear convergence, the arm gravity frame, and
-CANcoder seeding) were removed to keep the build fast — they slept on wall-clock time. They are
-in git history at commit `f9b09f9` under `src/test/java/frc/lib/mechanism/` if a mechanism ever
-needs one back.
+---
 
-These are what make a two-file mechanism trustworthy — the scaffolds cannot be tested, the
-library they sit on is.
+## Constant gates — not tests, but run by Gradle
 
-### Filter logic
+Two `JavaExec` tasks read `Constants` and fail the build. They live as nested classes at the
+bottom of `Constants.java`.
 
-**`frc/robot/subsystems/vision/VisionFilterTest`** — 17 cases covering every branch of the
-pose-rejection ladder in `Vision.periodic()`, in both directions.
+| Task | Runs | Fails when |
+|---|---|---|
+| `checkConstantsDeploy` | Before every `deploy` | `tuningMode` is on **and** the branch starts with `event` |
+| `checkConstantsPullRequest` | In CI, on every PR and push to main | `tuningMode` is on |
 
-Vision failures are invisible from the driver station. A filter that stops rejecting bad poses
-feeds garbage to the estimator and the robot teleports mid-auto; one that starts rejecting good
-poses just looks like drift. Thresholds are read from `VisionConstants` rather than restated, so
-retuning a value does not break the tests — deleting or reordering a filter does. That split is
-deliberate: the values were earned from real 2026 match logs and are the source of truth.
+Deploying with `tuningMode` on from an ordinary branch is allowed on purpose — that is how a
+tuning session gets tunables onto the robot. What is blocked is taking it to an event, and
+merging it.
 
-### Simulation and performance
+---
 
-| Test | Covers |
-|---|---|
-| `commands/DriveToPoseSimTest` | `driveToPose` converges against the physics sim |
-| `commands/JoystickDriveAtAngleSimTest` | Heading hold converges |
-| `subsystems/drive/DriveOdometrySimTest` | Odometry integrates correctly |
-| `frc/lib/util/LoopTimeMonitorTest` | The watchdog that reports an over-budget loop |
-| `frc/robot/GainSweepTest` | The gain-sweep harness `/pid-tune` drives |
+## Removed tests — where to find them
 
-`LoopTimeMonitorTest` drives timing with `SimHooks.pauseTiming()`/`stepTiming()`, so its
-assertions about the 20 ms budget and the 25 ms alert threshold are exact rather than
-machine-dependent. Nothing in the suite measures how fast real code runs; the real check is
-watching `LoopTiming/AverageMs` from the first day the robot drives.
+The template used to carry about 95 tests. They were cut to this minimum; recover any of them
+with `git show <commit>:<path>` if a mechanism or season needs one back.
+
+| Test | What it covered | Last present at |
+|---|---|---|
+| `frc/robot/subsystems/vision/VisionFilterTest` | Every branch of the vision pose-rejection ladder | `7b81e48` |
+| `frc/robot/commands/DriveToPoseSimTest`, `JoystickDriveAtAngleSimTest` | `driveToPose` and heading hold converge in sim | `7b81e48` |
+| `frc/robot/subsystems/drive/DriveOdometrySimTest` | +X/+Y/+ω commands move odometry the right way | `7b81e48` |
+| `frc/robot/GainSweepTest` | Gain-sweep harness for `/pid-tune` | `7b81e48` |
+| `frc/lib/util/LoopTimeMonitorTest` | The loop-overrun watchdog | `7b81e48` |
+| `frc/lib/mechanism/MotorIOReplayTest` | Follower and encoder groups survive replay | `7b81e48` |
+| `frc/lib/mechanism/linear/LinearGeometryTest`, `LinearZeroingSoftLimitTest` | Drum/stage math; zeroing drops and restores the reverse bound | `7b81e48` |
+| `frc/lib/mechanism/{roller,rotary,linear}/*MechanismSimTest`, `rotary/RotaryGravityFrameTest`, `MotorIOTalonFXSimEncoderTest` | Phoenix device-sim convergence, arm gravity frame, CANcoder seeding | `f9b09f9` |
+| `frc/robot/subsystems/drive/DrivePeriodicBudgetTest` | Wall-clock cost of `Drive.periodic()` | `f9b09f9` |
 
 ---
 
@@ -115,6 +103,8 @@ is no automated check for any of them. When reviewing, look for:
 - `frc.lib` depending on anything in `frc.robot` except `Constants`
 - A command factory without `.withName()`, or a `waitUntil()` without `.withTimeout()`
 - A setpoint inlined at a binding instead of coming from `Constants.Setpoints`
+- Any change to the vision rejection ladder in `Vision.periodic()` — `VisionFilterTest` used to
+  pin every branch; now only review does
 
 `docs/review-checklist.md` is the working version of that list. These were briefly enforced by
 an ArchUnit test; it was removed to keep the suite small, so the checklist is now the only
@@ -124,22 +114,19 @@ thing standing between the codebase and these regressions. Read it before mergin
 
 ## Adding a mechanism — what to write
 
-`/add-subsystem` scaffolds the two files. Tests are yours:
+`/add-subsystem` scaffolds the two files. Tests are mostly already done:
 
 1. **CAN IDs** — nothing to write. `CanIdUniquenessTest` picks up new IDs automatically.
 2. **Wiring** — nothing to write. `RobotContainerSmokeTest` reflects over `RobotContainer`'s
    fields, so a new subsystem is covered the moment it is wired in.
-3. **A sim convergence test is optional.** The template no longer ships one for mechanisms. If
-   you want one, recover the matching kind from commit `f9b09f9`
-   (`src/test/java/frc/lib/mechanism/{roller,rotary,linear}/*MechanismSimTest.java`) rather than
-   copying `DriveToPoseSimTest`, which is a different harness. See the harness rules below
-   before you write one; two of them will otherwise waste an afternoon.
-4. **Pure logic gets a unit test only when it is worth one** — an interpolation table, a
-   readiness band, zone math. Use `.claude/prompts/write-test.md`; the known-correct cases come
-   from measurement, not from reading the code. A test that just restates the implementation is
-   worse than none.
+3. **Config** — nothing to write. `MotorConfig.builder(...)` throws at startup on a missing
+   safety value, and the smoke test constructs it.
+4. **Anything else is optional.** Pure logic worth pinning — an interpolation table, zone math —
+   gets a unit test via `.claude/prompts/write-test.md`, with known-correct cases from
+   measurement rather than from reading the code. For a sim convergence test, recover the
+   matching `*MechanismSimTest` from the table above rather than writing a harness from scratch.
 
-### Sim tests on a Phoenix device — two rules
+### If you bring a sim test back — harness rules
 
 These apply to any test that drives a mechanism from `frc/lib/mechanism`. Both failures look
 exactly like broken physics, which is why they are written down rather than left to be rediscovered.
@@ -161,7 +148,7 @@ sleep.
 **Wait for a condition to hold; do not run a fixed number of loops.** The physics steps a fixed
 20 ms per call while the device advances on wall-clock time, so how much control the device gets
 per physics step depends on how loaded the machine is. A fixed loop count that passes on an idle
-laptop fails on a busy CI runner. Copy the `settles()` helper from any of the three tests — it
+laptop fails on a busy CI runner. Copy the `settles()` helper from the recovered mechanism tests — it
 requires the condition to hold for ten consecutive loops, which also stops a mechanism overshooting
 its goal from counting as having arrived.
 
@@ -179,8 +166,8 @@ loop. There is no robot base in a unit test, so without this every `WaitCommand`
 
 `CommandScheduler` is a JVM-wide singleton and Gradle runs every test class in one JVM. A
 command left scheduled, or a subsystem left registered, keeps running during every later
-test. Every sim test here has teardown that cancels and unregisters; give any new one the
-same. `DriveToPoseSimTest`'s javadoc explains the failure mode in full.
+test. Every sim test needs teardown that cancels and unregisters — `RobotContainerSmokeTest`'s
+`unregisterSubsystems()` is the pattern.
 
 ### Global state and the scheduler
 
