@@ -144,7 +144,9 @@ tasks.withType(JavaCompile) {
 task(checkConstantsDeploy, dependsOn: "classes", type: JavaExec) {
     mainClass = "frc.robot.Constants\$CheckDeploy"
     classpath = sourceSets.main.runtimeClasspath
-    args = ['git branch --show-current'.execute().text.trim()]
+    args = [
+        'git branch --show-current'.execute().text.trim()
+    ]
 }
 deployroborio.dependsOn(checkConstantsDeploy)
 
