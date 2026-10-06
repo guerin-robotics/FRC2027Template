@@ -23,7 +23,6 @@ copy-paste.
 | `frc/lib/util/AllianceFlipUtil.java` | FRC 6328 | MIT-style | Attributed in the file |
 | `frc/lib/util/FieldConstants.java` | FRC 6328 | MIT-style | Attributed in the file |
 | `frc/lib/util/GeomUtil.java` | FRC 6328 | MIT-style | 3467 ships a copy too; common ancestor is 6328 |
-| `frc/lib/util/LocalADStarAK.java` | FRC 6328 / PathPlanner | MIT-style | Required for PathPlanner replay |
 | `frc/lib/util/ContinuousConditionalCommand.java` | FRC 6328 | MIT-style | Attributed in the file |
 | `frc/lib/util/PhoenixUtil.java` | FRC 6328 | MIT-style | Attributed in the file |
 | `frc/lib/util/Elastic.java` | Gold87 / Elastic dashboard | MIT | Vendor-published helper |
@@ -31,6 +30,7 @@ copy-paste.
 | `frc/lib/util/MotorSpecs.java` | Ours | — | Reads free speeds from WPILib `DCMotor` |
 | `frc/lib/device/**`, `frc/lib/auto/**`, `frc/lib/command/SteppableCommandGroup.java`, `frc/robot/autos/PointToPointAutos.java` | Ours | — | Design modelled on FRC 3467's W8-Library (GPLv3). **No code copied** — written fresh against our rules; `SteppableCommandGroup` shares their class name and idea only |
 | `vendordeps/libgrapplefrc2026.json` | Grapple Robotics | Vendor metadata | Fetched from Grapple's published `jsonUrl` |
+| `vendordeps/ChoreoLib2026.json` | SleipnirGroup (Choreo) | Vendor metadata (ChoreoLib is BSD-3) | Taken from the `v2026.0.3` release tag |
 | `subsystems/drive/`, `Robot`, `RobotContainer` | AdvantageKit swerve template | BSD | Littleton Robotics |
 
 ---

@@ -292,7 +292,6 @@ competition seasons. Don't rewrite them; extend them.
 | `LoggedTrigger` | Makes trigger state visible in AdvantageKit logs |
 | `ContinuousConditionalCommand` | Correct answer when a command's mode changes while running |
 | `PhoenixUtil.tryUntilOk` | CTRE silently ignores configs on a busy bus; this retries until they stick |
-| `LocalADStarAK` | Required for PathPlanner pathfinding to work under replay |
 | `LoggedDashboardChooser` | Logs which auto was selected — essential for post-match review |
 | The test suite in `src/test/` | `RobotContainer` wiring, CAN ID validation and `MotorConfig` safety values. All three cover a new mechanism the moment it exists — see `docs/testing.md` |
 
@@ -308,7 +307,7 @@ competition seasons. Don't rewrite them; extend them.
 | Game geometry in `FieldConstants` | Field elements change completely — see `frc/lib/util/ExampleFieldConstants.java` in this directory for the tag-pose-derived pattern to copy, and `docs/target-alignment.md` for how it plugs into `driveToPose` |
 | Scoring targets and zone logic in `RobotState` | Field coordinates change |
 | A sequences file (2026 had `ShootSequences` / `SpitSequences`) | The scoring pipeline is the game |
-| PathPlanner `.auto` files and paths | Field-specific |
+| PathPlanner `.auto` files and paths (PathPlanner itself has since been replaced by Choreo) | Field-specific |
 | Named commands in `RobotContainer` | Follow the game |
 | Interpolation tables (distance → setpoint) | Measured against this year's field element |
 | Swerve encoder offsets and gains in `TunerConstants` | Re-run Tuner X on the new robot |
@@ -325,7 +324,7 @@ already resolved in this template:
 |---|---|
 | `DriveConstants` duplicated the module layout from `TunerConstants` | Deleted; `TunerConstants` is the sole source of truth |
 | `COMP_`/`ALPHA_TunerConstants` selected by editing `Constants.java` | Collapsed to one `TunerConstants`; `RobotType` enum removed |
-| `Drive.alignForDefenseShot()` — game-specific name on a generic helper | Renamed `pathfindToPose()` |
+| `Drive.alignForDefenseShot()` — game-specific name on a generic helper | Renamed `pathfindToPose()`; later removed with the switch to Choreo, which has no pathfinder |
 | `Drive.aligningDefensively` flag with no remaining reader | Deleted |
 | `RobotState.getAngleToTarget()` silently added 180° for the rear-facing shooter | Returns the true bearing; mechanism offset is now a call-site concern |
 | Dead `@AutoLogOutput` methods running every loop with no consumer | Removed during the port; watch for this reappearing |
@@ -395,7 +394,8 @@ src/main/java/frc/robot/
 │   ├── DriveCommands.java    ← carried over; add game alignment commands here
 │   └── [new commands]/       ← only for verbs the mechanism library does not already have
 ├── autos/
-│   └── PointToPointAutos.java ← waypoint autos; PathPlanner autos live in deploy/pathplanner
+│   ├── ChoreoAutos.java      ← Choreo routines, event bindings, thenAlign PID finish
+│   └── PointToPointAutos.java ← waypoint autos; trajectories live in deploy/choreo
 
 frc/lib/
 ├── util/                     ← ALL shared utilities: field/alliance, hardware helpers,

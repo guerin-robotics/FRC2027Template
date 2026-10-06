@@ -166,7 +166,7 @@ constants at the port. Keep the rule: no bare numbers at the binding site.
 `"Subsystem_ActionVerb_OptionalParam"` stays. The compiler now guarantees a name exists; review
 still has to check it is a *useful* one. `withAutomaticName()` on groups produces
 `"A -> B -> C"` / `"A | B"`, which is acceptable for a throwaway composition and poor for anything
-bound to a button or registered with PathPlanner. Name those.
+bound to a button or to a Choreo event marker. Name those.
 
 ### Default commands — keep, add a priority
 
@@ -246,15 +246,16 @@ resetting a pose does not need to own the drivetrain. Do **not** mark `Drive`
 `controllableDuringDisabled` to get the same effect — that would let any drive command be scheduled
 while disabled.
 
-### Named commands and event triggers (PathPlanner) — open
+### Choreo event markers and trajectory triggers — open
 
-The V2 rule — event triggers use `runOnce` with no requirements so they do not interrupt the
-path-following group — exists because of V2 requirement unions. V3's proxy-by-default children and
-priorities may make it unnecessary, or change its form.
+The V2 rule — a command bound to an event marker or started from `traj.atTime`/`traj.done` must not
+require the drive, or it interrupts the trajectory — exists because the bound command and the
+trajectory command are scheduled side by side and conflict on the drive requirement. V3's
+mechanism ownership and priorities may change its form.
 
-**This depends entirely on PathPlannerLib's 2027 command story, which did not exist at this audit.**
-Keep the V2 rule until PathPlannerLib ships V3 support; then re-derive it from what PathPlanner's
-V3 path command actually requires.
+**This depends on ChoreoLib's 2027 command story.** Its 2027 alpha targets `org.wpilib.command2`
+(V2), not V3. Keep the V2 rule until ChoreoLib ships V3 support; then re-derive it from what its V3
+trajectory command actually owns.
 
 ---
 
@@ -267,6 +268,8 @@ V3 path command actually requires.
 | `CommandLogger` | **Rewrite on `Scheduler.addEventListener`.** V3 emits typed `SchedulerEvent`s — `Scheduled`, `Mounted`, `Completed`, `CompletedWithError`, `Canceled`, `Interrupted(command, interrupter)`, `ForkFailure`. `Interrupted` carries **who** interrupted, which is exactly the "scheduled and interrupted — by what?" question this class was written to answer. `recordCurrentCommand` becomes `mechanism.getRunningCommands()`. V3's `Scheduler` is also protobuf-serializable (the command tree, with per-command runtimes); decide whether to log that instead of, or beside, ours |
 | `RollerCommands` / `RotaryCommands` / `LinearCommands` | **Port verb by verb** using the factory table above. `spinUpTo` becomes a body with `coroutine.waitUntil(roller::isAtVelocity, timeout)` — and can now log whether it timed out |
 | `RollerSubsystem` / `RotarySubsystem` / `LinearSubsystem` | **Implement `org.wpilib.command3.Mechanism`** instead of extending `SubsystemBase`. Wire `periodic()` per the processInputs section. `setName` goes away — override `getName()` |
+| `SteppableCommandGroup` | **Rewrite as a body.** V3 makes it a loop: run step *i* as a child, `co.waitUntil` a rising edge on forward/back, cancel and move. No custom `Command` subclass is needed, and the edge detection stays in the body |
+| `DriveCommands.driveToPoseWithin` / `driveToWaypoint` | **Port** with the factory table: `driveToPose` becomes a body that runs until the arrival check passes, under a `withTimeout(Time)`. The seeding and setpoint feedforward are plain math and carry over unchanged |
 | `frc.lib.mechanism.Mechanism` | **Rename.** Collides with `org.wpilib.command3.Mechanism`, which the `*Subsystem` classes will implement. `MotorMechanism` says what it is — the motor-backed core the three kinds extend — and keeps `RollerMechanism` / `RotaryMechanism` / `LinearMechanism` reading naturally. Decide once, before the V3 branch starts |
 
 ---

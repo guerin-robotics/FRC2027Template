@@ -38,19 +38,19 @@ built from one constant. Swerve devices do not claim; the test covers them.
 
 **`frc/robot/RobotContainerSmokeTest`** builds a real `RobotContainer` in SIM and asserts the
 constructor completes, the auto chooser yields a command, `Drive` keeps its `Drive_Joystick`
-default, every default command is named, and every named command an auto references was
-actually registered.
+default, every default command is named, and every Choreo event marker a trajectory uses has a
+command bound to it.
 
-That last one matters more than it looks. An unregistered named command **does not throw** —
-PathPlanner substitutes `Commands.none()`, so the auto drives its paths on schedule while the
-mechanism does nothing. It reads as a broken mechanism, not a wiring mistake.
+That last one matters more than it looks. An unbound event marker **does not throw** — ChoreoLib
+fires the marker, finds nothing, and the auto drives its trajectory on schedule while the mechanism
+does nothing. It reads as a broken mechanism, not a wiring mistake.
 
 Subsystems are found by reflecting `RobotContainer`'s own fields, so a new mechanism is
 covered automatically — nothing in that file names `Drive` or `Vision`.
 
-`PathPlannerAssets.java` beside it is test support, not a test: it scans
-`src/main/deploy/pathplanner` for the named commands the autos reference. Those directories are
-empty in the template, so that assertion passes vacuously until the first 2027 auto exists.
+`ChoreoAssets.java` beside it is test support, not a test: it scans `src/main/deploy/choreo/*.traj`
+for event-marker names. There are no trajectories in the template, so that assertion passes
+vacuously until the first 2027 trajectory exists.
 
 ### Mechanism library
 
@@ -177,9 +177,9 @@ test. Every sim test needs teardown that cancels and unregisters — `RobotConta
 
 ### Global state and the scheduler
 
-Two JVM-wide singletons will bite a new test if you let them. `CommandScheduler` is one, above.
-PathPlanner's `AutoBuilder` is the other: it used to be configured from `Drive`'s constructor,
-so every test that built a `Drive` rebound it and PathPlanner reported an error on every run.
-It now lives in `Drive.configureAutoBuilder()`, which only `RobotContainer` calls — so a sim
-test gets a `Drive` that has not touched PathPlanner global state. If you write a test that
-needs path following, call `configureAutoBuilder()` on your own `Drive` explicitly.
+`CommandScheduler` is a JVM-wide singleton that will bite a new test if you let it — see above.
+`ChoreoAutos.boundEvents()` is static too: it records every `ChoreoAutos.bind` call so the smoke
+test can check markers, and it is never cleared. A test that builds a second `RobotContainer` sees
+the first one's bindings as well; that only ever makes the marker check more lenient, never
+stricter. (PathPlanner's global `AutoBuilder`, which caused the old version of this warning, is
+gone with PathPlanner.)

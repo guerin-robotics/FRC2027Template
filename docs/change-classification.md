@@ -31,8 +31,8 @@ New code that doesn't modify existing behavior.
 Examples:
 - New subsystem files (IO interface, real, sim, subsystem class)
 - New command factory method in an existing commands file
-- New named command registration in `RobotContainer`
-- New auto path registration
+- New Choreo event-marker binding in `RobotContainer`
+- New auto routine (Choreo or point-to-point) added to the chooser
 - Adding a new field to an `@AutoLog` inputs class
 
 **Required:** State what was added in one sentence.
@@ -69,7 +69,7 @@ Examples:
 - Changing the composition of a multi-subsystem sequence
 - Any change to `Drive.java` or `Vision.java`
 - Modifying `PhoenixOdometryThread`
-- Changing auto configuration in `AutoBuilder.configure()`
+- Changing the Choreo follower (`Drive.followTrajectory`) or `ChoreoAutos.createFactory`
 - Changing wait/timeout constants
 
 **Required before proceeding:**
@@ -96,7 +96,7 @@ Examples:
 - Removing `Logger.processInputs()` from any `periodic()`
 - Removing a safety timeout from a `waitUntil()` chain
 - Removing `AllianceFlipUtil` usage and replacing with `DriverStation.getAlliance()`
-- Directly modifying `.auto` PathPlanner files
+- Directly modifying Choreo `.traj` / `.chor` files
 - Removing `BatteryLogger.reportCurrentUsage()` calls
 - Changes to `PhoenixUtil.tryUntilOk()` retry logic
 

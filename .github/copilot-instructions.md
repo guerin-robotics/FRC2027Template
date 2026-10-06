@@ -17,7 +17,7 @@ teaches the wrong thing with the same confidence as the right one.
 | File | Covers |
 |---|---|
 | [`.claude/rules/00-safety.md`](../.claude/rules/00-safety.md) | Hard stops, the failure-mode catalog |
-| [`.claude/rules/01-architecture.md`](../.claude/rules/01-architecture.md) | IO layer, `RobotState`, `Triggers`, `AllianceFlipUtil`, PathPlanner wiring |
+| [`.claude/rules/01-architecture.md`](../.claude/rules/01-architecture.md) | IO layer, `RobotState`, `Triggers`, `AllianceFlipUtil`, Choreo wiring |
 | [`.claude/rules/02-hardware.md`](../.claude/rules/02-hardware.md) | CAN IDs and buses, TalonFX config, signal frequencies, what every motor logs |
 | [`.claude/rules/03-commands.md`](../.claude/rules/03-commands.md) | Static factories, mandatory timeouts, where setpoints live |
 | [`.claude/rules/04-build.md`](../.claude/rules/04-build.md) | Verification steps and what each catches |
@@ -44,7 +44,7 @@ NEVER change MotionMagic cruise velocity or acceleration
 NEVER remove a waitUntil timeout or a safety interlock
 NEVER remove Logger.processInputs() from a periodic() method
 NEVER change an @AutoLog schema without updating real + sim together
-NEVER hand-edit generated/TunerConstants.java or PathPlanner .auto files
+NEVER hand-edit generated/TunerConstants.java or Choreo .traj / .chor files
 ```
 
 If a request needs one of these, name exactly what would change, what the robot would do
@@ -90,5 +90,5 @@ mechanism pattern (subsystem + constants, on top of `frc/lib/mechanism`) — `ex
 each deliberately fails to compile until the unguessable values are supplied.
 
 Template values carried over from the 2026 robot are **wrong for a 2027 robot** — swerve
-constants, camera transforms, the AprilTag layout, PathPlanner robot config. See the
+constants, camera transforms, the AprilTag layout, Choreo robot config. See the
 Template Status table in [`CLAUDE.md`](../CLAUDE.md) before trusting any of them.

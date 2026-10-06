@@ -43,7 +43,7 @@ generated/TunerConstants.java
 
 - `Drive` calls `RobotState.getInstance().setPoseSupplier()` at construction — the designed wiring point
 - `Vision` calls `drive.addVisionMeasurement()` via a consumer passed at construction
-- `Drive.configureAutoBuilder()` wires PathPlanner; `RobotContainer` calls it once, before `AutoBuilder.buildAutoChooser()`
+- `Drive.followTrajectory()` is the Choreo follower; `ChoreoAutos.createFactory(drive)` wraps it in the one `AutoFactory`, created by `RobotContainer`
 - `Drive.periodic()` calls `Robot.batteryLogger.reportCurrentUsage()` per module
 
 **High-risk files:** all of them. Drive changes are Level 3+ (see
@@ -166,8 +166,7 @@ frc/lib/util/
 │   ├── LoggedTunableBoolean.java
 │   └── LoggedTunableProfiledPID.java  tunable ProfiledPIDController gains and constraints
 └── Misc
-    ├── Elastic.java                 dashboard notifications and tabs
-    └── LocalADStarAK.java           replay-safe PathPlanner pathfinder
+    └── Elastic.java                 dashboard notifications and tabs
 ```
 
 Everything here is season-agnostic except `FieldConstants`, which holds the field

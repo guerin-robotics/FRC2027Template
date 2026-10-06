@@ -23,7 +23,8 @@ they're listed so you know they're handled, not so you redo them.
       the gated checklist in [docs/2027-migration.md](../docs/2027-migration.md); do not start
       until its gates pass. The V3 target for every command rule is in
       [docs/commands-v3.md](../docs/commands-v3.md)
-- [ ] Update AdvantageKit, CTRE Phoenix 6, PathPlannerLib, PhotonVision and Studica vendordeps to
+- [ ] Update AdvantageKit, CTRE Phoenix 6, ChoreoLib, Grapple (LaserCAN), PhotonVision and Studica
+      vendordeps to
       the 2027 versions named in the migration doc
 - [ ] Confirm `./gradlew build` still passes after the port
 - [ ] Update `FieldConstants.aprilTagLayout` to the 2027 field as soon as WPILib ships it
@@ -117,11 +118,13 @@ and are wrong. If you only remember one thing: **measure top speed and slip curr
       plateau, not the peak sample → `kSpeedAt12Volts`
       *(measure what the robot actually does — 2026 was configured 4.0 m/s and did ~3.8)*
 
-### Stage 6 — Path following
+### Stage 6 — Trajectory following
 
-- [ ] **15.** Weigh the robot, estimate MOI, measure wheel COF → `ROBOT_MASS_KG` /
-      `ROBOT_MOI` / `WHEEL_COF` in `Drive.java`'s `PP_CONFIG`
-- [ ] **16.** Tune PathPlanner translation/rotation PID in `AutoBuilder.configure()`
+- [ ] **15.** Weigh the robot, estimate MOI, measure wheel COF and bumpers → the Choreo GUI
+      robot config in `src/main/deploy/choreo/` (2026 values are in that folder's README)
+- [ ] **16.** Tune the Choreo follower (`trajectoryX/Y/HeadingController` in `Drive.java`) and
+      the drive-to-pose controller and FF radii (`driveController`, `Drive/ToPose/FF*` in
+      `DriveCommands`) — the PID-to-pose finish and point-to-point autos depend on the latter
 - [ ] **17.** Re-tune `ANGLE_KP` / `ANGLE_KD` in `DriveCommands` for the new chassis
 
 - [ ] Record every measured value, the date, the battery voltage and the surface in
@@ -149,6 +152,9 @@ Then, for each mechanism:
       bus, reboots mid-match or overheats reaches the pit rather than only the log
 - [ ] If it has no absolute encoder, run `LinearCommands.zeroAtHardStop(...)` before trusting any
       reported position
+- [ ] Sensors and lights it owns come from `frc/lib/device` (see `docs/devices.md`): IDs in
+      `Constants.CanIds` / `Constants.DioPorts`, LaserCAN IDs set in **GrappleHook** (not Tuner X),
+      and the owner's `periodic()` calls each device's `periodic()`
 - [ ] Verify the logs appear in AdvantageScope
 
 ## Tuning — Mechanisms and Vision
@@ -171,7 +177,7 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
       `git show 7b81e48:src/test/java/frc/robot/GainSweepTest.java`. It is what `/pid-tune`
       drives — it sweeps gains against the physics sim
       and reports rise time, overshoot and steady-state error, the same way the 2026 season
-      found its PathPlanner gains without touching the robot. Point it at the new mechanism's
+      found its path-following gains without touching the robot. Point it at the new mechanism's
       library's `*Mechanism.sim(...)` rather than building a harness from scratch
 - [ ] Build any distance → setpoint interpolation tables against the real field element
 - [ ] Validate vision std dev scaling against real AprilTag observations
@@ -181,9 +187,12 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
 
 ## Auto
 
-- [ ] Register all `NamedCommands` **before** `AutoBuilder.buildAutoChooser()`
-- [ ] Register `EventTrigger` objects **without** subsystem requirements
-- [ ] Create PathPlanner paths and autos
+- [ ] Create the Choreo project and trajectories in `src/main/deploy/choreo/` (GUI only — never
+      hand-edit `.traj` / `.chor`)
+- [ ] Bind every event marker with `ChoreoAutos.bind` **before** any routine is built, and never
+      to a command that requires the drive
+- [ ] Decide per auto: pure trajectory, trajectory + `thenAlign` PID finish, or point-to-point
+      (see `docs/autos.md`)
 - [ ] **Time every auto against the auto period** — 2026 overran and truncated the last path
       in every single match
 - [ ] Consider rebuilding the auto preview / start-pose check (see `.claude/prompts/new-auto.md`)

@@ -74,9 +74,11 @@ recommended one:
 Doing both at once means a red test could be the platform or the framework, with no way to tell
 which. Doing them apart means each is reviewable.
 
-**Gate step 2 on PathPlannerLib.** `AutoBuilder`, `NamedCommands`, `EventTrigger` and every path
-command are V2 `Command`s today. A V3 robot running PathPlanner's V2 commands needs either a
-PathPlanner V3 build or a bridge between the two schedulers, and neither existed at this audit.
+**Gate step 2 on ChoreoLib.** `AutoFactory`, `AutoRoutine`, `AutoTrajectory` triggers and event
+bindings are V2 `Command`s today. ChoreoLib's 2027 alpha (`2027.0.0-alpha-3`) moved to
+`org.wpilib.command2` — the 2027 *V2* package — so it covers step 1 but not step 2. A V3 robot needs
+a ChoreoLib V3 build or a bridge between the two schedulers. (This gate was PathPlannerLib's until
+the switch to Choreo.)
 
 ### Commands V3 is a rewrite, not a port
 
@@ -94,16 +96,18 @@ once — the options are in commands-v3.md — rather than fully qualifying name
 ### Auto selection: OpModes or a `Selectable`
 
 2027 introduces **OpModes** — operator-selectable robot programs chosen on the Driver Station
-itself — and removes `SendableChooser`. Today's auto chooser is a `LoggedDashboardChooser` fed by
-`AutoBuilder.buildAutoChooser()`, and `RobotContainerSmokeTest` asserts it yields a command.
+itself — and removes `SendableChooser`. Today's auto chooser is a
+`LoggedDashboardChooser<Supplier<Command>>` of Choreo routines, point-to-point autos and
+characterization routines, and `RobotContainerSmokeTest` asserts it yields a command.
 
 Two ways forward, decide once:
 
 - **`Selectable`** — the closest analog to what exists. Needs AdvantageKit's equivalent of
   `LoggedDashboardChooser` so the selection still reaches the log; the log is how a post-match
   review knows which auto ran.
-- **OpModes** — autos selected at the DS, no dashboard. Changes how the drive team works and how
-  PathPlanner's chooser is built, so it waits on PathPlannerLib's 2027 story.
+- **OpModes** — autos selected at the DS, no dashboard. Changes how the drive team works. ChoreoLib
+  already ships `AutoChooserOpMode` on its 2027 branch, so this is less blocked than it was under
+  PathPlanner — but check how its selection reaches the AdvantageKit log before adopting it.
 
 ---
 
@@ -118,9 +122,10 @@ PhotonVision and AdvantageKit rows were checked against their own tags.
 | CTRE Phoenix 6 | `26.50.0-alpha-1` | ✅ `26.70.0-alpha-2` | Breaking API changes, see below |
 | AdvantageKit | `27.0.0-alpha-4` | ✅ `27.0.0-alpha-5` / `-6` | **Alert logging is back** — `AlertLogger` reads `org.wpilib.util.AlertDataJNI` in alpha-6 |
 | PhotonVision | — | ⚠️ `v2027.0.0-alpha-2` | A real tagged release now, built against WPILib alpha-6. Not in the matrix; confirm against alpha-7 before relying on it |
-| **PathPlannerLib** | `2027.0.0-alpha-3` | ❌ **not available** | Went backwards: there was an alpha-5/6 build and there is no alpha-7 one. Author is holding major changes for Systemcore |
+| **ChoreoLib** | — | ⚠️ `2027.0.0-alpha-3` | Our trajectory library since the switch from PathPlanner. On `org.wpilib.command2` (2027 V2), not V3. Confirm it tracks the WPILib alpha/beta you port to |
+| Grapple (LaserCAN) | ? | ? | Not checked. Only `frc/lib/device` LaserCAN IOs use it; nothing gates on it until a robot wires one |
 | Studica (NavX) | ? | ? | Not in the matrix. Only `GyroIONavX` uses it; the robot runs a Pigeon2, so this gates nothing unless that changes |
-| REVLib, ReduxLib, ChoreoLib | — | available | Not used here |
+| REVLib, ReduxLib | — | available | Not used here. PathPlannerLib is no longer used either |
 
 **Three of the August audit's gates, rechecked:**
 
@@ -132,8 +137,9 @@ PhotonVision and AdvantageKit rows were checked against their own tags.
    loop-timing monitor and the pose-divergence detector reach the pit through alerts; that path
    survives the port.
 
-**And one new one: PathPlannerLib.** Without it there are no autos. It is now the vendor most
-likely to gate the port.
+**And one new one: ChoreoLib.** Without it there are no trajectory autos (point-to-point autos
+need only WPILib). It replaced PathPlannerLib here, which had no alpha-7 build at the last audit,
+so this gate is likely easier than it was.
 
 ---
 
@@ -169,7 +175,7 @@ Do these in order. Steps 1–4 are gates; stop if one fails.
 - [ ] **1.** Confirm WPILib 2027 is at beta, and diff the Commands V3 API against
       [commands-v3.md](commands-v3.md) — the package has settled, the API inside it has not.
 - [ ] **2.** Confirm a Systemcore unit is available to test on.
-- [ ] **3.** Confirm PathPlannerLib ships a 2027 build for that WPILib version.
+- [ ] **3.** Confirm ChoreoLib ships a 2027 build for that WPILib version.
 - [ ] **4.** Confirm PhotonVision ships a 2027 vendordep for that WPILib version, and that
       AdvantageKit's alert logging is still present.
 - [ ] **5.** Branch. Never do this on `main` while the team needs a deployable robot.

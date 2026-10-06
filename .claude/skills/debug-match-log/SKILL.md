@@ -60,8 +60,9 @@ Vision/Summary/RobotPosesAccepted  — were vision updates being applied?
 
 **Auto ran wrong path / started from wrong position**
 ```
-Odometry/Trajectory                — what path was being followed?
-Odometry/TrajectorySetpoint        — where PathPlanner wanted the robot
+Autos/Trajectory                   — the Choreo trajectory that was running (empty between)
+Odometry/TrajectorySetpoint        — the sample Drive.followTrajectory was chasing
+AutoAim/DriveToPose/*              — a PID-to-pose finish or point-to-point waypoint
 Odometry/Robot                     — where the robot actually was
 ```
 

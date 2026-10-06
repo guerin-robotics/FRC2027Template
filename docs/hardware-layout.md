@@ -93,10 +93,11 @@ Coupling ratio: 4.5 (drive motor rotations per steer rotation)
 
 ---
 
-## Robot Physical Specs (PathPlanner)
+## Robot Physical Specs (Choreo)
 
-These feed `PP_CONFIG` in `Drive.java`. Wrong values make path following inaccurate in a
-way that is hard to distinguish from bad gains.
+These go into the Choreo GUI's robot config (`src/main/deploy/choreo/*.chor`), which every
+trajectory is optimised against. Wrong values produce trajectories the robot cannot follow, which
+is hard to distinguish from bad follower gains.
 
 | Property | 2026 value | 2027 value |
 |---|---|---|
@@ -154,7 +155,7 @@ the file is right and this table is stale.
 | CTRE Phoenix 6 | 26.3.0 | `vendordeps/Phoenix6-26.3.0.json` |
 | PhotonVision | v2026.3.4 | `vendordeps/photonlib.json` |
 | AdvantageKit | see vendordep | `vendordeps/AdvantageKit.json` |
-| PathPlannerLib | see vendordep | `vendordeps/PathplannerLib.json` |
+| ChoreoLib | 2026.0.3 | `vendordeps/ChoreoLib2026.json` |
 | Studica (NavX) | see vendordep | `vendordeps/Studica.json` |
 | Grapple (LaserCAN) | 2026.0.0 | `vendordeps/libgrapplefrc2026.json` |
 

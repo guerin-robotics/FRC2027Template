@@ -151,26 +151,38 @@ Names appear in AdvantageKit's command log. Bad names make debugging impossible.
 
 ---
 
-## Named Commands (PathPlanner)
+## Choreo Event Markers
 
-Register in `RobotContainer` before `AutoBuilder.buildAutoChooser()`:
-
-```java
-NamedCommands.registerCommand("Score", ScoringSequences.autoScore(...));
-```
-
-Event triggers must NOT declare subsystem requirements:
+Bind in `RobotContainer`, before any routine is built:
 
 ```java
-new EventTrigger("DeployIntake")
-    .whileTrue(Commands.runOnce(() -> intake.setPosition(down)));
-    //                          ^^ no subsystem arg — intentional
+ChoreoAutos.bind(choreo, "Intake", IntakeCommands.deploy(intake));
 ```
 
-**Why:** A `SequentialCommandGroup`'s requirements are the UNION of all its sub-commands'
-requirements. An event trigger that shares any requirement with the auto group will cause
-WPILib's scheduler to interrupt the entire auto to resolve the conflict. Dropping the
-requirement lets both run — the subsystem method is still called, so the hardware moves.
+A bound command must NOT require the drive:
+
+```java
+ChoreoAutos.bind(choreo, "Intake", IntakeCommands.deploy(intake));   // requires intake — fine
+ChoreoAutos.bind(choreo, "Stop", DriveCommands.stopWithX(drive));    // requires drive — WRONG
+```
+
+**Why:** ChoreoLib schedules a bound command on its own, alongside the trajectory command, which
+requires the drive. A bound command that also requires the drive makes the scheduler interrupt the
+trajectory to run it. Requiring a mechanism is fine — the trajectory does not use it.
+
+The same applies to commands started from trajectory triggers (`traj.atTime(...)`,
+`traj.done()`), with one deliberate exception: `ChoreoAutos.thenAlign` runs on `traj.done()`, when
+the trajectory has already finished, and so may take the drive.
+
+## Waypoints and Steppable Autos
+
+A PID-to-pose step in an auto is always `DriveCommands.driveToPoseWithin(...)` (or
+`driveToWaypoint` for a `Waypoint`). Both finish on tolerance **or timeout** — never call the
+non-finishing `driveToPose` in an auto sequence, or the sequence stops there forever.
+
+`frc/lib/command/SteppableCommandGroup` is library infrastructure, like
+`ContinuousConditionalCommand`, and so is a class. Build it through a factory
+(`PointToPointAutos.stepThrough`) and name it there.
 
 ---
 

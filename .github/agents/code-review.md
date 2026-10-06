@@ -30,7 +30,7 @@ External references: [WPILib Command-Based](https://docs.wpilib.org/en/stable/do
 ## Do not spend review effort on what the build proves
 
 `CanIdUniquenessTest` and `RobotContainerSmokeTest` cover CAN ID collisions, unregistered
-PathPlanner named commands, and wiring that will not construct. **If the build is green, those
+unbound Choreo event markers, and wiring that will not construct. **If the build is green, those
 are already true** — do not re-report them. Nothing tests the vision pose-rejection ladder any
 more, so a change to it does need review.
 
@@ -103,8 +103,8 @@ then decide whether the code achieves it. Describing what the code does is not r
   subsystem.
 - **Default commands** that conflict, or a subsystem that should have one and does not.
 - **`whileTrue` vs `onTrue` vs `toggleOnTrue`** misuse.
-- **Named commands** that do not match what the `.auto` files reference, or that carry
-  requirements they should not.
+- **Choreo event-marker bindings** that require the drive (they interrupt the trajectory), or
+  are bound after a routine is built.
 - **Game logic that belongs in a command factory or `RobotState`.** This is the wiring layer.
 
 ### RobotState

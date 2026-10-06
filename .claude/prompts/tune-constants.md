@@ -61,7 +61,8 @@ Always state why the old limit was insufficient before raising it.
 | Other CAN IDs | `Constants.CanIds` |
 | Vision thresholds | `subsystems/vision/VisionConstants` |
 | Heading-hold gains | `commands/DriveCommands` (ANGLE_KP / ANGLE_KD) |
-| Path-following gains | `subsystems/drive/Drive` (`configureAutoBuilder()`) |
+| Trajectory-following gains (Choreo) | `subsystems/drive/Drive` (`trajectoryX/Y/HeadingController`) |
+| Drive-to-pose gains and FF radii | `commands/DriveCommands` (`driveController`, `Drive/ToPose/FF*`) |
 | Joystick shaping, limited speed | `subsystems/drive/DriveConstants` |
 | Field dimensions, AprilTag layout | `frc/lib/util/FieldConstants` |
 | PID/FF gains (mechanisms) | `[Subsystem]Constants` or IO implementation |
