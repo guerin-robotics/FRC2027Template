@@ -315,7 +315,8 @@ public final class Constants {
   /**
    * Runs before every deploy ({@code checkConstantsDeploy} in {@code build.gradle}). Refuses to
    * deploy with {@link #tuningMode} on from an {@code event*} branch — the branches {@code
-   * eventDeploy} auto-commits to at competition.
+   * eventDeploy} auto-commits to at competition — or from a detached checkout, whose branch cannot
+   * be known.
    *
    * <p>Deploying with tuning on from any other branch is allowed on purpose: that is how a tuning
    * session gets tunables onto the robot.
@@ -325,6 +326,14 @@ public final class Constants {
 
     public static void main(String... args) {
       String branch = args.length > 0 ? args[0] : "";
+      // A detached checkout has no branch name, so it cannot be ruled out as an event revision.
+      // Fail closed rather than let it through with tuning on.
+      if (tuningMode && branch.isEmpty()) {
+        System.err.println(
+            "Cannot deploy: Constants.tuningMode is true and the git branch could not be"
+                + " determined (detached HEAD?). Check out a named branch or turn tuning off.");
+        System.exit(1);
+      }
       if (tuningMode && branch.startsWith("event")) {
         System.err.println(
             "Cannot deploy: Constants.tuningMode is true on event branch '"

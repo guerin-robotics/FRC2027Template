@@ -59,8 +59,9 @@ class RobotContainerSmokeTest {
 
   @BeforeAll
   static void buildContainer() {
-    // NOT a Java assert: assertions are off unless -ea is passed, and a runner that turns them
-    // off would skip the initialization and fail later inside the HAL with a useless message.
+    // JUnit's assertTrue, deliberately not the Java `assert` keyword. It always runs and fails
+    // right here if HAL.initialize returns false. An `assert` statement is skipped entirely
+    // without -ea, which would skip the initialization and fail later inside the HAL instead.
     assertTrue(HAL.initialize(500, 0), "HAL failed to initialize; sim-backed tests cannot run");
     RoboRioSim.setVInVoltage(12.0);
     DriverStationSim.setEnabled(false);

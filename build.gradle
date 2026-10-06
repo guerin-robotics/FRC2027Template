@@ -151,13 +151,13 @@ task(checkConstantsDeploy, dependsOn: "classes", type: JavaExec) {
 deployroborio.dependsOn(checkConstantsDeploy)
 
 // In CI: refuse to merge with tuningMode on. Hooked into `check` only when the CI
-// environment variable is set (GitHub Actions always sets it), so the existing
+// environment variable is "true" (GitHub Actions always sets it), so the existing
 // `./gradlew build` step runs it and a local build during a tuning session does not.
 task(checkConstantsPullRequest, dependsOn: "classes", type: JavaExec) {
     mainClass = "frc.robot.Constants\$CheckPullRequest"
     classpath = sourceSets.main.runtimeClasspath
 }
-if (System.getenv("CI")) {
+if ("true".equalsIgnoreCase(System.getenv("CI"))) {
     check.dependsOn(checkConstantsPullRequest)
 }
 
