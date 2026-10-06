@@ -42,6 +42,10 @@ public class LightsIOCANdle implements LightsIO {
    */
   public LightsIOCANdle(
       String name, int canId, CANBus bus, CANdleConfiguration config, int ledCount) {
+    if (ledCount < 1) {
+      throw new IllegalArgumentException(
+          name + " was given ledCount " + ledCount + "; it must be at least 1");
+    }
     CanIdRegistry.claim(canId, bus, name);
     candle = new CANdle(canId, bus);
     PhoenixUtil.tryUntilOk(5, () -> candle.getConfigurator().apply(config));

@@ -45,8 +45,8 @@ public final class ChoreoAutos {
   /**
    * The one {@link AutoFactory}. Built once in {@code RobotContainer}: it reads the pose from the
    * drive's estimator, resets odometry through {@code Drive.setPose}, follows samples with {@link
-   * Drive#followTrajectory}, flips for the red alliance, and logs each trajectory to {@code
-   * Autos/Trajectory} while it runs.
+   * Drive#followTrajectory}, flips for the red alliance, resets the follower PIDs as each
+   * trajectory starts, and logs each trajectory to {@code Autos/Trajectory} while it runs.
    */
   public static AutoFactory createFactory(Drive drive) {
     return new AutoFactory(
@@ -55,9 +55,12 @@ public final class ChoreoAutos {
         drive::followTrajectory,
         true,
         drive,
-        (trajectory, starting) ->
-            Logger.recordOutput(
-                "Autos/Trajectory", starting ? trajectory.getPoses() : new Pose2d[0]));
+        (trajectory, starting) -> {
+          if (starting) {
+            drive.resetTrajectoryControllers();
+          }
+          Logger.recordOutput("Autos/Trajectory", starting ? trajectory.getPoses() : new Pose2d[0]);
+        });
   }
 
   /**

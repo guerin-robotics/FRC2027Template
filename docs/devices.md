@@ -32,6 +32,10 @@ public class Indexer extends SubsystemBase {
   public boolean hasPiece() {
     return staged.isBroken();
   }
+
+  public void registerFaultMonitors() {
+    staged.registerFaultMonitors();
+  }
 }
 ```
 

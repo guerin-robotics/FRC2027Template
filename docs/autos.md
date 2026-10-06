@@ -1,7 +1,7 @@
 # Autos
 
-Autos come in **three layers**, all in one chooser and all built on one
-`DriveCommands.driveToPose`:
+Autos come in **three layers**, all in one chooser. Layer 1 runs on the Choreo follower
+(`Drive.followTrajectory`); layers 2 and 3 share one `DriveCommands.driveToPose`:
 
 | Layer | Authored in | How the robot moves | Use it when |
 |---|---|---|---|

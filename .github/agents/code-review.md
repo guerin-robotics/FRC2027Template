@@ -31,7 +31,8 @@ External references: [WPILib Command-Based](https://docs.wpilib.org/en/stable/do
 
 `CanIdUniquenessTest` and `RobotContainerSmokeTest` cover CAN ID collisions, unregistered
 unbound Choreo event markers, and wiring that will not construct. **If the build is green, those
-are already true** — do not re-report them. Nothing tests the vision pose-rejection ladder any
+are already true** — do not re-report them. The marker check only covers `.traj` files that
+exist; with none in `deploy/choreo/` it proves nothing, so review bindings by hand until there are. Nothing tests the vision pose-rejection ladder any
 more, so a change to it does need review.
 
 Everything else is yours, including every architecture rule in `.claude/rules/`. Nothing

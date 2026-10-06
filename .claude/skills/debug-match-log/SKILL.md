@@ -153,7 +153,8 @@ Match/EventName, Match/MatchNumber — confirm you are in the right log
 Auto/DurationSeconds               — how long the routine actually took
 Auto/Overran                       — true if still running when auto ended
 Auto/Name                          — which routine was selected
-Odometry/Trajectory                — the path being followed
+Autos/Trajectory                   — the Choreo trajectory that was running
+Odometry/TrajectorySetpoint        — the sample the follower was chasing
 ```
 
 Also always check `Commands/Active` around the event time — a missing or

@@ -135,9 +135,9 @@ every call. At 50 Hz this creates GC pressure and unpredictable `periodic()` tim
 
 ## Choreo Wiring
 
-Autos come in three layers, all built on one `DriveCommands.driveToPose`: Choreo trajectories,
-a Choreo trajectory with a PID-to-pose finish (`ChoreoAutos.thenAlign`), and code-only
-point-to-point waypoints (`PointToPointAutos`). See [docs/autos.md](../../docs/autos.md).
+Autos come in three layers: Choreo trajectories (followed by `Drive.followTrajectory`), a Choreo
+trajectory with a PID-to-pose finish (`ChoreoAutos.thenAlign`), and code-only point-to-point
+waypoints (`PointToPointAutos`). The last two share `DriveCommands.driveToPose`. See [docs/autos.md](../../docs/autos.md).
 
 **Rule:** The trajectory follower lives in `Drive.java` — `Drive.followTrajectory(SwerveSample)`
 — not in `RobotContainer` or `ChoreoAutos`. The follower gains and the output path belong with

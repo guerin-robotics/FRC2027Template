@@ -196,6 +196,17 @@ public class Drive extends SubsystemBase {
     runVelocity(ChassisSpeeds.fromFieldRelativeSpeeds(fieldSpeeds, pose.getRotation()));
   }
 
+  /**
+   * Clears the follower PIDs' accumulated state. Called by {@code ChoreoAutos.createFactory} as
+   * each trajectory starts, so the heading kD does not differentiate against the previous
+   * trajectory's last error and kick on the first sample.
+   */
+  public void resetTrajectoryControllers() {
+    trajectoryXController.reset();
+    trajectoryYController.reset();
+    trajectoryHeadingController.reset();
+  }
+
   @Override
   public void periodic() {
     // try/finally so the odometry thread is never left blocked on a lock this method failed to

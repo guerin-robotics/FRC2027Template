@@ -19,7 +19,9 @@ logging setup, and spent kickoff week doing it instead of working on the game. T
 ends that. Four goals:
 
 1. **The robot drives on day one.** Field-relative swerve, AprilTag pose estimation and the
-   auto framework (Choreo plus PID-to-pose) are already here and already work. Kickoff week goes to the game.
+   auto framework (Choreo plus PID-to-pose) are already here. Swerve and vision ran all of 2026;
+   the auto framework is wired in but untested on a robot, and needs a Choreo project before it
+   has anything to run. Kickoff week goes to the game.
 2. **Keep what was earned; drop what expires.** Vision rejection thresholds, current limits
    and instrumentation came out of real match logs and stay. Mechanisms, game logic and 2026
    field geometry are gone — they do not transfer and pretending they do is worse than an
@@ -162,10 +164,10 @@ plus real, sim and replay IOs — and `CanIdRegistry`, which stops boot on a dup
 [docs/library.md](docs/library.md) for how `frc/lib` is laid out and how it relates to 3467's
 W8-Library.
 
-**Autos** — three layers in one chooser, all built on one `driveToPose`: Choreo trajectories
-(`frc/robot/autos/ChoreoAutos`), a Choreo trajectory with a PID-to-pose finish
+**Autos** — three layers in one chooser: Choreo trajectories (`frc/robot/autos/ChoreoAutos`,
+followed by `Drive.followTrajectory`), a Choreo trajectory with a PID-to-pose finish
 (`ChoreoAutos.thenAlign`), and code-only point-to-point autos (`PointToPointAutos`, built from
-`frc/lib/auto` waypoints). See [docs/autos.md](docs/autos.md).
+`frc/lib/auto` waypoints). The last two share `DriveCommands.driveToPose`. See [docs/autos.md](docs/autos.md).
 
 **Commands** — `commands/DriveCommands`: `joystickDrive`, `joystickDriveLimited`,
 `joystickDriveAtAngle`, `driveToPose`, `driveToWaypoint`, `alignForScore`, `stopWithX`,

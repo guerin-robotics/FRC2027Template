@@ -68,7 +68,8 @@ frc/robot/generated/         TunerConstants (Tuner X generated — never hand-ed
 frc/robot/subsystems/drive/  Drive, Module, Gyro/Module IO, PhoenixOdometryThread
 frc/robot/subsystems/vision/ Vision, VisionConstants, io/
 frc/robot/commands/          DriveCommands (+ one file per mechanism)
-frc/robot/autos/             PointToPointAutos (static factories over WaypointAuto)
+frc/robot/autos/             ChoreoAutos (AutoFactory, event bindings, thenAlign),
+                             PointToPointAutos (static factories over WaypointAuto)
 ```
 
 Tests mirror this structure under `src/test/java`. See [testing.md](testing.md) for what each
