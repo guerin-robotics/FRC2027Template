@@ -24,6 +24,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.lib.auto.Waypoint;
 import frc.lib.util.AllianceFlipUtil;
+import frc.lib.util.LoggedTunableNumber;
 import frc.lib.util.LoggedTunableProfiledPID;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConstants;
@@ -98,6 +99,16 @@ public class DriveCommands {
   // near zero at rest; loose enough that direction-vector noise right at the goal (the atan2 of
   // a near-zero vector) doesn't turn into commanded chatter.
   private static final double DRIVE_TO_POSE_TOLERANCE_METERS = 0.02;
+
+  // Setpoint feedforward for driveToPose, the 254/6328 pattern. ProfiledPIDController.calculate
+  // returns feedback only, so on its own the robot trails its own profile; adding the profile's
+  // setpoint velocity removes that lag. The scaler fades the feedforward to zero inside
+  // FFMinRadius so it cannot push the robot through the target, and applies it in full beyond
+  // FFMaxRadius. Starting points, not tuned values — adjust with tuningMode on.
+  private static final LoggedTunableNumber driveToPoseFFMinRadius =
+      new LoggedTunableNumber("Drive/ToPose/FFMinRadius", 0.05);
+  private static final LoggedTunableNumber driveToPoseFFMaxRadius =
+      new LoggedTunableNumber("Drive/ToPose/FFMaxRadius", 0.2);
 
   private static final double FF_START_DELAY = 2.0; // Secs
 
@@ -285,6 +296,11 @@ public class DriveCommands {
    * pathfinding, no obstacle avoidance. See {@link Drive#pathfindToPose} for the pathfinding
    * alternative when the route there is not always clear.
    *
+   * <p>Both profiles are seeded with the robot's current velocity, and the profile's setpoint
+   * velocity is fed forward (faded out near the target), so a robot already moving keeps moving and
+   * tracks the profile instead of trailing it — the pattern 1114, 6328 and 254 use. {@link
+   * #joystickDriveAtAngle} shares the heading controller but neither of these changes.
+   *
    * <p>Runs until interrupted, the same as {@link #joystickDriveAtAngle} — it does not finish on
    * its own. To gate a follow-up action on arrival, build an "is aligned" check at the call site
    * from {@code drive.getPose()} against the same target pose (see the Ready → Align → Act pattern
@@ -317,6 +333,16 @@ public class DriveCommands {
               // vector would aim it away from the target, not at it; pointing it along the
               // reverse (current-minus-target) vector cancels the sign and aims correctly.
               double driveVelocity = driveController.calculate(distanceMeters, 0.0);
+
+              // Feedforward from the profile's own setpoint, faded out near the target. Same
+              // sign convention as the feedback above (negative = closing the distance), so the
+              // two simply add.
+              double ffMin = driveToPoseFFMinRadius.get();
+              double ffMax = driveToPoseFFMaxRadius.get();
+              double ffScaler =
+                  MathUtil.clamp(
+                      (distanceMeters - ffMin) / Math.max(ffMax - ffMin, 1e-6), 0.0, 1.0);
+              driveVelocity += driveController.getSetpoint().velocity * ffScaler;
               Translation2d velocity =
                   distanceMeters < DRIVE_TO_POSE_TOLERANCE_METERS
                       ? Translation2d.kZero
@@ -326,8 +352,10 @@ public class DriveCommands {
 
               double omega =
                   angleController.calculate(
-                      current.getRotation().getRadians(), target.getRotation().getRadians());
+                          current.getRotation().getRadians(), target.getRotation().getRadians())
+                      + angleController.getSetpoint().velocity * ffScaler;
 
+              Logger.recordOutput("AutoAim/DriveToPose/FFScaler", ffScaler);
               Logger.recordOutput("AutoAim/DriveToPose/TargetPose", target);
               Logger.recordOutput("AutoAim/DriveToPose/CurrentPose", current);
               Logger.recordOutput("AutoAim/DriveToPose/DistanceErrorMeters", distanceMeters);
@@ -344,10 +372,28 @@ public class DriveCommands {
             drive)
         .beforeStarting(
             () -> {
+              // Seed both profiles with the robot's current motion, the 1114/6328 pattern.
+              // Resetting at zero velocity made a robot already moving toward the target brake
+              // and re-accelerate at the start of every segment — every waypoint of a
+              // point-to-point auto, and the hand-off from a trajectory to a PID finish.
               Pose2d current = drive.getPose();
               Pose2d target = targetPoseSupplier.get();
-              driveController.reset(current.getTranslation().getDistance(target.getTranslation()));
-              angleController.reset(current.getRotation().getRadians());
+              ChassisSpeeds fieldSpeeds =
+                  ChassisSpeeds.fromRobotRelativeSpeeds(
+                      drive.getChassisSpeeds(), current.getRotation());
+              Translation2d toTarget = target.getTranslation().minus(current.getTranslation());
+              double distanceMeters = toTarget.getNorm();
+              // The profile's measurement is distance-to-go, so closing on the target is a
+              // NEGATIVE rate. With no direction (already there), seed at rest.
+              double closingSpeed =
+                  distanceMeters < 1e-6
+                      ? 0.0
+                      : (fieldSpeeds.vxMetersPerSecond * toTarget.getX()
+                              + fieldSpeeds.vyMetersPerSecond * toTarget.getY())
+                          / distanceMeters;
+              driveController.reset(distanceMeters, -closingSpeed);
+              angleController.reset(
+                  current.getRotation().getRadians(), fieldSpeeds.omegaRadiansPerSecond);
             })
         .finallyDo(
             () -> {
@@ -355,6 +401,7 @@ public class DriveCommands {
               Logger.recordOutput("AutoAim/DriveToPose/CurrentPose", Pose2d.kZero);
               Logger.recordOutput("AutoAim/DriveToPose/DistanceErrorMeters", 0.0);
               Logger.recordOutput("AutoAim/DriveToPose/AngleErrorRad", 0.0);
+              Logger.recordOutput("AutoAim/DriveToPose/FFScaler", 0.0);
             })
         .withName("Drive_ToPose");
   }
