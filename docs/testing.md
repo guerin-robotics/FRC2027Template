@@ -9,8 +9,8 @@ construct, two devices on one CAN ID, a motor config missing a safety value — 
 behaviour to simulation, logs and practice time. Adding a test is cheap; maintaining one that
 nobody trusts is not.
 
-`./gradlew build` runs them, and CI runs `spotlessCheck`, `checkConstantsPullRequest` and
-`build` on every PR and push to main.
+`./gradlew build` runs them, and CI runs `spotlessCheck` and `build` on every PR and push to
+main.
 
 ---
 
@@ -62,7 +62,7 @@ bottom of `Constants.java`.
 | Task | Runs | Fails when |
 |---|---|---|
 | `checkConstantsDeploy` | Before every `deploy` | `tuningMode` is on **and** the branch starts with `event` |
-| `checkConstantsPullRequest` | In CI, on every PR and push to main | `tuningMode` is on |
+| `checkConstantsPullRequest` | Part of `build` when the `CI` env var is set — i.e. on every PR and push to main | `tuningMode` is on |
 
 Deploying with `tuningMode` on from an ordinary branch is allowed on purpose — that is how a
 tuning session gets tunables onto the robot. What is blocked is taking it to an event, and

@@ -277,7 +277,8 @@ stay clean.
 ## CI
 
 `.github/workflows/build.yml` runs `spotlessCheck` then `build` on every PR and push to
-main. **If it fails, fix the code — do not weaken the workflow.**
+main. Under CI, `build` also runs `checkConstantsPullRequest`, which fails if `tuningMode` is on.
+**If it fails, fix the code — do not weaken the workflow.**
 
 `.github/copilot-instructions.md` is the GitHub Copilot instruction file — the path Copilot
 applies automatically to every request. `.github/agents/` and `.github/prompts/` hold the
