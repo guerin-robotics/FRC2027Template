@@ -338,7 +338,15 @@ public final class MotorConfig {
     return profile;
   }
 
-  /** Where the mechanism is level, relative to its zero. Zero on anything but an arm. */
+  /**
+   * Phoenix's {@code GravityArmPositionOffset}: the angle added to the position before the cosine
+   * is taken. Zero on anything but an arm.
+   *
+   * <p>This is the <b>negation</b> of the level position passed to {@link
+   * Builder#gravityOffset(Angle)} — an arm level at 20° returns -20°. Adding it to a mechanism
+   * angle gives the angle from horizontal, which is how the simulation uses it; reading it as
+   * "where the arm is level" gets the sign wrong.
+   */
   public Angle gravityOffset() {
     return Rotations.of(gravityOffsetRotations);
   }
@@ -449,11 +457,6 @@ public final class MotorConfig {
   }
 
   /**
-   * The CANcoder configuration, when there is one.
-   *
-   * @throws IllegalStateException if this mechanism has no absolute encoder
-   */
-  /**
    * The config a follower gets: the leader's, with travel bounds switched off.
    *
    * <p>A follower executes a {@code Follower} request, not a position loop, and nothing reads its
@@ -479,6 +482,11 @@ public final class MotorConfig {
     return config;
   }
 
+  /**
+   * The CANcoder configuration, when there is one.
+   *
+   * @throws IllegalStateException if this mechanism has no absolute encoder
+   */
   public CANcoderConfiguration toCANcoderConfiguration() {
     if (!hasEncoder()) {
       throw new IllegalStateException(
