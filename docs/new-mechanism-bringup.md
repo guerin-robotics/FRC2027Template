@@ -129,7 +129,9 @@ Work at low output, 1–2 V, with a hand on disable.
      starts at zero velocity, so a stall check that ran immediately would zero it wherever it
      already was — confidently, and wrong by exactly the amount the routine exists to remove.
    - The **stall wait has a mandatory timeout**. A carriage that never stalls is one whose rope has
-     come off, and hanging on it costs the match.
+     come off, and hanging on it costs the match. On timeout the routine does **not** zero — the
+     carriage is not at the stop — and logs `<Name>/ZeroingSucceeded` false; check that channel
+     after the first run on the robot.
    - **With a follower, halve the current.** The follower mirrors the leader in hardware, so the
      force into the stop doubles.
 
