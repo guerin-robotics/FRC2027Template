@@ -6,6 +6,7 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfigurator;
 import com.ctre.phoenix6.controls.Follower;
@@ -486,7 +487,23 @@ public class MotorIOTalonFX implements MotorIO {
 
   @Override
   public void setSupplyCurrentLimit(Current limit) {
-    config.CurrentLimits.SupplyCurrentLimit = limit.in(Amps);
+    double amps = limit.in(Amps);
+
+    // The lower limit has to move too. Phoenix drops to SupplyCurrentLowerLimit once the main limit
+    // has been active for SupplyCurrentLowerTime, and MotorConfig defaults the lower limit to the
+    // main one's boot value. Left there, a limit lowered at runtime is undone 0.1 s into the first
+    // sustained draw and a raised one is pulled back down, while the config reads as changed.
+    //
+    // A lower limit still equal to the main one was never chosen separately, so it follows. One
+    // that
+    // was chosen is kept, but never above the new main limit, which would turn it into a raise.
+    CurrentLimitsConfigs limits = config.CurrentLimits;
+    if (limits.SupplyCurrentLowerLimit == limits.SupplyCurrentLimit) {
+      limits.SupplyCurrentLowerLimit = amps;
+    } else {
+      limits.SupplyCurrentLowerLimit = Math.min(limits.SupplyCurrentLowerLimit, amps);
+    }
+    limits.SupplyCurrentLimit = amps;
     applyToAll(configurator -> configurator.apply(config.CurrentLimits));
   }
 

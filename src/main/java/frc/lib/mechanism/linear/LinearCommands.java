@@ -10,7 +10,9 @@ import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
+import org.littletonrobotics.junction.Logger;
 
 /**
  * The command factories every linear position mechanism needs, including the zeroing routine.
@@ -108,8 +110,12 @@ public final class LinearCommands {
    *       velocity, so a stall check that ran immediately would declare success without moving the
    *       mechanism at all, and zero it wherever it already was — the exact failure this routine
    *       exists to prevent, arrived at more confidently.
-   *   <li><b>A timeout on the stall wait.</b> Mandatory, per the command rules. A carriage that
-   *       never stalls is one whose rope has come off, and hanging forever on it costs the match.
+   *   <li><b>A timeout on the stall wait, and no zero when it fires.</b> Mandatory, per the command
+   *       rules. A carriage that never stalls is one whose rope has come off, and hanging forever
+   *       on it costs the match. Nor is it at the stop, so declaring {@code heightAtStop} there
+   *       would re-datum every height to wherever it happened to be — worse than the boot zero it
+   *       replaced. On timeout the routine leaves the encoder alone and logs {@code
+   *       ZeroingSucceeded} false.
    *   <li><b>A stop on the way out.</b> {@code finallyDo}, so an interrupted zeroing routine does
    *       not leave current driving into the hard stop.
    * </ul>
@@ -152,6 +158,10 @@ public final class LinearCommands {
       LinearVelocity stallVelocity,
       Time timeout,
       Distance heightAtStop) {
+    BooleanSupplier stalled =
+        () ->
+            Math.abs(linear.getLinearVelocity().in(InchesPerSecond))
+                < Math.abs(stallVelocity.in(InchesPerSecond));
     return Commands.sequence(
             Commands.runOnce(
                 () -> {
@@ -160,12 +170,20 @@ public final class LinearCommands {
                 },
                 linear),
             Commands.waitTime(settleTime),
-            Commands.waitUntil(
-                    () ->
-                        Math.abs(linear.getLinearVelocity().in(InchesPerSecond))
-                            < Math.abs(stallVelocity.in(InchesPerSecond)))
-                .withTimeout(timeout),
-            Commands.runOnce(() -> linear.zeroAt(heightAtStop), linear))
+            Commands.waitUntil(stalled).withTimeout(timeout),
+            // Re-checked rather than assumed: the wait above ends on a stall OR on its timeout, and
+            // only the first means the carriage is at the stop. Both read the same loop's inputs,
+            // so this sees exactly what the wait saw when it ended.
+            Commands.either(
+                Commands.runOnce(
+                    () -> {
+                      linear.zeroAt(heightAtStop);
+                      Logger.recordOutput(linear.getName() + "/ZeroingSucceeded", true);
+                    },
+                    linear),
+                Commands.runOnce(
+                    () -> Logger.recordOutput(linear.getName() + "/ZeroingSucceeded", false)),
+                stalled))
         .finallyDo(
             () -> {
               linear.stop();
