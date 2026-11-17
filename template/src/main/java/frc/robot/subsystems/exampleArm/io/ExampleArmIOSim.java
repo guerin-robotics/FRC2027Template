@@ -54,9 +54,8 @@ public class ExampleArmIOSim implements ExampleArmIO {
    * that peaks somewhere other than where its compensation does, and a kG found in sim is wrong on
    * the robot in a way that looks like bad tuning.
    *
-   * <p>Taken from the DEFAULT, not the tunable. Where the arm is level is a physical fact about the
-   * mechanism; the tunable is the code's estimate of it. Holding the physics fixed is what lets a
-   * wrong estimate show up in sim the way it would on the robot.
+   * <p>Taken from the measured DEFAULT. Where the arm is level is a physical fact about the
+   * mechanism, so the physics uses the measurement rather than any later estimate.
    */
   private static final double GRAVITY_FRAME_OFFSET_RADIANS =
       Units.degreesToRadians(ExampleArmConstants.GRAVITY_HORIZONTAL_OFFSET_DEGREES_DEFAULT);
@@ -117,7 +116,7 @@ public class ExampleArmIOSim implements ExampleArmIO {
       // sim and hardware disagreeing about where gravity peaks.
       double angleFromHorizontalRadians =
           mechanismRadians()
-              + Units.degreesToRadians(ExampleArmConstants.GRAVITY_HORIZONTAL_OFFSET_DEGREES.get());
+              + Units.degreesToRadians(ExampleArmConstants.GRAVITY_HORIZONTAL_OFFSET_DEGREES);
 
       appliedVolts =
           feedforward.calculate(angleFromHorizontalRadians, 0.0)

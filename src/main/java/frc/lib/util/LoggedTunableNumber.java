@@ -1,42 +1,39 @@
 package frc.lib.util;
 
-import frc.robot.Constants;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.DoubleSupplier;
 import org.littletonrobotics.junction.networktables.LoggedNetworkNumber;
 
 /**
- * A number that can be adjusted from the dashboard while the robot is running, but only when tuning
- * mode is on.
+ * A number that can be adjusted from the dashboard while the robot is running.
  *
- * <p><b>Why this exists.</b> Without it, changing a gain costs an edit, a build, a deploy and a
- * re-enable — call it two minutes per iteration. A tuning session is dozens of iterations, so most
- * of it is spent waiting rather than tuning. With it, you drag a number and watch the response.
+ * <p><b>Always live.</b> There is no tuning-mode flag: every instance publishes to NetworkTables
+ * under {@code Tuning/} and reads back from it. The dashboard value is an AdvantageKit logged input
+ * ({@link LoggedNetworkNumber}), so a replay sees exactly what the robot saw.
  *
- * <p><b>Why it is gated.</b> When {@link Constants#tuningMode} is false this does not touch
- * NetworkTables at all — it returns the compiled-in default and costs nothing. That matters for two
- * reasons: NT traffic in the 20 ms loop is not free, and more importantly a competition robot must
- * not be one stray dashboard edit away from a different gain set. Tuning mode off is the
- * competition configuration.
+ * <p><b>The rule that makes always-live safe: only a tuning command may read one.</b> A tuning
+ * command runs in test mode, which the field never enables, so a stray dashboard edit at an event
+ * reaches nothing. Match code reads compiled values from {@code Constants.Setpoints}. Each scaffold
+ * in {@code template/} has a {@code tune*} command showing the pattern. At the 2027 port that
+ * command becomes a {@code @Utility} OpMode.
  *
- * <p><b>Usage:</b>
+ * <p><b>Use it for setpoints — velocities, positions, voltages — not for gains.</b> Phoenix gains
+ * are tuned in Phoenix Tuner X and roboRIO-side gains in simulation with {@code /pid-tune}; either
+ * way the result is committed as a plain constant. See {@code docs/tunables.md}.
  *
  * <pre>
- * private static final LoggedTunableNumber kP = new LoggedTunableNumber("Elevator/kP", 4.0);
+ * private static final LoggedTunableNumber TUNE_RPM = new LoggedTunableNumber("Intake/TuneRpm", 0);
  *
- * // Read it wherever you need the value:
- * controller.setP(kP.get());
- *
- * // Or only rebuild expensive objects when it actually changed:
- * if (kP.hasChanged(hashCode())) {
- *   controller.setP(kP.get());
+ * // In the tuning command only:
+ * if (TUNE_RPM.hasChanged(hashCode())) {
+ *   intake.setVelocity(RPM.of(TUNE_RPM.get()));
  * }
  * </pre>
  *
- * <p><b>Values found this way are not final.</b> They live in NetworkTables, not in git. When a
- * tuning session lands on numbers you like, write them into the constants and commit them, or they
- * are gone the next time the robot boots. See {@code docs/characterization-and-tuning.md}.
+ * <p><b>Values found this way are not final.</b> They live in NetworkTables, not in git. Write the
+ * number you land on into {@code Constants.Setpoints} and commit it, or it is gone at the next
+ * boot.
  */
 public class LoggedTunableNumber implements DoubleSupplier {
 
@@ -51,19 +48,26 @@ public class LoggedTunableNumber implements DoubleSupplier {
 
   /**
    * @param dashboardKey Key shown on the dashboard, under the "Tuning" table
-   * @param defaultValue Value used when tuning mode is off, and the starting dashboard value
+   * @param defaultValue The starting dashboard value
    */
   public LoggedTunableNumber(String dashboardKey, double defaultValue) {
     this.key = TABLE_KEY + "/" + dashboardKey;
     this.defaultValue = defaultValue;
-    this.dashboardNumber = Constants.tuningMode ? new LoggedNetworkNumber(key, defaultValue) : null;
+    this.dashboardNumber = new LoggedNetworkNumber(key, defaultValue);
   }
 
   /**
-   * @return the dashboard value when tuning mode is on, otherwise the compiled-in default
+   * @return the current dashboard value. Only a tuning command should call this
    */
   public double get() {
-    return dashboardNumber == null ? defaultValue : dashboardNumber.get();
+    return dashboardNumber.get();
+  }
+
+  /**
+   * @return the value this tunable was constructed with, regardless of dashboard edits
+   */
+  public double getDefault() {
+    return defaultValue;
   }
 
   @Override

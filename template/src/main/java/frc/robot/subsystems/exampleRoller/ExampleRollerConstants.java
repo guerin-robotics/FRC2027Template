@@ -11,7 +11,6 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Time;
-import frc.lib.util.LoggedTunableNumber;
 import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
 
@@ -232,24 +231,14 @@ public class ExampleRollerConstants {
   // there is no hard stop to slam into and no gravity torque to respect. Lower it only if the
   // current draw at spin-up is causing a brownout, and say so in the commit.
   //
-  // Tunable, because a profile is the thing you most want to adjust with the mechanism in front
-  // of you, and it is far safer to change than a gain: too slow just wastes time, whereas too
-  // much kP oscillates. See docs/tunables.md.
+  // Plain constants: they are read by match code. Adjust them in Phoenix Tuner X with the
+  // mechanism in front of you, then write the result here. See docs/tunables.md.
 
   /** Compiled-in default for {@link #ACCELERATION_RPM_PER_SEC}, in mechanism RPM per second. */
   public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 9000.0;
 
-  /** Profile acceleration, in mechanism RPM per second. Tunable at runtime. */
-  public static final LoggedTunableNumber ACCELERATION_RPM_PER_SEC =
-      new LoggedTunableNumber(NAME + "/AccelRpmPerSec", ACCELERATION_RPM_PER_SEC_DEFAULT);
-
-  /**
-   * Everything re-applied to the Talon when a dashboard value moves.
-   *
-   * <p>One entry, because there is no cruise velocity on a velocity mechanism. It stays an array so
-   * the IO layer's {@code ifChanged} watch list reads identically across all three scaffolds.
-   */
-  public static final LoggedTunableNumber[] TUNABLE_PROFILE = {ACCELERATION_RPM_PER_SEC};
+  /** Profile acceleration, in mechanism RPM per second. */
+  public static final double ACCELERATION_RPM_PER_SEC = ACCELERATION_RPM_PER_SEC_DEFAULT;
 
   // ==========================================================================================
   // TOLERANCE
@@ -263,15 +252,14 @@ public class ExampleRollerConstants {
    * for a flywheel in the low thousands; scale it to the mechanism, then check it against a real
    * log rather than leaving it at whatever was copied.
    *
-   * <p>Tunable, because the right value is the one you find by watching the mechanism report ready
-   * against what it is actually doing. It is read live on every {@code isAtVelocity()} call, so a
-   * dashboard edit takes effect on the next loop with no re-apply and no CAN traffic.
+   * <p>Found by watching the mechanism report ready against what it is actually doing in a log,
+   * then edited here. A plain constant: it is read by match code, and nothing match code reads may
+   * be a dashboard tunable (see docs/tunables.md).
    */
   public static final double VELOCITY_TOLERANCE_RPM_DEFAULT = 120.0;
 
-  /** How close counts as "at velocity", in mechanism RPM. Tunable at runtime. */
-  public static final LoggedTunableNumber VELOCITY_TOLERANCE_RPM =
-      new LoggedTunableNumber(NAME + "/VelocityToleranceRpm", VELOCITY_TOLERANCE_RPM_DEFAULT);
+  /** How close counts as "at velocity", in mechanism RPM. */
+  public static final double VELOCITY_TOLERANCE_RPM = VELOCITY_TOLERANCE_RPM_DEFAULT;
 
   // ==========================================================================================
   // JAM DETECTION — keep this if the mechanism can stall against a game piece
@@ -289,34 +277,27 @@ public class ExampleRollerConstants {
   // the same reason GEAR_RATIO is: a plausible-looking wrong threshold compiles and produces a
   // detector that either cries wolf every match or never fires at all.
   //
-  // Three of the four are tunables, because separating a jam from a hard pickup is exactly the
-  // job you do with the mechanism in front of you, jamming it on purpose and watching where the
-  // thresholds land. They are read live in isJammed(), so an edit applies on the next loop.
-  //
-  // JAM_DEBOUNCE_SECONDS is NOT a tunable: it is consumed by a Debouncer built once in the
-  // ExampleRoller constructor, so a dashboard edit would change the logged number and nothing
-  // else. A knob that moves without changing behaviour is worse than no knob.
+  // Find them with the mechanism in front of you: jam it on purpose, do a normal hard pickup, and
+  // read where stator current and velocity land in the log. Plain constants, because match code
+  // reads them — a dashboard tunable there would be live in every match.
   //
   //   /** Stator current, in amps, above which the mechanism counts as "working hard". Sits
   //    * BELOW STATOR_CURRENT_LIMIT_AMPS — a jam that already saturated the limit has been a
   //    * jam for a while. */
-  //   public static final LoggedTunableNumber JAM_STATOR_CURRENT_AMPS =
-  //       new LoggedTunableNumber(NAME + "/JamStatorAmps", 55.0);
+  //   public static final double JAM_STATOR_CURRENT_AMPS = 55.0;
   //
   //   /** Measured velocity below this FRACTION of commanded counts as "not turning". A
   //    * fraction, not an absolute RPM, so one threshold works at every setpoint. */
-  //   public static final LoggedTunableNumber JAM_VELOCITY_FRACTION =
-  //       new LoggedTunableNumber(NAME + "/JamVelocityFraction", 0.25);
+  //   public static final double JAM_VELOCITY_FRACTION = 0.25;
   //
   //   /** How long all conditions must hold. MUST EXCEED SPIN-UP TIME — see the note in
-  //    * ExampleRoller. Raise it if ACCELERATION_RPM_PER_SEC ever drops. Static: the Debouncer
-  //    * reads it once, at construction. */
+  //    * ExampleRoller. Raise it if ACCELERATION_RPM_PER_SEC ever drops. The Debouncer reads
+  //    * it once, at construction. */
   //   public static final double JAM_DEBOUNCE_SECONDS = 0.5;
   //
   //   /** Commanded RPM below which the check is skipped, so a stopped mechanism does not
   //    * trivially satisfy "measured is below 25% of commanded". */
-  //   public static final LoggedTunableNumber JAM_MIN_COMMANDED_RPM =
-  //       new LoggedTunableNumber(NAME + "/JamMinCommandedRpm", 100.0);
+  //   public static final double JAM_MIN_COMMANDED_RPM = 100.0;
 
   // ==========================================================================================
   // GAINS — REAL ROBOT
@@ -329,32 +310,24 @@ public class ExampleRollerConstants {
   // on it and a gravity feedforward has nothing to compensate. exampleArm and exampleLift both
   // have one, and both need it.
   //
-  // These are LoggedTunableNumbers so a tuning session does not need a redeploy per iteration.
-  // With Constants.tuningMode off they return the defaults below and cost nothing — no dashboard
-  // entry is even created.
-  //
-  // The default in each constructor is what the robot runs in competition. The dashboard value
-  // lives only in NetworkTables and is gone at the next reboot, so a session that ends without
-  // writing the numbers back into this file and committing them accomplished nothing.
-  //
-  // These are the gains the TALON runs, on the device. Changing one means a CAN write, which is
-  // why ExampleRollerIOReal re-applies Slot0 only when a value actually moves rather than every
-  // loop. See docs/tunables.md.
+  // Plain constants. Gains are tuned in Phoenix Tuner X against the real mechanism (or in sim with
+  // /pid-tune), then written here and committed. There is no live gain push: what is in this file
+  // is what the Talon runs, applied once at construction. See docs/tunables.md.
 
   /** Static friction feedforward — output needed to break the mechanism loose. */
-  public static final LoggedTunableNumber KS = new LoggedTunableNumber(NAME + "/kS", 0.0);
+  public static final double KS = 0.0;
 
   /** Velocity feedforward — output per unit of steady-state velocity. Does most of the work. */
-  public static final LoggedTunableNumber KV = new LoggedTunableNumber(NAME + "/kV", 0.0);
+  public static final double KV = 0.0;
 
   /** Acceleration feedforward — output per unit of acceleration. Governs spin-up. */
-  public static final LoggedTunableNumber KA = new LoggedTunableNumber(NAME + "/kA", 0.0);
+  public static final double KA = 0.0;
 
   /** Proportional gain. Corrects what feedforward misses — it should not be doing the work. */
-  public static final LoggedTunableNumber KP = new LoggedTunableNumber(NAME + "/kP", 0.0);
+  public static final double KP = 0.0;
 
   /** Integral gain. Leave at zero unless you can explain its behavior during a stall. */
-  public static final LoggedTunableNumber KI = new LoggedTunableNumber(NAME + "/kI", 0.0);
+  public static final double KI = 0.0;
 
   /**
    * Derivative gain.
@@ -363,10 +336,7 @@ public class ExampleRollerConstants {
    * differentiates it a second time and turns encoder noise into output chatter. It damps overshoot
    * on a position loop, which is a different scaffold.
    */
-  public static final LoggedTunableNumber KD = new LoggedTunableNumber(NAME + "/kD", 0.0);
-
-  /** Every real-robot gain, for the {@code ifChanged} watch list in the IO layer. */
-  public static final LoggedTunableNumber[] TUNABLE_GAINS = {KS, KV, KA, KP, KI, KD};
+  public static final double KD = 0.0;
 
   // ==========================================================================================
   // SIMULATION
@@ -383,10 +353,9 @@ public class ExampleRollerConstants {
    * <p>Nested rather than flattened so {@code Sim.KP} beside {@code KP} in a diff makes it obvious
    * which one is being edited.
    *
-   * <p><b>Sim gains are plain doubles, not tunables, on purpose.</b> Tunables exist to avoid the
-   * two-minute edit-build-deploy-enable cycle. Sim has no deploy step — restarting it is seconds —
-   * so a dashboard knob buys nothing and only adds a second set of numbers that can disagree with
-   * the file. Edit these here and re-run.
+   * <p><b>A separate set on purpose.</b> The sim closes its loop on the roboRIO with these, while
+   * the robot runs Motion Magic on the Talon with the real gains above. Tuning these tunes the
+   * simulation, not the robot.
    */
   public static class Sim {
 
@@ -429,27 +398,27 @@ public class ExampleRollerConstants {
   }
 
   public static double getKS() {
-    return isSim() ? Sim.KS : KS.get();
+    return isSim() ? Sim.KS : KS;
   }
 
   public static double getKV() {
-    return isSim() ? Sim.KV : KV.get();
+    return isSim() ? Sim.KV : KV;
   }
 
   public static double getKA() {
-    return isSim() ? Sim.KA : KA.get();
+    return isSim() ? Sim.KA : KA;
   }
 
   public static double getKP() {
-    return isSim() ? Sim.KP : KP.get();
+    return isSim() ? Sim.KP : KP;
   }
 
   public static double getKI() {
-    return isSim() ? Sim.KI : KI.get();
+    return isSim() ? Sim.KI : KI;
   }
 
   public static double getKD() {
-    return isSim() ? Sim.KD : KD.get();
+    return isSim() ? Sim.KD : KD;
   }
 
   // ==========================================================================================
@@ -457,8 +426,7 @@ public class ExampleRollerConstants {
   // ==========================================================================================
 
   /**
-   * The one config for this mechanism, applied at construction and re-applied piecewise when a
-   * tunable moves.
+   * The one config for this mechanism, applied once at construction.
    *
    * <p>Four things differ from the position scaffolds, and all four follow from "a roller has no
    * position":
@@ -533,7 +501,7 @@ public class ExampleRollerConstants {
     // ---- Motion profile ----
     // Acceleration only. RPM/sec in, rotations/sec^2 out.
     config.MotionMagic.MotionMagicAcceleration =
-        rpmPerSecToRotationsPerSecSquared(ACCELERATION_RPM_PER_SEC.get());
+        rpmPerSecToRotationsPerSecSquared(ACCELERATION_RPM_PER_SEC);
 
     return config;
   }

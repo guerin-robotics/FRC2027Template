@@ -213,9 +213,9 @@ All in `frc/lib/util/`.
 | `lib/GeomUtil` | Pose/Transform/Twist conversions |
 | `lib/PointInPolygon` | Ray-casting zone containment |
 | `lib/EdgeDetector` | Rising/falling edges, and counting edges in a window |
-| `lib/LoggedTunableNumber` | Dashboard-adjustable constant, gated on `tuningMode` |
+| `lib/LoggedTunableNumber` | Logged dashboard setpoint, read only by test-mode tuning commands |
 | `lib/LoggedTunableBoolean` | Same, for booleans |
-| `lib/LoggedTunableProfiledPID` | Tunable `ProfiledPIDController` gains and constraints |
+
 | `lib/MotorSpecs` | Motor free speeds from WPILib's `DCMotor`; computes top speed and the sim gearbox |
 
 Everything shared lives in `frc/lib` — there is no `frc/robot/util`. A utility either applies
@@ -286,9 +286,8 @@ Keep them.
 ./gradlew simulateJava     # run in simulation
 ```
 
-Deploy with the WPILib VS Code extension, or `./gradlew deploy`. Every deploy runs
-`checkConstantsDeploy` first, which refuses one with `tuningMode` on from an `event*` branch or a
-detached checkout. See [docs/testing.md](docs/testing.md) for that gate and the three test classes.
+Deploy with the WPILib VS Code extension, or `./gradlew deploy`. See [docs/testing.md](docs/testing.md)
+for the three test classes and what the build verifies.
 
 Logs are written to `/U/logs` on the robot's USB drive. Replay a log with
 `./gradlew replayWatch`, or set `Constants.simMode = Mode.REPLAY`.

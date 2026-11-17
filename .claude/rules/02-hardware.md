@@ -17,12 +17,12 @@ new TalonFX(Constants.CanIds.MECHANISM_LEADER, "rio");
 new TalonFX(30, "rio");   ← magic number, invisible in review
 ```
 
-**There is one constants file.** `Constants` holds CAN IDs, setpoints, timeouts and
-tolerances — everything you would change in the pit between matches. A subsystem's own
-`*Constants.java` holds what describes how that mechanism is built or characterized: gains,
-current limits, gear ratio, sim parameters, interpolation maps. There is deliberately no
-separate `HardwareConstants`; 2026 had both and the split meant remembering which of two
-files a value lived in while a match clock was running.
+**There is one robot-wide constants file.** `Constants` holds CAN IDs, setpoints, command timeouts,
+and global alignment or readiness thresholds — values coordinated across the robot. A subsystem's
+own `*Constants.java` holds values that describe or characterize that mechanism: gains, current
+limits, travel limits, position and velocity tolerances, gear ratio, sim parameters, and
+interpolation maps. There is deliberately no separate `HardwareConstants`; 2026 had both and the
+split meant remembering which of two files a value lived in while a match clock was running.
 
 **Every IO that constructs a CAN device calls `CanIdRegistry.claim(id, bus, owner)` first.**
 Every IO under `frc/lib/device` and every scaffold `*IOReal` in `template/` already does — motor,

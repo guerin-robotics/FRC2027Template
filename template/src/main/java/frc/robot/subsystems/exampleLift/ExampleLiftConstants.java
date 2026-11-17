@@ -17,7 +17,6 @@ import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.Time;
-import frc.lib.util.LoggedTunableNumber;
 import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
 
@@ -317,7 +316,7 @@ public class ExampleLiftConstants {
   //
   // Measured against real elevators this is conservative, deliberately: 6328's 2025 elevator
   // cruised at 2.0 m/s (79 in/s) and 254's at 3.6 m/s (140 in/s). Half of theoretical will usually
-  // land below both. Raise it once the mechanism is characterized; it is a tunable.
+  // land below both. Raise it once the mechanism is characterized.
   //
   // ACCELERATION — 900 RPM/s, about 0.4 g on a lift in the 10 in/rotation range.
   //
@@ -329,7 +328,7 @@ public class ExampleLiftConstants {
   // ramp. That is the opposite of what a low current limit is there to buy you.
   //
   // 900 is calibrated against 6328's 2025 elevator, which ran 4.0 m/s^2 (0.41 g) — an
-  // AdvantageKit codebase using the same tunable-profile pattern as this one. 254 ran 4.0 g, but
+  // AdvantageKit codebase with the same Motion Magic profile pattern. 254 ran 4.0 g, but
   // with cruise pinned at the motor's voltage ceiling and jerk doing the smoothing. That is a
   // tuned endpoint reached by a team with match data, not a starting default.
   //
@@ -345,8 +344,8 @@ public class ExampleLiftConstants {
   // why the three scaffolds are separate files rather than one file with a comment telling you
   // which block to delete.
   //
-  // Both are tunable. A profile is the thing you most want to adjust with the mechanism in front of
-  // you, and it is far safer to change than a gain. See docs/tunables.md.
+  // Plain constants: they are read by match code. Adjust them in Phoenix Tuner X with the
+  // mechanism in front of you, then write the result here. See docs/tunables.md.
 
   /** Compiled-in default for {@link #CRUISE_VELOCITY_RPM}, in drum RPM. */
   public static final double CRUISE_VELOCITY_RPM_DEFAULT = MAX_SPEED_RPM / 2.0;
@@ -359,13 +358,11 @@ public class ExampleLiftConstants {
    */
   public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 900.0;
 
-  /** Profile cruise velocity, in drum RPM. Tunable at runtime. */
-  public static final LoggedTunableNumber CRUISE_VELOCITY_RPM =
-      new LoggedTunableNumber(NAME + "/CruiseVelocityRpm", CRUISE_VELOCITY_RPM_DEFAULT);
+  /** Profile cruise velocity, in drum RPM. */
+  public static final double CRUISE_VELOCITY_RPM = CRUISE_VELOCITY_RPM_DEFAULT;
 
-  /** Profile acceleration, in drum RPM per second. Tunable at runtime. */
-  public static final LoggedTunableNumber ACCELERATION_RPM_PER_SEC =
-      new LoggedTunableNumber(NAME + "/AccelRpmPerSec", ACCELERATION_RPM_PER_SEC_DEFAULT);
+  /** Profile acceleration, in drum RPM per second. */
+  public static final double ACCELERATION_RPM_PER_SEC = ACCELERATION_RPM_PER_SEC_DEFAULT;
 
   /**
    * Compiled-in default for {@link #JERK_RPM_PER_SEC_SQUARED}, in mechanism RPM per second squared.
@@ -385,14 +382,8 @@ public class ExampleLiftConstants {
   public static final double JERK_RPM_PER_SEC_SQUARED_DEFAULT =
       ACCELERATION_RPM_PER_SEC_DEFAULT * 10.0;
 
-  /** Profile jerk, in mechanism RPM per second squared. Tunable at runtime. */
-  public static final LoggedTunableNumber JERK_RPM_PER_SEC_SQUARED =
-      new LoggedTunableNumber(NAME + "/JerkRpmPerSecSq", JERK_RPM_PER_SEC_SQUARED_DEFAULT);
-
-  /** Everything re-applied to the Talon when a dashboard profile value moves. */
-  public static final LoggedTunableNumber[] TUNABLE_PROFILE = {
-    ACCELERATION_RPM_PER_SEC, CRUISE_VELOCITY_RPM, JERK_RPM_PER_SEC_SQUARED
-  };
+  /** Profile jerk, in mechanism RPM per second squared. */
+  public static final double JERK_RPM_PER_SEC_SQUARED = JERK_RPM_PER_SEC_SQUARED_DEFAULT;
 
   // ==========================================================================================
   // TOLERANCE
@@ -405,15 +396,14 @@ public class ExampleLiftConstants {
    * scaffolds are separate. Too tight and the mechanism never reports ready, so every sequence runs
    * to its timeout instead of proceeding. Too loose and it acts before it has arrived.
    *
-   * <p>Tunable, because the right value is the one you find by watching the mechanism report ready
-   * against what it is actually doing. It is read live on every {@code isAtPosition()} call, so a
-   * dashboard edit takes effect on the next loop with no re-apply and no CAN traffic.
+   * <p>Found by watching the mechanism report ready against what it is actually doing in a log,
+   * then edited here. A plain constant: it is read by match code, and nothing match code reads may
+   * be a dashboard tunable (see docs/tunables.md).
    */
   public static final double POSITION_TOLERANCE_INCHES_DEFAULT = 0.25;
 
-  /** How close counts as "at height", in carriage inches. Tunable at runtime. */
-  public static final LoggedTunableNumber POSITION_TOLERANCE_INCHES =
-      new LoggedTunableNumber(NAME + "/PositionToleranceIn", POSITION_TOLERANCE_INCHES_DEFAULT);
+  /** How close counts as "at height", in carriage inches. */
+  public static final double POSITION_TOLERANCE_INCHES = POSITION_TOLERANCE_INCHES_DEFAULT;
 
   // ==========================================================================================
   // ZEROING — how this mechanism learns where it is
@@ -443,25 +433,23 @@ public class ExampleLiftConstants {
   /**
    * Stator current, in amps, that counts as "pushing against the hard stop" while creeping.
    *
-   * <p>Tunable: this is the single value most likely to be wrong on the first try, and finding it
-   * means creeping into the stop and reading the log. Read live in {@code isAtZeroingStall()}.
+   * <p>The single value most likely to be wrong on the first try. Find it by creeping into the
+   * stop, reading stator current in the log, and editing it here.
    */
   public static final double ZEROING_STALL_CURRENT_AMPS_DEFAULT = 25.0;
 
-  /** Stall-detection stator current, in amps. Tunable at runtime. */
-  public static final LoggedTunableNumber ZEROING_STALL_CURRENT_AMPS =
-      new LoggedTunableNumber(NAME + "/ZeroingStallAmps", ZEROING_STALL_CURRENT_AMPS_DEFAULT);
+  /** Stall-detection stator current, in amps. */
+  public static final double ZEROING_STALL_CURRENT_AMPS = ZEROING_STALL_CURRENT_AMPS_DEFAULT;
 
   /** Compiled-in default for {@link #ZEROING_VELOCITY_THRESHOLD_RPM}, in drum RPM. */
   public static final double ZEROING_VELOCITY_THRESHOLD_RPM_DEFAULT = 5.0;
 
   /**
-   * Drum velocity, in RPM, below which the carriage counts as "not moving" while creeping. Tunable
-   * at runtime, and read live in {@code isAtZeroingStall()}.
+   * Drum velocity, in RPM, below which the carriage counts as "not moving" while creeping. Read in
+   * {@code isAtZeroingStall()}.
    */
-  public static final LoggedTunableNumber ZEROING_VELOCITY_THRESHOLD_RPM =
-      new LoggedTunableNumber(
-          NAME + "/ZeroingVelocityThresholdRpm", ZEROING_VELOCITY_THRESHOLD_RPM_DEFAULT);
+  public static final double ZEROING_VELOCITY_THRESHOLD_RPM =
+      ZEROING_VELOCITY_THRESHOLD_RPM_DEFAULT;
 
   /**
    * How long BOTH conditions must hold before this counts as a real stall.
@@ -470,10 +458,8 @@ public class ExampleLiftConstants {
    * carriage is anywhere near the stop. Requiring high current AND near-zero velocity for a dwell
    * is what tells the two apart.
    *
-   * <p><b>Not a tunable, deliberately.</b> A {@code Debouncer} reads its dwell once, when it is
-   * constructed in the {@code ExampleLift} constructor, so a dashboard edit would move the logged
-   * number and change nothing about the robot. A knob that appears to work and does not is worse
-   * than no knob — edit this here and redeploy.
+   * <p>A {@code Debouncer} reads its dwell once, when it is constructed in the {@code ExampleLift}
+   * constructor, so changing this means a redeploy.
    */
   public static final double ZEROING_STALL_DEBOUNCE_SECONDS = 0.1;
 
@@ -570,28 +556,25 @@ public class ExampleLiftConstants {
   // loop — Motion Magic generates its own velocity and acceleration feedforward from the profile.
 
   /** Gravity feedforward, in amps. The current that holds the carriage. Find this first. */
-  public static final LoggedTunableNumber KG = new LoggedTunableNumber(NAME + "/kG", 0.0);
+  public static final double KG = 0.0;
 
   /** Static friction feedforward — output needed to break the mechanism loose. */
-  public static final LoggedTunableNumber KS = new LoggedTunableNumber(NAME + "/kS", 0.0);
+  public static final double KS = 0.0;
 
   /** Velocity feedforward. Usually zero on a profiled position loop. */
-  public static final LoggedTunableNumber KV = new LoggedTunableNumber(NAME + "/kV", 0.0);
+  public static final double KV = 0.0;
 
   /** Acceleration feedforward. Usually zero on a profiled position loop. */
-  public static final LoggedTunableNumber KA = new LoggedTunableNumber(NAME + "/kA", 0.0);
+  public static final double KA = 0.0;
 
   /** Proportional gain. Corrects what feedforward misses — it should not be carrying the load. */
-  public static final LoggedTunableNumber KP = new LoggedTunableNumber(NAME + "/kP", 0.0);
+  public static final double KP = 0.0;
 
   /** Integral gain. Leave at zero unless you can explain its behavior during a stall. */
-  public static final LoggedTunableNumber KI = new LoggedTunableNumber(NAME + "/kI", 0.0);
+  public static final double KI = 0.0;
 
   /** Derivative gain. Damps overshoot on a position loop — this is where it earns its place. */
-  public static final LoggedTunableNumber KD = new LoggedTunableNumber(NAME + "/kD", 0.0);
-
-  /** Every real-robot gain, for the {@code ifChanged} watch list in the IO layer. */
-  public static final LoggedTunableNumber[] TUNABLE_GAINS = {KS, KV, KA, KG, KP, KI, KD};
+  public static final double KD = 0.0;
 
   // ==========================================================================================
   // SIMULATION
@@ -605,9 +588,9 @@ public class ExampleLiftConstants {
    * guess. Gains that behave well against that model are frequently wrong on hardware, and gains
    * measured on hardware often will not converge in sim.
    *
-   * <p><b>Sim gains are plain doubles, not tunables, on purpose.</b> Tunables exist to avoid the
-   * two-minute edit-build-deploy-enable cycle. Sim has no deploy step, so a dashboard knob buys
-   * nothing and only adds a second set of numbers that can disagree with the file.
+   * <p><b>A separate set on purpose.</b> The sim closes its loop on the roboRIO with these, while
+   * the robot runs Motion Magic on the Talon with the real gains above. Tuning these tunes the
+   * simulation, not the robot.
    */
   public static class Sim {
 
@@ -654,31 +637,31 @@ public class ExampleLiftConstants {
   }
 
   public static double getKS() {
-    return isSim() ? Sim.KS : KS.get();
+    return isSim() ? Sim.KS : KS;
   }
 
   public static double getKV() {
-    return isSim() ? Sim.KV : KV.get();
+    return isSim() ? Sim.KV : KV;
   }
 
   public static double getKA() {
-    return isSim() ? Sim.KA : KA.get();
+    return isSim() ? Sim.KA : KA;
   }
 
   public static double getKG() {
-    return isSim() ? Sim.KG : KG.get();
+    return isSim() ? Sim.KG : KG;
   }
 
   public static double getKP() {
-    return isSim() ? Sim.KP : KP.get();
+    return isSim() ? Sim.KP : KP;
   }
 
   public static double getKI() {
-    return isSim() ? Sim.KI : KI.get();
+    return isSim() ? Sim.KI : KI;
   }
 
   public static double getKD() {
-    return isSim() ? Sim.KD : KD.get();
+    return isSim() ? Sim.KD : KD;
   }
 
   // ==========================================================================================
@@ -686,8 +669,7 @@ public class ExampleLiftConstants {
   // ==========================================================================================
 
   /**
-   * The one config for this mechanism, applied at construction and re-applied piecewise when a
-   * tunable moves.
+   * The one config for this mechanism, applied once at construction.
    *
    * <p>Differences from {@code exampleArm}, all of them consequences of travelling in a line:
    *
@@ -750,9 +732,8 @@ public class ExampleLiftConstants {
     config.Feedback.SensorToMechanismRatio = SENSOR_TO_MECHANISM_RATIO;
 
     // ---- Gains ----
-    // All seven, even the ones usually left at zero. Every gain here is a tunable in
-    // TUNABLE_GAINS, and one that is watched but never written moves on the dashboard while the
-    // Talon ignores it — which reads as a dead gain, not a missing line.
+    // All seven, even the ones usually left at zero. A gain declared above but never written here
+    // is one you can set in Tuner X, copy into this file, and watch do nothing.
     config.Slot0.kS = getKS();
     config.Slot0.kV = getKV();
     config.Slot0.kA = getKA();
@@ -774,10 +755,10 @@ public class ExampleLiftConstants {
     // ---- Motion profile ----
     // RPM and RPM/sec in, rotations/sec and rotations/sec^2 out.
     config.MotionMagic.MotionMagicAcceleration =
-        rpmPerSecToRotationsPerSecSquared(ACCELERATION_RPM_PER_SEC.get());
-    config.MotionMagic.MotionMagicCruiseVelocity = rpmToRotationsPerSec(CRUISE_VELOCITY_RPM.get());
+        rpmPerSecToRotationsPerSecSquared(ACCELERATION_RPM_PER_SEC);
+    config.MotionMagic.MotionMagicCruiseVelocity = rpmToRotationsPerSec(CRUISE_VELOCITY_RPM);
     config.MotionMagic.MotionMagicJerk =
-        rpmPerSecSquaredToRotationsPerSecCubed(JERK_RPM_PER_SEC_SQUARED.get());
+        rpmPerSecSquaredToRotationsPerSecCubed(JERK_RPM_PER_SEC_SQUARED);
 
     return config;
   }

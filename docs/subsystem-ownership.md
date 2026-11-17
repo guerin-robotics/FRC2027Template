@@ -163,9 +163,8 @@ frc/lib/util/
 │   ├── LoopTimeMonitor.java         loop duration and overrun alert
 │   └── MatchMetadataLogger.java     event and match identity
 ├── Tuning
-│   ├── LoggedTunableNumber.java     dashboard-adjustable, gated on tuningMode
-│   ├── LoggedTunableBoolean.java
-│   └── LoggedTunableProfiledPID.java  tunable ProfiledPIDController gains and constraints
+│   ├── LoggedTunableNumber.java     logged dashboard setpoints for test-mode tuning commands
+│   └── LoggedTunableBoolean.java    logged dashboard boolean for test-only tooling
 └── Misc
     └── Elastic.java                 dashboard notifications and tabs
 ```
@@ -174,8 +173,8 @@ Everything here is season-agnostic except `FieldConstants`, which holds the fiel
 dimensions and AprilTag layout and gains game geometry each year.
 
 Four classes read `frc.robot.Constants` — `AllianceFlipUtil`, the two tunables, and
-`PhoenixSignalLogger` — but only for global mode flags (`disableHAL`, `tuningMode`,
-`currentMode`), never for robot structure. If you lift this package into another project,
+`PhoenixSignalLogger` — but only for global mode flags (`disableHAL`, `currentMode`), never for
+robot structure. If you lift this package into another project,
 those flags are the only thing you need to supply.
 
 Keep it that way: `frc.lib` may depend on `frc.robot.Constants` and nothing else under

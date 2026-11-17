@@ -144,8 +144,6 @@ remembering which of the two a value lived in while a match clock was running. T
 Constants
 ├── Mode / simMode / currentMode   runtime mode selection
 ├── disableHAL                     unit-test escape hatch
-├── tuningMode                     dashboard-adjustable constants; FALSE for competition
-│                                  (CI and event-branch deploys refuse it — CheckDeploy/CheckPullRequest)
 ├── CanIds                         every non-swerve CAN ID, each with // CANivore or // RIO CAN
 ├── Setpoints                      voltages, velocities, positions a mechanism is commanded to
 ├── Waits                          every command timeout — nothing inline
@@ -363,7 +361,7 @@ No game logic here. Ever.
 | `LoggedTrigger` | Trigger wrapper that logs its own state |
 | `Elastic` | Dashboard notifications and tab switching |
 | `ThrowingRunnable` | Functional interface for throwing config calls |
-| `LoggedTunableNumber` / `LoggedTunableBoolean` / `LoggedTunableProfiledPID` | Dashboard-adjustable values, gated on `tuningMode` — see [tunables.md](tunables.md) |
+| `LoggedTunableNumber` / `LoggedTunableBoolean` | Logged dashboard values; only test-mode tuning commands may read these — see [tunables.md](tunables.md) |
 | `MotorSpecs` | Motor free speeds and sim gearboxes from WPILib's `DCMotor` |
 | `CommandLogger`, `LoopTimeMonitor`, `CANBusMonitor`, `FaultMonitor`, `MatchMetadataLogger`, `PhoenixSignalLogger` | Instrumentation — see the README table |
 

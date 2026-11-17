@@ -4,10 +4,12 @@ import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import frc.lib.util.LoggedTunableNumber;
 import frc.robot.Constants;
 import frc.robot.subsystems.exampleLift.ExampleLift;
 import frc.robot.subsystems.exampleLift.ExampleLiftConstants;
 import java.util.function.DoubleSupplier;
+import org.littletonrobotics.junction.Logger;
 
 /**
  * Command factory for a linear position-controlled mechanism.
@@ -192,5 +194,50 @@ public class ExampleLiftCommands {
   public static Command runAtVoltage(ExampleLift lift, Voltage voltage) {
     return Commands.startEnd(() -> lift.setVoltage(voltage), lift::stop, lift)
         .withName("ExampleLift_Voltage");
+  }
+
+  /**
+   * Dashboard setpoint for {@link #tuneHeight}, in inches. Read nowhere else. Starts at the bottom
+   * of travel.
+   */
+  private static final LoggedTunableNumber TUNE_HEIGHT_INCHES =
+      new LoggedTunableNumber(
+          ExampleLiftConstants.NAME + "/Tune/HeightIn", ExampleLiftConstants.MIN_TRAVEL_INCHES);
+
+  /**
+   * Moves to whatever height the dashboard says, for finding a setpoint with the mechanism in front
+   * of you. Edit {@code Tuning/ExampleLift/Tune/HeightIn} and the carriage follows on the next
+   * loop. The goal is clamped to travel by {@code setPositionInches}, and {@code GoalWasClamped}
+   * says when.
+   *
+   * <p><b>Refuses to run until the lift is zeroed</b>, for the same reason {@link #goToHeight}
+   * does. It does not stop when it ends: the carriage keeps holding the last height, because zero
+   * output on a gravity-loaded lift lets it fall.
+   *
+   * <p><b>Test mode only.</b> It does nothing unless the robot is enabled in test mode, and ends
+   * the moment it is not, so the dashboard value it reads can never reach the field. Bind it with
+   * {@code triggers.tuningEnabled.whileTrue(...)}. This is the only kind of code allowed to read a
+   * {@code LoggedTunableNumber}; see docs/tunables.md. At the 2027 port it becomes a
+   * {@code @Utility} OpMode.
+   *
+   * <p>When the number is right, write it into {@code Constants.Setpoints} and commit it. The
+   * dashboard value lives only in NetworkTables and is gone at the next boot.
+   */
+  public static Command tuneHeight(ExampleLift lift) {
+    return Commands.run(
+            () -> {
+              // Guard every execution as well as scheduling: the end check runs after execute(),
+              // so a mode transition must not apply one last dashboard setpoint.
+              if (!DriverStation.isTestEnabled()) {
+                return;
+              }
+              double inches = TUNE_HEIGHT_INCHES.get();
+              Logger.recordOutput(ExampleLiftConstants.NAME + "/Tune/HeightIn", inches);
+              lift.setPositionInches(inches);
+            },
+            lift)
+        .onlyIf(() -> DriverStation.isTestEnabled() && lift.isZeroed())
+        .until(() -> !DriverStation.isTestEnabled())
+        .withName("ExampleLift_Tune");
   }
 }

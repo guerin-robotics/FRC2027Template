@@ -161,7 +161,7 @@ public class ExampleArm extends SubsystemBase {
     // False under open-loop or stop: sitting near an old goal is not the same as holding it.
     return closedLoopActive
         && Math.abs(inputs.motorPosition.in(Degrees) - goalPosition.in(Degrees))
-            < ExampleArmConstants.POSITION_TOLERANCE_DEGREES.get();
+            < ExampleArmConstants.POSITION_TOLERANCE_DEGREES;
   }
 
   /** Current mechanism angle. Useful for interpolation tables and for logging call sites. */

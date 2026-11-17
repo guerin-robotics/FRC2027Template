@@ -4,11 +4,15 @@ import static edu.wpi.first.units.Units.Degrees;
 
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Voltage;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import frc.lib.util.LoggedTunableNumber;
 import frc.robot.Constants;
 import frc.robot.subsystems.exampleArm.ExampleArm;
+import frc.robot.subsystems.exampleArm.ExampleArmConstants;
 import java.util.function.Supplier;
+import org.littletonrobotics.junction.Logger;
 
 /**
  * Command factory for a rotary position-controlled mechanism.
@@ -97,5 +101,49 @@ public class ExampleArmCommands {
   public static Command runAtVoltage(ExampleArm arm, Voltage voltage) {
     return Commands.startEnd(() -> arm.setVoltage(voltage), arm::stop, arm)
         .withName("ExampleArm_Voltage");
+  }
+
+  /**
+   * Dashboard setpoint for {@link #tunePosition}, in mechanism degrees. Read nowhere else. Starts
+   * at the reverse bound, which is always inside travel.
+   */
+  private static final LoggedTunableNumber TUNE_POSITION_DEGREES =
+      new LoggedTunableNumber(
+          ExampleArmConstants.NAME + "/Tune/PositionDeg",
+          ExampleArmConstants.REVERSE_SOFT_LIMIT_DEGREES);
+
+  /**
+   * Moves to whatever angle the dashboard says, for finding a setpoint with the mechanism in front
+   * of you. Edit {@code Tuning/ExampleArm/Tune/PositionDeg} and the arm follows on the next loop.
+   * The goal is clamped to travel by {@code setPosition}, and {@code GoalWasClamped} says when.
+   *
+   * <p>It does <b>not</b> stop when it ends: the arm keeps holding the last angle, because zero
+   * output on a gravity-loaded arm lets it fall.
+   *
+   * <p><b>Test mode only.</b> It does nothing unless the robot is enabled in test mode, and ends
+   * the moment it is not, so the dashboard value it reads can never reach the field. Bind it with
+   * {@code triggers.tuningEnabled.whileTrue(...)}. This is the only kind of code allowed to read a
+   * {@code LoggedTunableNumber}; see docs/tunables.md. At the 2027 port it becomes a
+   * {@code @Utility} OpMode.
+   *
+   * <p>When the number is right, write it into {@code Constants.Setpoints} and commit it. The
+   * dashboard value lives only in NetworkTables and is gone at the next boot.
+   */
+  public static Command tunePosition(ExampleArm arm) {
+    return Commands.run(
+            () -> {
+              // Guard every execution as well as scheduling: the end check runs after execute(),
+              // so a mode transition must not apply one last dashboard setpoint.
+              if (!DriverStation.isTestEnabled()) {
+                return;
+              }
+              double degrees = TUNE_POSITION_DEGREES.get();
+              Logger.recordOutput(ExampleArmConstants.NAME + "/Tune/PositionDeg", degrees);
+              arm.setPosition(Degrees.of(degrees));
+            },
+            arm)
+        .onlyIf(DriverStation::isTestEnabled)
+        .until(() -> !DriverStation.isTestEnabled())
+        .withName("ExampleArm_Tune");
   }
 }

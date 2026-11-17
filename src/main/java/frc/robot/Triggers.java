@@ -1,8 +1,10 @@
 package frc.robot;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.lib.util.LoggedTrigger;
 
 /**
  * Every {@link Trigger} in the robot, in one file.
@@ -186,4 +188,16 @@ public class Triggers {
   //
   // Fields, not methods, so composition happens once at construction instead of allocating a new
   // Trigger on every call.
+
+  /**
+   * True while the robot is enabled in <b>test mode</b>. Bind each mechanism's {@code tune*}
+   * command to it with {@code whileTrue}.
+   *
+   * <p>This is the gate that replaced the old {@code tuningMode} flag. Dashboard tunables are
+   * always live, and the only code allowed to read one is a tuning command, which runs only here.
+   * The field never enables test mode, so a stray dashboard edit at an event reaches nothing. At
+   * the 2027 port each tuning command becomes a {@code @Utility} OpMode and this trigger goes away.
+   */
+  public final LoggedTrigger tuningEnabled =
+      new LoggedTrigger("Triggers/TuningEnabled", DriverStation::isTestEnabled);
 }

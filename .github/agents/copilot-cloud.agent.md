@@ -56,7 +56,7 @@ Do not write a single line of code until you have read and understood the releva
 ### Required reads before implementing
 1. **`README.md`** — understand the robot's physical mechanisms, software architecture, operator controls, and constants policy
 2. **`src/main/java/frc/robot/RobotContainer.java`** — understand how subsystems are instantiated and how commands are bound to buttons and autos
-3. **`src/main/java/frc/robot/Constants.java`** — the one constants file: CAN IDs, setpoints, timeouts, tolerances, mode flags (`currentMode`, `simMode`, `tuningMode`)
+3. **`src/main/java/frc/robot/Constants.java`** — the one constants file: CAN IDs, setpoints, timeouts, tolerances, mode flags (`currentMode`, `simMode`)
 4. **`src/main/java/frc/robot/Triggers.java`** — every controller and trigger; `RobotContainer` only reads it
 5. **Any subsystems directly touched by the issue** — the subsystem class, its constants, and its own IO interface and implementations (`io/` beside it; `drive/` and `vision/` follow the same pattern)
 6. **Any command files directly touched by the issue** — read them fully, not just the method you plan to change

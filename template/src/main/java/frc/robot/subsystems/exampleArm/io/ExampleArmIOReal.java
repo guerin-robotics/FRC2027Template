@@ -5,7 +5,6 @@ import static edu.wpi.first.units.Units.Rotations;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.CANcoder;
@@ -18,12 +17,9 @@ import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Temperature;
 import edu.wpi.first.units.measure.Voltage;
 import frc.lib.device.CanIdRegistry;
-import frc.lib.util.LoggedTunableNumber;
 import frc.lib.util.PhoenixUtil;
 import frc.robot.Constants;
 import frc.robot.subsystems.exampleArm.ExampleArmConstants;
-import java.util.Arrays;
-import java.util.stream.Stream;
 
 /**
  * Real hardware implementation for a rotary position-controlled mechanism.
@@ -34,17 +30,6 @@ import java.util.stream.Stream;
  * pick the bus deliberately.
  */
 public class ExampleArmIOReal implements ExampleArmIO {
-
-  /**
-   * Every dashboard value pushed to the Talon: the Slot0 gains plus the Motion Magic profile.
-   *
-   * <p>Built once from the constants file's own arrays so a value cannot be tunable but unwatched.
-   */
-  private static final LoggedTunableNumber[] LIVE_TUNABLES =
-      Stream.concat(
-              Arrays.stream(ExampleArmConstants.TUNABLE_GAINS),
-              Arrays.stream(ExampleArmConstants.TUNABLE_PROFILE))
-          .toArray(LoggedTunableNumber[]::new);
 
   private final TalonFX motor;
   private final CANcoder encoder;
@@ -132,9 +117,6 @@ public class ExampleArmIOReal implements ExampleArmIO {
     // straight off the encoder and RotorToSensorRatio is not in the position path. Under
     // FusedCANcoder it would not: the ratio is how the rotor extends the absolute reading, so
     // losing it makes the fusion wrong by the whole reduction while every apply reports success.
-    //
-    // updateTunedConfig() below does apply sub-configs, and is safe for one reason: the objects it
-    // applies come from getFXConfig(), fully populated. Never hand-build one.
     PhoenixUtil.tryUntilOk(
         5, () -> motor.getConfigurator().apply(ExampleArmConstants.getFXConfig()));
 
@@ -272,58 +254,6 @@ public class ExampleArmIOReal implements ExampleArmIO {
     inputs.stickyUndervoltage = stickyUndervoltage.getValue();
     inputs.stickyOverTemp = stickyOverTemp.getValue();
     inputs.stickyHardwareFault = stickyHardware.getValue();
-
-    updateTunedConfig();
-  }
-
-  /**
-   * Pushes dashboard-edited gains and profile values to the Talon, but only when one moved.
-   *
-   * <p>Both live in flash on the motor controller, not in RAM on the roboRIO — that is why the
-   * Talon can close its loop at 1 kHz instead of at our 50 Hz. The cost is that changing one is a
-   * blocking CAN transaction rather than a field write, so this cannot be done unconditionally
-   * every loop the way a WPILib {@code PIDController} gain can.
-   *
-   * <p>Five things here are deliberate:
-   *
-   * <ul>
-   *   <li><b>Gated on {@code tuningMode}.</b> In competition this returns immediately and does zero
-   *       CAN work.
-   *   <li><b>{@code apply(config.Slot0)}, not {@code apply(config)}.</b> A full config apply would
-   *       rewrite current limits, soft limits, inversion and feedback ratios every time you nudged
-   *       a gain.
-   *   <li><b>The Slot0 block comes from {@code getFXConfig()}, not hand-built here.</b> This one is
-   *       load-bearing on an arm: a {@code new Slot0Configs()} carrying only kS..kD leaves {@code
-   *       GravityType} and {@code StaticFeedforwardSign} at their class defaults, so tuning kP
-   *       would silently switch gravity compensation from {@code Arm_Cosine} to {@code
-   *       Elevator_Static}. Taking the whole block from the canonical config means gains and their
-   *       modifiers can never disagree.
-   *   <li><b>Slot0 <i>and</i> MotionMagic.</b> The gains are in Slot0, but cruise velocity and
-   *       acceleration are in MotionMagic. Applying only Slot0 leaves the profile knobs moving on
-   *       the dashboard while the mechanism ignores them.
-   *   <li><b>{@code ifChanged}, not every loop.</b> Expect the one loop it fires on to overrun the
-   *       20 ms budget. Acceptable in a tuning session, which is the only time it happens.
-   * </ul>
-   *
-   * <p>Note that {@code hasChanged} reports true on its first call, so this fires once on the first
-   * loop after enabling and re-applies values the constructor already wrote.
-   *
-   * <p>See docs/tunables.md.
-   */
-  private void updateTunedConfig() {
-    if (!Constants.tuningMode) {
-      return;
-    }
-
-    LoggedTunableNumber.ifChanged(
-        hashCode(),
-        () -> {
-          TalonFXConfiguration config = ExampleArmConstants.getFXConfig();
-
-          PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.Slot0));
-          PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.MotionMagic));
-        },
-        LIVE_TUNABLES);
   }
 
   @Override
@@ -384,11 +314,6 @@ public class ExampleArmIOReal implements ExampleArmIO {
   // but never registered, so optimizeBusUtilization() left them at 4 Hz. The data looked present
   // and was simply stale — far harder to notice than data that is missing. 4 Hz is a fine rate for
   // a follower; the point is to arrive there on purpose.
-  //
-  // AND PUSH LIVE TUNING TO IT. updateTunedConfig() should apply the same Slot0 and MotionMagic
-  // blocks to the follower — inert in follower mode, but one invariant is easier to keep than a
-  // judgment call per field, and a live-tunable current limit applied to the leader alone would
-  // let the two motors together draw twice what you set.
   //
   // Imports: com.ctre.phoenix6.controls.Follower, com.ctre.phoenix6.signals.MotorAlignmentValue
 }

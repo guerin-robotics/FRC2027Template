@@ -228,7 +228,7 @@ public class ExampleLift extends SubsystemBase {
     // False under open-loop or stop: sitting near an old goal is not the same as holding it.
     return closedLoopActive
         && Math.abs(getPositionInches() - goalInches)
-            < ExampleLiftConstants.POSITION_TOLERANCE_INCHES.get();
+            < ExampleLiftConstants.POSITION_TOLERANCE_INCHES;
   }
 
   /** Has the hard stop been found and zero established this power cycle? */
@@ -288,11 +288,10 @@ public class ExampleLift extends SubsystemBase {
     // and zeroing drives DOWN, so a signed comparison against a positive threshold can never be
     // true here: the routine would always run to its timeout and never zero.
     boolean highCurrent =
-        Math.abs(inputs.motorStatorAmps.in(Amps))
-            > ExampleLiftConstants.ZEROING_STALL_CURRENT_AMPS.get();
+        Math.abs(inputs.motorStatorAmps.in(Amps)) > ExampleLiftConstants.ZEROING_STALL_CURRENT_AMPS;
     boolean nearZeroVelocity =
         Math.abs(inputs.motorVelocity.in(RPM))
-            < ExampleLiftConstants.ZEROING_VELOCITY_THRESHOLD_RPM.get();
+            < ExampleLiftConstants.ZEROING_VELOCITY_THRESHOLD_RPM;
     return highCurrent && nearZeroVelocity;
   }
 }

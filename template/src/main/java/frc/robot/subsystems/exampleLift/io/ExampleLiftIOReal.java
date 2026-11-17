@@ -4,7 +4,6 @@ import static edu.wpi.first.units.Units.Rotations;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
@@ -15,12 +14,9 @@ import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Temperature;
 import edu.wpi.first.units.measure.Voltage;
 import frc.lib.device.CanIdRegistry;
-import frc.lib.util.LoggedTunableNumber;
 import frc.lib.util.PhoenixUtil;
 import frc.robot.Constants;
 import frc.robot.subsystems.exampleLift.ExampleLiftConstants;
-import java.util.Arrays;
-import java.util.stream.Stream;
 
 /**
  * Real hardware implementation for a linear position-controlled mechanism.
@@ -31,17 +27,6 @@ import java.util.stream.Stream;
  * the bus deliberately.
  */
 public class ExampleLiftIOReal implements ExampleLiftIO {
-
-  /**
-   * Every dashboard value pushed to the Talon: the Slot0 gains plus the Motion Magic profile.
-   *
-   * <p>Built once from the constants file's own arrays so a value cannot be tunable but unwatched.
-   */
-  private static final LoggedTunableNumber[] LIVE_TUNABLES =
-      Stream.concat(
-              Arrays.stream(ExampleLiftConstants.TUNABLE_GAINS),
-              Arrays.stream(ExampleLiftConstants.TUNABLE_PROFILE))
-          .toArray(LoggedTunableNumber[]::new);
 
   private final TalonFX motor;
 
@@ -189,56 +174,6 @@ public class ExampleLiftIOReal implements ExampleLiftIO {
     inputs.stickyUndervoltage = stickyUndervoltage.getValue();
     inputs.stickyOverTemp = stickyOverTemp.getValue();
     inputs.stickyHardwareFault = stickyHardware.getValue();
-
-    updateTunedConfig();
-  }
-
-  /**
-   * Pushes dashboard-edited gains and profile values to the Talon, but only when one moved.
-   *
-   * <p>Both live in flash on the motor controller, not in RAM on the roboRIO — that is why the
-   * Talon can close its loop at 1 kHz instead of at our 50 Hz. The cost is that changing one is a
-   * blocking CAN transaction rather than a field write, so this cannot be done unconditionally
-   * every loop.
-   *
-   * <p>Five things here are deliberate:
-   *
-   * <ul>
-   *   <li><b>Gated on {@code tuningMode}.</b> In competition this returns immediately and does zero
-   *       CAN work.
-   *   <li><b>{@code apply(config.Slot0)}, not {@code apply(config)}.</b> A full config apply would
-   *       rewrite current limits, soft limits, inversion and feedback ratios every time you nudged
-   *       a gain — and on this mechanism rewriting the soft limits mid-tuning-session is exactly
-   *       the kind of surprise you do not want with a carriage in the air.
-   *   <li><b>The Slot0 block comes from {@code getFXConfig()}, not hand-built here.</b> A {@code
-   *       new Slot0Configs()} carrying only kS..kD would leave {@code GravityType} at its class
-   *       default, silently changing how gravity is compensated while you tuned kP.
-   *   <li><b>Slot0 <i>and</i> MotionMagic.</b> The gains are in Slot0, but cruise velocity and
-   *       acceleration are in MotionMagic. Applying only Slot0 leaves the profile knobs moving on
-   *       the dashboard while the mechanism ignores them.
-   *   <li><b>{@code ifChanged}, not every loop.</b> Expect the one loop it fires on to overrun the
-   *       20 ms budget. Acceptable in a tuning session, which is the only time it happens.
-   * </ul>
-   *
-   * <p>Note that {@code hasChanged} reports true on its first call, so this fires once on the first
-   * loop after enabling and re-applies values the constructor already wrote.
-   *
-   * <p>See docs/tunables.md.
-   */
-  private void updateTunedConfig() {
-    if (!Constants.tuningMode) {
-      return;
-    }
-
-    LoggedTunableNumber.ifChanged(
-        hashCode(),
-        () -> {
-          TalonFXConfiguration config = ExampleLiftConstants.getFXConfig();
-
-          PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.Slot0));
-          PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.MotionMagic));
-        },
-        LIVE_TUNABLES);
   }
 
   @Override
@@ -317,18 +252,13 @@ public class ExampleLiftIOReal implements ExampleLiftIO {
   // zeroing works unchanged; the mistake would be adding a second setVoltage() call for the
   // follower.
   //
-  // Three more places the follower has to be remembered:
+  // Two more places the follower has to be remembered:
   //
   //   - setReverseSoftLimitEnabled(): LEADER ONLY. The follower's bounds are off for good; pushing
   //     the leader's block to it would hand it the leader's forward bound in the wrong frame.
   //   - zeroPosition(): zero the follower too, with follower.setPosition(0.0, 0.25). Nothing reads
   //     it, but a follower a whole boot offset away from its leader is confusing to scrub past in
   //     a hoot log. Zero is zero in either alignment, so no sign correction is needed.
-  //   - updateTunedConfig(): apply the same Slot0 and MotionMagic blocks to the follower. They are
-  //     inert in follower mode, but a follower still showing last week's kP in Tuner X is a
-  //     confusing thing to find mid-session. If you ever make a CURRENT LIMIT live-tunable, it is
-  //     not optional: limits are enforced per device, so a limit changed on the leader alone lets
-  //     a two-motor lift draw twice what you set.
   //
   // LOG THE FOLLOWER, and CHECK IT WITH follower.isConnected() rather than signal status — its
   // signals sit at the 4 Hz optimize floor by design. Decide that rate deliberately: in 2026 the

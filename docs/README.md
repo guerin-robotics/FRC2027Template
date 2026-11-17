@@ -21,7 +21,7 @@ Process and workflow docs. Nothing in them depends on a particular robot or game
 | [pre-match-checklist.md](pre-match-checklist.md) | Event-day checklist. Structure is ready; fill in the 2027 mechanism checks and device count, then print it |
 | [characterization-and-tuning.md](characterization-and-tuning.md) | Running the FF/wheel-radius/SysId routines and turning their output into gains. Covers the TorqueCurrentFOC units trap, drive and steer specifically, then a general recipe split by velocity vs position control |
 | [third-party-code.md](third-party-code.md) | Where borrowed code came from and what licence it carries. Two files are GPLv3 and the repo has no LICENSE — read before publishing |
-| [tunables.md](tunables.md) | Changing values live instead of redeploying. RAM-side vs TalonFX Slot0 gains, what should and should not be tunable, where Phoenix Tuner X fits, and why gains typed into Tuner X get silently overwritten at the next boot |
+| [tunables.md](tunables.md) | Finding mechanism setpoints with logged dashboard values in Test mode, then writing them into `Constants.Setpoints`; gains and limits remain compiled constants |
 | [new-mechanism-bringup.md](new-mechanism-bringup.md) | The ordered path from "the subsystem compiles" to "the mechanism is trusted": what to set before it moves, first open-loop motion, gains, motion profile, tolerances, and writing it all back |
 | [target-alignment.md](target-alignment.md) | How to use `joystickDriveAtAngle` and `driveToPose`, the FieldConstants pattern for turning AprilTag poses into scoring targets, and the sim tests to copy before wiring a new one up |
 | [2027-migration.md](2027-migration.md) | The audit for the WPILib 2027 / Systemcore port, re-checked against alpha-7: what breaks, which vendors are ready, and a gated checklist that ports the platform on V2 first and V3 second. **The port is deliberately not started** — read this before anyone bumps a version |
@@ -29,7 +29,7 @@ Process and workflow docs. Nothing in them depends on a particular robot or game
 | [library.md](library.md) | The map of `frc/lib`: devices, autos, commands, utilities, the one IO pattern they all follow, why mechanisms are not in it, and how it relates to 3467's W8-Library. Start here before adding anything shared |
 | [devices.md](devices.md) | Absolute encoder, distance sensor, beam break and lights: wiring each into a subsystem in all three modes, and what `connected` vs `valid` means per sensor |
 | [autos.md](autos.md) | The three auto layers — Choreo trajectories, Choreo + PID-to-pose finish, point-to-point — how top teams (1114, 6328, 254, 1678, 3467) do it, adding each kind, event markers, stepping an auto in the pit, and the time budget |
-| [testing.md](testing.md) | The deliberately minimal suite — `RobotContainer` wiring, CAN ID validation, Choreo event-marker bindings — the `tuningMode` deploy and merge gates, every removed test with the commit to recover it from, and the architecture rules that nothing checks automatically. Read before adding a mechanism |
+| [testing.md](testing.md) | The deliberately minimal suite — `RobotContainer` wiring, CAN ID validation, Choreo event-marker bindings, removed tests, and architecture rules that nothing checks automatically. Read before adding a mechanism |
 
 ## Procedure kept, data needs filling in
 

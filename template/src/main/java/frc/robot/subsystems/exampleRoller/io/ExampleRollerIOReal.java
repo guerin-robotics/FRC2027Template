@@ -4,7 +4,6 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.MotionMagicVelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
@@ -15,12 +14,9 @@ import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Temperature;
 import edu.wpi.first.units.measure.Voltage;
 import frc.lib.device.CanIdRegistry;
-import frc.lib.util.LoggedTunableNumber;
 import frc.lib.util.PhoenixUtil;
 import frc.robot.Constants;
 import frc.robot.subsystems.exampleRoller.ExampleRollerConstants;
-import java.util.Arrays;
-import java.util.stream.Stream;
 
 /**
  * Real hardware implementation for a velocity-controlled mechanism.
@@ -39,19 +35,6 @@ import java.util.stream.Stream;
  * </ol>
  */
 public class ExampleRollerIOReal implements ExampleRollerIO {
-
-  /**
-   * Every dashboard value pushed to the Talon: the Slot0 gains plus the Motion Magic profile.
-   *
-   * <p>Built once from the constants file's own arrays so a value cannot be tunable but unwatched.
-   * A tunable missing from this list still moves on the dashboard and never reaches the motor,
-   * which reads as "the tunable is broken".
-   */
-  private static final LoggedTunableNumber[] LIVE_TUNABLES =
-      Stream.concat(
-              Arrays.stream(ExampleRollerConstants.TUNABLE_GAINS),
-              Arrays.stream(ExampleRollerConstants.TUNABLE_PROFILE))
-          .toArray(LoggedTunableNumber[]::new);
 
   private final TalonFX motor;
 
@@ -215,61 +198,6 @@ public class ExampleRollerIOReal implements ExampleRollerIO {
     inputs.stickyUndervoltage = stickyUndervoltage.getValue();
     inputs.stickyOverTemp = stickyOverTemp.getValue();
     inputs.stickyHardwareFault = stickyHardware.getValue();
-
-    updateTunedConfig();
-  }
-
-  /**
-   * Pushes dashboard-edited gains and profile values to the Talon, but only when one moved.
-   *
-   * <p>Both live in flash on the motor controller, not in RAM on the roboRIO — that is why the
-   * Talon can close its loop at 1 kHz instead of at our 50 Hz. The cost is that changing one is a
-   * blocking CAN transaction rather than a field write, so this cannot be done unconditionally
-   * every loop the way a WPILib {@code PIDController} gain can.
-   *
-   * <p>Five things here are deliberate:
-   *
-   * <ul>
-   *   <li><b>Gated on {@code tuningMode}.</b> In competition this returns immediately and does zero
-   *       CAN work. The robot runs the compiled-in defaults, applied once in the constructor.
-   *   <li><b>{@code apply(config.Slot0)}, not {@code apply(config)}.</b> The Slot0 overload writes
-   *       only the gain block. A full config apply would rewrite current limits, soft limits,
-   *       inversion and feedback ratios every time you nudged a gain.
-   *   <li><b>The Slot0 block comes from {@code getFXConfig()}, not hand-built here.</b> A {@code
-   *       new Slot0Configs()} carrying only kS..kD would leave every modifier at its class default.
-   *       On this scaffold that is survivable; on {@code exampleArm} it would silently switch
-   *       gravity compensation from {@code Arm_Cosine} to {@code Elevator_Static} while you tuned
-   *       kP. Taking the whole block from the canonical config means the gains and their modifiers
-   *       can never disagree, and keeping all three scaffolds identical here is what stops that
-   *       trap from being reintroduced by a copy.
-   *   <li><b>Slot0 <i>and</i> MotionMagic.</b> The gains are in Slot0, but acceleration is in
-   *       MotionMagic. Applying only Slot0 leaves the profile knob moving on the dashboard while
-   *       the mechanism ignores it.
-   *   <li><b>{@code ifChanged}, not every loop.</b> Expect the one loop it fires on to overrun the
-   *       20 ms budget. That is acceptable in a tuning session, which is the only time it happens.
-   * </ul>
-   *
-   * <p>Note that {@code hasChanged} reports true on its first call, so this fires once on the first
-   * loop after enabling and re-applies values the constructor already wrote. Harmless, but it means
-   * the first change you see in a log is not a change.
-   *
-   * <p>See docs/tunables.md.
-   */
-  private void updateTunedConfig() {
-    if (!Constants.tuningMode) {
-      return;
-    }
-
-    LoggedTunableNumber.ifChanged(
-        hashCode(),
-        () -> {
-          // Rebuilding the config re-reads every accessor, which reads the tunables.
-          TalonFXConfiguration config = ExampleRollerConstants.getFXConfig();
-
-          PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.Slot0));
-          PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.MotionMagic));
-        },
-        LIVE_TUNABLES);
   }
 
   @Override
@@ -336,11 +264,6 @@ public class ExampleRollerIOReal implements ExampleRollerIO {
   //
   //   BaseStatusSignal.setUpdateFrequencyForAll(50, followerStatorAmps, /* ...and the rest */);
   //   follower.optimizeBusUtilization();
-  //
-  // AND PUSH LIVE TUNING TO IT. updateTunedConfig() should apply the same Slot0 and MotionMagic
-  // blocks to the follower — inert in follower mode, but one invariant is easier to keep than a
-  // judgment call per field, and a live-tunable current limit applied to the leader alone would
-  // let the two motors together draw twice what you set.
   //
   // Imports: com.ctre.phoenix6.controls.Follower, com.ctre.phoenix6.signals.MotorAlignmentValue
 }

@@ -179,7 +179,7 @@ Work at low output, 1–2 V, with a hand on disable.
 
 ## Phase 2 — Gains
 
-Turn on `Constants.tuningMode`, deploy once, and work from the dashboard.
+Gains and motion profiles are compiled constants. Explore Phoenix device gains with Tuner X, then copy the selected values into the mechanism constants and commit them. Use `/pid-tune` in simulation for roboRIO-side controllers.
 
 Full procedure per control mode is in
 [characterization-and-tuning.md](characterization-and-tuning.md) Part 3. The order, briefly:
@@ -210,7 +210,7 @@ The template starts you at:
 | Rotation position | 60 RPM | 300 RPM/s |
 | Velocity | n/a — the setpoint is the cruise | 9000 RPM/s |
 
-Both are `LoggedTunableNumber`s, so raise them from the dashboard rather than redeploying.
+Both are compiled constants. Change them in the scaffold constants and redeploy between measured adjustments.
 
 ### Raising cruise velocity
 
@@ -261,18 +261,14 @@ property of the mechanism, not a knob the drive team turns.
 
 ## Phase 5 — Write it back
 
-**Dashboard values are not saved.** Every number found in Phases 2–4 has to be typed into the
-constants file and committed, or the mechanism reverts at the next reboot.
-
-If a session ends before anyone writes them down they are still recoverable — AdvantageKit logs
-every tunable under `NetworkInputs/Tuning/...` on every loop, so open the log in AdvantageScope
-and read them off the end of the run. That is a recovery path, not a workflow.
+**Tuning-command values are not saved.** The test-mode setpoint command reads a logged dashboard
+number, but the value is not persistent configuration. When the setpoint is right, copy it into
+`Constants.Setpoints` and commit it. AdvantageKit records the dashboard input under
+`NetworkInputs/Tuning/...` if you need to recover it from a log.
 
 Then:
 
-- Set `Constants.tuningMode = false`. It must be false for competition, and CI will not merge it
-  on.
-- Move any value the drive team will ask about into `Constants.Setpoints`.
+- Confirm match commands use compiled values from `Constants.Setpoints`.
 - Run `./gradlew build` and commit.
 
 ---
@@ -283,10 +279,10 @@ Then:
 |---|---|---|
 | 0 | Gear ratio, encoder split, drum geometry, current limits | Subsystem constants, static |
 | 1 | Inversion, follower alignment, soft limits, magnet offset, gravity offset | Subsystem constants, static |
-| 2 | kS, kV, kA, kG, kP, kI, kD | Subsystem constants, tunable |
-| 3 | Cruise velocity, acceleration | Subsystem constants, tunable |
+| 2 | kS, kV, kA, kG, kP, kI, kD | Subsystem constants, compiled |
+| 3 | Cruise velocity, acceleration | Subsystem constants, compiled |
 | 4 | Tolerances | Subsystem constants, static |
-| 5 | Setpoints the drive team touches | `Constants.Setpoints` |
+| 5 | Setpoints the drive team touches | Tune in Test mode, then commit to `Constants.Setpoints` |
 
 ---
 

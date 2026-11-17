@@ -140,8 +140,7 @@ Do not carry a value across scaffolds. An arm that inherits the lift's row gets 
 acceleration it should have, aimed at a hard stop — and it compiles. That failure is exactly what
 splitting one scaffold into three was meant to make impossible, so do not reintroduce it by hand.
 
-Both end up as `LoggedTunableNumber`s, so the compiled-in value is only the starting dashboard
-value — the profile stays adjustable at runtime.
+Both are compiled constants. Choose the profile while observing the mechanism, then commit the values in its constants file.
 
 A cruise velocity above `MAX_SPEED_RPM` does not fail loudly. The motor saturates and the
 profile stops being followed, which looks like bad tuning rather than an impossible request
@@ -269,15 +268,13 @@ This split is the one most often gotten wrong. See `.claude/rules/03-commands.md
 | Setpoints — what it is commanded to | `Constants.Setpoints` |
 | Command timeouts | `Constants.Waits` |
 
-Real-robot gains and the Motion Magic profile are `LoggedTunableNumber`s so they can be tuned
-without a redeploy; sim gains stay plain doubles. Gear ratio and `MAX_SPEED_RPM` are static —
+Real-robot gains, Motion Magic profile values, tolerances, and thresholds are compiled constants.
+Use Phoenix Tuner X to explore Phoenix gains and `/pid-tune` in simulation for roboRIO-side gains;
+copy selected values into code and commit them. Gear ratio and `MAX_SPEED_RPM` are also static —
 they describe the machine, not a knob.
 
-If the mechanism is closed-loop, include the `updateTunedConfig()` block from the scaffold's
-`*IOReal`. It must apply **both** `config.Slot0` and `config.MotionMagic`:
-the gains are in the first, cruise and acceleration in the second, and applying only Slot0
-leaves the profile knobs moving on the dashboard while the mechanism ignores them. See
-`docs/tunables.md`.
+Do not add a live config-push loop to `*IOReal`. The only dashboard tunables are mechanism
+setpoints read by the scaffold's test-mode `tune*` command. See `docs/tunables.md`.
 
 **`RobotContainer` must end up with no bare numbers in it.** If a unit import is still
 needed there, a setpoint was left behind.
@@ -376,5 +373,5 @@ If the request needs one of those, say so and ask.
   mechanism
 - `docs/new-mechanism-bringup.md` — **what the user does next**: the ordered path from a
   compiling subsystem to a tuned one. Point them at it in your report
-- `docs/tunables.md` — tunable gains and the Phoenix Tuner X ownership trap
+- `docs/tunables.md` — logged setpoint tuning commands and the compiled-gain workflow
 - `docs/characterization-and-tuning.md` — measuring what the scaffold left as placeholders

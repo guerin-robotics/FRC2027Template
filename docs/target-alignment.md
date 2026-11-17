@@ -13,7 +13,7 @@ changes until you plug in real field geometry, which is the other half of this d
 | Controls | Heading only | Translation **and** heading |
 | Driver input | Still drives X/Y | None — fully autonomous |
 | Use it for | "Keep facing the target while I drive" | "Go park at this exact spot" |
-| Underlying control | One `LoggedTunableProfiledPID` (`angleController`) | Two — `angleController` (shared) + `driveController` |
+| Underlying control | One compiled `ProfiledPIDController` (`angleController`) | Two — `angleController` (shared) + `driveController` |
 | Obstacle avoidance | N/A | None — draw a Choreo trajectory for the route, then finish with `driveToPoseWithin` |
 
 Both live in `src/main/java/frc/robot/commands/DriveCommands.java`, next to `joystickDrive`. Read

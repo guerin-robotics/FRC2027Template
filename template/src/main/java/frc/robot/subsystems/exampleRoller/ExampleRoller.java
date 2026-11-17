@@ -120,7 +120,7 @@ public class ExampleRoller extends SubsystemBase {
    */
   public boolean isAtVelocity() {
     return Math.abs(inputs.motorVelocity.in(RPM) - goalVelocity.in(RPM))
-        < ExampleRollerConstants.VELOCITY_TOLERANCE_RPM.get();
+        < ExampleRollerConstants.VELOCITY_TOLERANCE_RPM;
   }
 
   /** Is the motor answering on the bus? Register with {@code FaultMonitor} in RobotContainer. */

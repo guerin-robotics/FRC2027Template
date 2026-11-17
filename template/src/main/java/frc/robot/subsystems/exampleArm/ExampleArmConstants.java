@@ -19,7 +19,6 @@ import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Time;
-import frc.lib.util.LoggedTunableNumber;
 import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
 
@@ -409,8 +408,8 @@ public class ExampleArmConstants {
   // it should have, aimed at a hard stop — which is precisely why the three scaffolds are separate
   // files rather than one file with a comment telling you which block to delete.
   //
-  // Both are tunable. A profile is the thing you most want to adjust with the mechanism in front
-  // of you, and it is far safer to change than a gain. See docs/tunables.md.
+  // Plain constants: they are read by match code. Adjust them in Phoenix Tuner X with the
+  // mechanism in front of you, then write the result here. See docs/tunables.md.
 
   /** Compiled-in default for {@link #CRUISE_VELOCITY_RPM}, in mechanism RPM. */
   public static final double CRUISE_VELOCITY_RPM_DEFAULT = 60.0;
@@ -418,13 +417,11 @@ public class ExampleArmConstants {
   /** Compiled-in default for {@link #ACCELERATION_RPM_PER_SEC}, in mechanism RPM per second. */
   public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 300.0;
 
-  /** Profile cruise velocity, in mechanism RPM. Tunable at runtime. */
-  public static final LoggedTunableNumber CRUISE_VELOCITY_RPM =
-      new LoggedTunableNumber(NAME + "/CruiseVelocityRpm", CRUISE_VELOCITY_RPM_DEFAULT);
+  /** Profile cruise velocity, in mechanism RPM. */
+  public static final double CRUISE_VELOCITY_RPM = CRUISE_VELOCITY_RPM_DEFAULT;
 
-  /** Profile acceleration, in mechanism RPM per second. Tunable at runtime. */
-  public static final LoggedTunableNumber ACCELERATION_RPM_PER_SEC =
-      new LoggedTunableNumber(NAME + "/AccelRpmPerSec", ACCELERATION_RPM_PER_SEC_DEFAULT);
+  /** Profile acceleration, in mechanism RPM per second. */
+  public static final double ACCELERATION_RPM_PER_SEC = ACCELERATION_RPM_PER_SEC_DEFAULT;
 
   /**
    * Compiled-in default for {@link #JERK_RPM_PER_SEC_SQUARED}, in mechanism RPM per second squared.
@@ -444,14 +441,8 @@ public class ExampleArmConstants {
   public static final double JERK_RPM_PER_SEC_SQUARED_DEFAULT =
       ACCELERATION_RPM_PER_SEC_DEFAULT * 10.0;
 
-  /** Profile jerk, in mechanism RPM per second squared. Tunable at runtime. */
-  public static final LoggedTunableNumber JERK_RPM_PER_SEC_SQUARED =
-      new LoggedTunableNumber(NAME + "/JerkRpmPerSecSq", JERK_RPM_PER_SEC_SQUARED_DEFAULT);
-
-  /** Everything re-applied to the Talon when a dashboard profile value moves. */
-  public static final LoggedTunableNumber[] TUNABLE_PROFILE = {
-    ACCELERATION_RPM_PER_SEC, CRUISE_VELOCITY_RPM, JERK_RPM_PER_SEC_SQUARED
-  };
+  /** Profile jerk, in mechanism RPM per second squared. */
+  public static final double JERK_RPM_PER_SEC_SQUARED = JERK_RPM_PER_SEC_SQUARED_DEFAULT;
 
   // ==========================================================================================
   // TOLERANCE AND GRAVITY REFERENCE
@@ -463,15 +454,14 @@ public class ExampleArmConstants {
    * <p>Too tight and the mechanism never reports ready, so every sequence runs to its timeout
    * instead of proceeding. Too loose and it acts before it has arrived.
    *
-   * <p>Tunable, because the right value is the one you find by watching the mechanism report ready
-   * against what it is actually doing. It is read live on every {@code isAtPosition()} call, so a
-   * dashboard edit takes effect on the next loop with no re-apply and no CAN traffic.
+   * <p>Found by watching the mechanism report ready against what it is actually doing in a log,
+   * then edited here. A plain constant: it is read by match code, and nothing match code reads may
+   * be a dashboard tunable (see docs/tunables.md).
    */
   public static final double POSITION_TOLERANCE_DEGREES_DEFAULT = 1.0;
 
-  /** How close counts as "at position", in mechanism degrees. Tunable at runtime. */
-  public static final LoggedTunableNumber POSITION_TOLERANCE_DEGREES =
-      new LoggedTunableNumber(NAME + "/PositionToleranceDeg", POSITION_TOLERANCE_DEGREES_DEFAULT);
+  /** How close counts as "at position", in mechanism degrees. */
+  public static final double POSITION_TOLERANCE_DEGREES = POSITION_TOLERANCE_DEGREES_DEFAULT;
 
   /**
    * Where horizontal sits, in mechanism degrees.
@@ -490,18 +480,15 @@ public class ExampleArmConstants {
    * visible immediately during bring-up: the arm sags on one side of its travel and overshoots on
    * the other.
    *
-   * <p>Tunable, and listed in {@link #TUNABLE_GAINS} rather than {@link #TUNABLE_PROFILE}, because
-   * it is written to {@code Slot0.GravityArmPositionOffset} — it rides the same {@code Slot0}
-   * re-apply as kG, which is the only way a change to it reaches the device. It belongs with the
-   * gains for a second reason too: it and kG are two halves of one measurement, and tuning either
-   * without the other is how an arm ends up with a kG that only holds at one angle.
+   * <p>Written to {@code Slot0.GravityArmPositionOffset}, beside kG. The two are halves of one
+   * measurement: tuning either without the other is how an arm ends up with a kG that only holds at
+   * one angle. Find them together in Phoenix Tuner X.
    */
   public static final double GRAVITY_HORIZONTAL_OFFSET_DEGREES_DEFAULT = 0.0;
 
-  /** Where horizontal sits, in mechanism degrees. Tunable at runtime. */
-  public static final LoggedTunableNumber GRAVITY_HORIZONTAL_OFFSET_DEGREES =
-      new LoggedTunableNumber(
-          NAME + "/GravityHorizontalOffsetDeg", GRAVITY_HORIZONTAL_OFFSET_DEGREES_DEFAULT);
+  /** Where horizontal sits, in mechanism degrees. */
+  public static final double GRAVITY_HORIZONTAL_OFFSET_DEGREES =
+      GRAVITY_HORIZONTAL_OFFSET_DEGREES_DEFAULT;
 
   // ==========================================================================================
   // VISUALIZATION — display only. Delete with ExampleArmVisualizer if unused.
@@ -582,42 +569,34 @@ public class ExampleArmConstants {
   // correcting a mechanism that is already nearly balanced. Skip it and kP ends up carrying the
   // weight, which means the arm sags at rest and the "fix" is more kP until it oscillates.
   //
-  // kV and kA exist in the array below for characterization runs but are usually left at zero on
+  // kV and kA are declared below for characterization runs but are usually left at zero on
   // a profiled position loop — Motion Magic generates its own velocity and acceleration
   // feedforward from the profile.
   //
-  // These are LoggedTunableNumbers so a tuning session does not need a redeploy per iteration.
-  // With Constants.tuningMode off they return the defaults below and cost nothing.
-  //
-  // The default in each constructor is what the robot runs in competition. The dashboard value
-  // lives only in NetworkTables and is gone at the next reboot, so a session that ends without
-  // writing the numbers back into this file and committing them accomplished nothing.
+  // Plain constants. Gains are tuned in Phoenix Tuner X against the real mechanism (or in sim with
+  // /pid-tune), then written here and committed. There is no live gain push: what is in this file
+  // is what the Talon runs, applied once at construction. See docs/tunables.md.
 
   /** Gravity feedforward, in amps. The current that holds the arm level. Find this first. */
-  public static final LoggedTunableNumber KG = new LoggedTunableNumber(NAME + "/kG", 0.0);
+  public static final double KG = 0.0;
 
   /** Static friction feedforward — output needed to break the mechanism loose. */
-  public static final LoggedTunableNumber KS = new LoggedTunableNumber(NAME + "/kS", 0.0);
+  public static final double KS = 0.0;
 
   /** Velocity feedforward. Usually zero on a profiled position loop. */
-  public static final LoggedTunableNumber KV = new LoggedTunableNumber(NAME + "/kV", 0.0);
+  public static final double KV = 0.0;
 
   /** Acceleration feedforward. Usually zero on a profiled position loop. */
-  public static final LoggedTunableNumber KA = new LoggedTunableNumber(NAME + "/kA", 0.0);
+  public static final double KA = 0.0;
 
   /** Proportional gain. Corrects what feedforward misses — it should not be carrying the arm. */
-  public static final LoggedTunableNumber KP = new LoggedTunableNumber(NAME + "/kP", 0.0);
+  public static final double KP = 0.0;
 
   /** Integral gain. Leave at zero unless you can explain its behavior during a stall. */
-  public static final LoggedTunableNumber KI = new LoggedTunableNumber(NAME + "/kI", 0.0);
+  public static final double KI = 0.0;
 
   /** Derivative gain. Damps overshoot on a position loop — this is where it earns its place. */
-  public static final LoggedTunableNumber KD = new LoggedTunableNumber(NAME + "/kD", 0.0);
-
-  /** Every real-robot gain, for the {@code ifChanged} watch list in the IO layer. */
-  public static final LoggedTunableNumber[] TUNABLE_GAINS = {
-    KS, KV, KA, KG, KP, KI, KD, GRAVITY_HORIZONTAL_OFFSET_DEGREES
-  };
+  public static final double KD = 0.0;
 
   // ==========================================================================================
   // SIMULATION
@@ -631,9 +610,9 @@ public class ExampleArmConstants {
    * Gains that behave well against that model are frequently wrong on hardware, and gains measured
    * on hardware often will not converge in sim. One shared set means one of the two is lying.
    *
-   * <p><b>Sim gains are plain doubles, not tunables, on purpose.</b> Tunables exist to avoid the
-   * two-minute edit-build-deploy-enable cycle. Sim has no deploy step, so a dashboard knob buys
-   * nothing and only adds a second set of numbers that can disagree with the file.
+   * <p><b>A separate set on purpose.</b> The sim closes its loop on the roboRIO with these, while
+   * the robot runs Motion Magic on the Talon with the real gains above. Tuning these tunes the
+   * simulation, not the robot.
    */
   public static class Sim {
 
@@ -686,31 +665,31 @@ public class ExampleArmConstants {
   }
 
   public static double getKS() {
-    return isSim() ? Sim.KS : KS.get();
+    return isSim() ? Sim.KS : KS;
   }
 
   public static double getKV() {
-    return isSim() ? Sim.KV : KV.get();
+    return isSim() ? Sim.KV : KV;
   }
 
   public static double getKA() {
-    return isSim() ? Sim.KA : KA.get();
+    return isSim() ? Sim.KA : KA;
   }
 
   public static double getKG() {
-    return isSim() ? Sim.KG : KG.get();
+    return isSim() ? Sim.KG : KG;
   }
 
   public static double getKP() {
-    return isSim() ? Sim.KP : KP.get();
+    return isSim() ? Sim.KP : KP;
   }
 
   public static double getKI() {
-    return isSim() ? Sim.KI : KI.get();
+    return isSim() ? Sim.KI : KI;
   }
 
   public static double getKD() {
-    return isSim() ? Sim.KD : KD.get();
+    return isSim() ? Sim.KD : KD;
   }
 
   // ==========================================================================================
@@ -718,8 +697,7 @@ public class ExampleArmConstants {
   // ==========================================================================================
 
   /**
-   * The one config for this mechanism, applied at construction and re-applied piecewise when a
-   * tunable moves.
+   * The one config for this mechanism, applied once at construction.
    *
    * <p>Four things differ from {@code exampleRoller}, and all four matter:
    *
@@ -794,9 +772,8 @@ public class ExampleArmConstants {
         .withSensorToMechanismRatio(SENSOR_TO_MECHANISM_RATIO);
 
     // ---- Gains ----
-    // All seven, even the ones usually left at zero. Every gain here is a tunable in
-    // TUNABLE_GAINS, and one that is watched but never written moves on the dashboard while the
-    // Talon ignores it — which reads as a dead gain, not a missing line.
+    // All seven, even the ones usually left at zero. A gain declared above but never written here
+    // is one you can set in Tuner X, copy into this file, and watch do nothing.
     config.Slot0.kS = getKS();
     config.Slot0.kV = getKV();
     config.Slot0.kA = getKA();
@@ -812,8 +789,7 @@ public class ExampleArmConstants {
 
     // Where horizontal is. See GRAVITY_HORIZONTAL_OFFSET_DEGREES — leaving this at zero when zero
     // is the stow position puts the gravity compensation peak in the wrong place.
-    config.Slot0.GravityArmPositionOffset =
-        degreesToRotations(GRAVITY_HORIZONTAL_OFFSET_DEGREES.get());
+    config.Slot0.GravityArmPositionOffset = degreesToRotations(GRAVITY_HORIZONTAL_OFFSET_DEGREES);
 
     // Take the sign of kS from the closed-loop error rather than measured velocity. At rest on a
     // setpoint the velocity is near zero and noisy, so UseVelocitySign flips and the mechanism
@@ -823,10 +799,10 @@ public class ExampleArmConstants {
     // ---- Motion profile ----
     // RPM and RPM/sec in, rotations/sec and rotations/sec^2 out.
     config.MotionMagic.MotionMagicAcceleration =
-        rpmPerSecToRotationsPerSecSquared(ACCELERATION_RPM_PER_SEC.get());
-    config.MotionMagic.MotionMagicCruiseVelocity = rpmToRotationsPerSec(CRUISE_VELOCITY_RPM.get());
+        rpmPerSecToRotationsPerSecSquared(ACCELERATION_RPM_PER_SEC);
+    config.MotionMagic.MotionMagicCruiseVelocity = rpmToRotationsPerSec(CRUISE_VELOCITY_RPM);
     config.MotionMagic.MotionMagicJerk =
-        rpmPerSecSquaredToRotationsPerSecCubed(JERK_RPM_PER_SEC_SQUARED.get());
+        rpmPerSecSquaredToRotationsPerSecCubed(JERK_RPM_PER_SEC_SQUARED);
 
     return config;
   }

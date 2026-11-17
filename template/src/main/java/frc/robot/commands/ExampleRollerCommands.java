@@ -1,14 +1,19 @@
 package frc.robot.commands;
 
+import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.Volts;
 
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Voltage;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import frc.lib.util.LoggedTunableNumber;
 import frc.robot.Constants;
 import frc.robot.subsystems.exampleRoller.ExampleRoller;
+import frc.robot.subsystems.exampleRoller.ExampleRollerConstants;
 import java.util.function.BooleanSupplier;
+import org.littletonrobotics.junction.Logger;
 
 /**
  * Command factory for a velocity-controlled mechanism.
@@ -133,4 +138,41 @@ public class ExampleRollerCommands {
   // Bind it to the operator first and watch the log before wiring it to isJammed() directly. An
   // automatic unjam driven by an untuned threshold ejects game pieces during normal pickup, which
   // is a worse failure than the jam it was meant to fix.
+
+  /** Dashboard setpoint for {@link #tuneVelocity}, in mechanism RPM. Read nowhere else. */
+  private static final LoggedTunableNumber TUNE_VELOCITY_RPM =
+      new LoggedTunableNumber(ExampleRollerConstants.NAME + "/Tune/VelocityRpm", 0.0);
+
+  /**
+   * Runs at whatever velocity the dashboard says, for finding a setpoint with the mechanism in
+   * front of you. Edit {@code Tuning/ExampleRoller/Tune/VelocityRpm} and the roller follows on the
+   * next loop; it stops when the command ends.
+   *
+   * <p><b>Test mode only.</b> It does nothing unless the robot is enabled in test mode, and ends
+   * the moment it is not, so the dashboard value it reads can never reach the field. Bind it with
+   * {@code triggers.tuningEnabled.whileTrue(...)}. This is the only kind of code allowed to read a
+   * {@code LoggedTunableNumber}; see docs/tunables.md. At the 2027 port it becomes a
+   * {@code @Utility} OpMode.
+   *
+   * <p>When the number is right, write it into {@code Constants.Setpoints} and commit it. The
+   * dashboard value lives only in NetworkTables and is gone at the next boot.
+   */
+  public static Command tuneVelocity(ExampleRoller roller) {
+    return Commands.run(
+            () -> {
+              // Guard every execution as well as scheduling: the end check runs after execute(),
+              // so a mode transition must not apply one last dashboard setpoint.
+              if (!DriverStation.isTestEnabled()) {
+                return;
+              }
+              double rpm = TUNE_VELOCITY_RPM.get();
+              Logger.recordOutput(ExampleRollerConstants.NAME + "/Tune/VelocityRpm", rpm);
+              roller.setVelocity(RPM.of(rpm));
+            },
+            roller)
+        .onlyIf(DriverStation::isTestEnabled)
+        .until(() -> !DriverStation.isTestEnabled())
+        .finallyDo(interrupted -> roller.stop())
+        .withName("ExampleRoller_Tune");
+  }
 }

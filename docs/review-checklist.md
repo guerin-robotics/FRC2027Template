@@ -125,7 +125,8 @@ rather than assuming a green build means they hold.
 |---|---|
 | Swerve CAN IDs, gains, geometry, current limits | `generated/TunerConstants.java` (Tuner X generated) |
 | Other CAN IDs | `Constants.CanIds` |
-| Setpoints / timeouts / tolerances | `Constants.Setpoints` / `.Waits` / `.Thresholds` — never inline |
+| Robot-wide setpoints / timeouts / alignment thresholds | `Constants.Setpoints` / `.Waits` / `.Thresholds` — never inline |
+| Mechanism position / velocity tolerances | `[Subsystem]Constants.java` |
 | PID gains (mechanisms) | `[Subsystem]Constants.java` or IO implementation |
 | Trajectory-following gains | `Drive.java` (`trajectoryX/Y/HeadingController`) |
 | Drive-to-pose gains / FF radii | `DriveCommands.java` (`driveController`, `Drive/ToPose/FF*`) |
