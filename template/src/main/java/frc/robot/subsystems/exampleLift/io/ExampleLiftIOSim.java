@@ -104,6 +104,9 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
 
   private double appliedVolts = 0.0;
 
+  /** Bus voltage used to turn simulated stator current into supply current. */
+  private static final double NOMINAL_BUS_VOLTS = 12.0;
+
   /**
    * Offset applied to the reported position, in meters.
    *
@@ -136,8 +139,15 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
     inputs.motorPosition = Rotations.of(metersToRotations(reportedMeters()));
     inputs.motorVelocity =
         RotationsPerSecond.of(metersToRotations(sim.getVelocityMetersPerSecond()));
-    inputs.motorStatorAmps = Amps.of(sim.getCurrentDrawAmps());
-    inputs.motorSupplyAmps = Amps.of(sim.getCurrentDrawAmps());
+    // WPILib models winding (stator) current. Supply current is what the battery sees, which under
+    // PWM is stator scaled by duty cycle, |applied| / bus voltage. Reporting stator as supply
+    // overstates battery draw exactly when the mechanism works hardest — the 2026 mistake in
+    // .claude/rules/02-hardware.md — and that number feeds BatteryLogger. An estimate, not a model
+    // of the Talon, but the right quantity.
+    double statorAmps = sim.getCurrentDrawAmps();
+    inputs.motorStatorAmps = Amps.of(statorAmps);
+    inputs.motorSupplyAmps =
+        Amps.of(Math.abs(statorAmps) * Math.abs(appliedVolts) / NOMINAL_BUS_VOLTS);
     inputs.motorTemperature = Celsius.of(25.0);
 
     inputs.closedLoopReference = closedLoop ? metersToRotations(goalMeters) : 0.0;
@@ -174,8 +184,9 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
   }
 
   @Override
-  public void zeroPosition() {
+  public boolean zeroPosition() {
     zeroOffsetMeters = sim.getPositionMeters();
+    return true;
   }
 
   /** Height as the mechanism believes it, measured from wherever zero was last declared. */

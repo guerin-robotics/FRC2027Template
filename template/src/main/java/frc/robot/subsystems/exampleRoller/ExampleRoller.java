@@ -53,6 +53,13 @@ public class ExampleRoller extends SubsystemBase {
   /** Last commanded velocity, so {@link #isAtVelocity()} has something to compare against. */
   private AngularVelocity goalVelocity = RotationsPerSecond.of(0);
 
+  /**
+   * True only while a closed-loop velocity is being commanded. Open-loop voltage and stop clear it,
+   * so an idle roller does not report itself "at velocity" just because zero is near zero — a
+   * shooter-ready check would otherwise pass with the flywheel stopped.
+   */
+  private boolean closedLoopActive = false;
+
   public ExampleRoller(ExampleRollerIO io) {
     this.io = io;
     this.inputs = new ExampleRollerIOInputsAutoLogged();
@@ -87,16 +94,19 @@ public class ExampleRoller extends SubsystemBase {
   /** Open-loop. Bring-up and characterization only; match logic should use velocity control. */
   public void setVoltage(Voltage volts) {
     goalVelocity = RotationsPerSecond.of(0);
+    closedLoopActive = false;
     io.setVoltage(volts);
   }
 
   public void setVelocity(AngularVelocity velocity) {
     goalVelocity = velocity;
+    closedLoopActive = true;
     io.setVelocity(velocity);
   }
 
   public void stop() {
     goalVelocity = RotationsPerSecond.of(0);
+    closedLoopActive = false;
     io.stop();
   }
 
@@ -119,8 +129,10 @@ public class ExampleRoller extends SubsystemBase {
    * it, so a log gap reads as "the robot stopped checking" rather than "nothing asked".
    */
   public boolean isAtVelocity() {
-    return Math.abs(inputs.motorVelocity.in(RPM) - goalVelocity.in(RPM))
-        < ExampleRollerConstants.VELOCITY_TOLERANCE_RPM;
+    // False under open-loop or stop: a stopped roller is near a goal of zero, not "ready".
+    return closedLoopActive
+        && Math.abs(inputs.motorVelocity.in(RPM) - goalVelocity.in(RPM))
+            < ExampleRollerConstants.VELOCITY_TOLERANCE_RPM;
   }
 
   /** Is the motor answering on the bus? Register with {@code FaultMonitor} in RobotContainer. */
@@ -139,8 +151,10 @@ public class ExampleRoller extends SubsystemBase {
    * <p>Read it beside {@code closedLoopReference}: reference tracking the goal, measured lagging
    * behind, and this flag true is saturation. The same lag with this flag false is a gain problem.
    *
-   * <p>In simulation this stays false — the limits are not enforced there, by design. See the note
-   * in {@code getFXConfig()}.
+   * <p><b>Read it with care in simulation.</b> Sim current comes from WPILib's model, which knows
+   * nothing about the Talon's limits, so this can read true at currents the real device would never
+   * allow. In sim that means the sim gains are pushing harder than the robot could — not that the
+   * limit needs raising.
    */
   public boolean isAtStatorLimit() {
     // Magnitude: Phoenix signs stator current with the direction of output, so a bare comparison

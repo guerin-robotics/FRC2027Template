@@ -1,5 +1,6 @@
 package frc.lib.util;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
@@ -7,13 +8,13 @@ import org.littletonrobotics.junction.networktables.LoggedNetworkBoolean;
 
 /**
  * A boolean that can be toggled from the dashboard while the robot is running. The boolean
- * counterpart to {@link LoggedTunableNumber}: always live, and <b>only a tuning command may read
- * one</b> — see that class for why that rule is what makes always-live safe.
+ * counterpart to {@link LoggedTunableNumber}: live only in test mode, and meant to be read only by
+ * a tuning command — see that class.
  *
  * <p>Useful inside a tuning command for toggling a behavior under test without a redeploy.
  *
- * <p><b>Never gate safety behavior on one of these.</b> It is live in every mode, so an interlock
- * written as a tunable is one dashboard click from being off. Interlocks belong in code.
+ * <p><b>Never gate safety behavior on one of these.</b> In test mode it is one dashboard click from
+ * flipping, and everywhere else it silently takes its default. Interlocks belong in code.
  */
 public class LoggedTunableBoolean implements BooleanSupplier {
 
@@ -36,10 +37,17 @@ public class LoggedTunableBoolean implements BooleanSupplier {
   }
 
   /**
-   * @return the current dashboard value. Only a tuning command should call this
+   * Returns the dashboard value <b>only while the robot is enabled in test mode</b>, and the
+   * compiled-in default otherwise.
+   *
+   * <p>This is the enforcement behind "only a tuning command may read a tunable". Tuning commands
+   * run in test mode, which the field never enables, so in auto and teleop every tunable reads its
+   * default no matter what is on the dashboard or left over in NetworkTables. A tunable read by
+   * match code by mistake is therefore inert rather than live. Test mode is part of the logged
+   * Driver Station state, so replay takes the same branch the robot did.
    */
   public boolean get() {
-    return dashboardBoolean.get();
+    return DriverStation.isTestEnabled() ? dashboardBoolean.get() : defaultValue;
   }
 
   /**

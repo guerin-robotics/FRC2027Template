@@ -25,9 +25,10 @@ complete and self-consistent, with nothing to delete and no commented-out fork t
 
 **This used to be a single `ExampleSubsystem` with the three variants commented out.** That version
 asked you to delete the blocks that did not apply, and the deletions it asked for were exactly the
-ones with the worst failure modes when you got them wrong. An arm that inherited the lift's motion
-profile row gets roughly 30x the acceleration it should have, aimed at a hard stop — and it
-compiles, deploys and runs. Three files that are each right beat one file with instructions.
+ones with the worst failure modes when you got them wrong. An arm that inherited the roller's motion
+profile row gets 30x the acceleration it should have (9000 RPM/s against 300), and one that
+inherited the lift's gets triple the acceleration and a cruise in the hundreds of RPM, aimed at a
+hard stop — and either one compiles, deploys and runs. Three files that are each right beat one file with instructions.
 
 ### What actually differs between them
 
@@ -40,7 +41,7 @@ Worth reading before you pick, because the differences are not cosmetic:
 | Soft limits | Off; a roller has no travel | On, in degrees | On, in inches |
 | Gravity | none — no `kG` at all | `Arm_Cosine` + horizontal offset | `Elevator_Static`, constant |
 | Cruise velocity | n/a — the setpoint is the cruise | 60 RPM | `MAX_SPEED_RPM / 2` |
-| Acceleration | 9000 RPM/s | 300 RPM/s | 9000 RPM/s |
+| Acceleration | 9000 RPM/s | 300 RPM/s | 900 RPM/s |
 | Knows position at boot | does not care | yes, absolute | **no — must be zeroed** |
 | Sim model | `FlywheelSim` | `SingleJointedArmSim` | `ElevatorSim` |
 | Visualizer | none, deliberately | yes | yes |
@@ -210,9 +211,10 @@ number driving the sim model are the same one. It also builds the sim gearbox, s
 apart either.
 
 Motion Magic defaults are **already correct in each scaffold** — they are the row in the differences
-table above, and they are the single most important reason the three are separate files. All of them
-are `LoggedTunableNumber`s, so the compiled-in value is only the starting dashboard value and the
-profile stays adjustable at runtime.
+table above, and they are the single most important reason the three are separate files. They are
+plain constants, applied once at construction: adjust the profile in Phoenix Tuner X with the
+mechanism in front of you, then write the result into the constants file. Nothing a match reads is a
+dashboard tunable — see `docs/tunables.md`.
 
 Gear ratio and `MAX_SPEED_RPM` stay static. They describe how the machine is built.
 ---
@@ -416,7 +418,7 @@ one kind of mechanism actually has. A roller now owes **two**.
 
 Note what is *not* on these lists any more:
 
-- **`ACCELERATION_RPM_PER_SEC_DEFAULT` and `CRUISE_VELOCITY_RPM_DEFAULT`** are now set correctly per
+- **`ACCELERATION_RPM_PER_SEC` and `CRUISE_VELOCITY_RPM`** are now set correctly per
   scaffold. They were commented out before precisely because the wrong answer still compiles, and
   splitting the file is what let them have a right answer.
 - **`SENSOR_TO_MECHANISM_RATIO`** is derived from `GEAR_RATIO` in the roller and the lift, because

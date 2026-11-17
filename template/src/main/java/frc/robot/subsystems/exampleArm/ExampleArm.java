@@ -208,8 +208,10 @@ public class ExampleArm extends SubsystemBase {
    * <p>Read it beside {@code closedLoopReference}: reference tracking the goal, measured lagging
    * behind, and this flag true is saturation. The same lag with this flag false is a gain problem.
    *
-   * <p>In simulation this stays false — the limits are not enforced there, by design. See the note
-   * in {@code getFXConfig()}.
+   * <p><b>Read it with care in simulation.</b> Sim current comes from WPILib's model, which knows
+   * nothing about the Talon's limits, so this can read true at currents the real device would never
+   * allow. In sim that means the sim gains are pushing harder than the robot could — not that the
+   * limit needs raising.
    */
   public boolean isAtStatorLimit() {
     // Magnitude: Phoenix signs stator current with the direction of output, so a bare comparison

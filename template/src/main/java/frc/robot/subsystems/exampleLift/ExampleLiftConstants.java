@@ -234,6 +234,19 @@ public class ExampleLiftConstants {
   //
   // public static final double MAX_TRAVEL_INCHES = ;
 
+  // Travel bounds the right way round. ExampleLift.setPositionInches clamps every goal between
+  // them, and with them swapped the clamp sends every goal to one bound — while the two soft limits
+  // contradict each other on the Talon. Checked at class load, so it fails before anything moves
+  // (NASA/JPL Power of 10 rule 5; see docs/review-checklist.md).
+  static {
+    if (!(MIN_TRAVEL_INCHES < MAX_TRAVEL_INCHES)) {
+      throw new IllegalStateException(
+          String.format(
+              "%s: MIN_TRAVEL_INCHES (%.2f) must be below MAX_TRAVEL_INCHES (%.2f).",
+              NAME, MIN_TRAVEL_INCHES, MAX_TRAVEL_INCHES));
+    }
+  }
+
   // ==========================================================================================
   // UNIT CONVERSION — the boundary between team units and Phoenix units
   // ==========================================================================================
@@ -347,25 +360,19 @@ public class ExampleLiftConstants {
   // Plain constants: they are read by match code. Adjust them in Phoenix Tuner X with the
   // mechanism in front of you, then write the result here. See docs/tunables.md.
 
-  /** Compiled-in default for {@link #CRUISE_VELOCITY_RPM}, in drum RPM. */
-  public static final double CRUISE_VELOCITY_RPM_DEFAULT = MAX_SPEED_RPM / 2.0;
+  /** Profile cruise velocity, in drum RPM. */
+  public static final double CRUISE_VELOCITY_RPM = MAX_SPEED_RPM / 2.0;
 
   /**
-   * Compiled-in default for {@link #ACCELERATION_RPM_PER_SEC}, in drum RPM per second.
+   * Profile acceleration, in drum RPM per second.
    *
    * <p>About 0.4 g on a typical lift — see the note above for where that came from and how to
    * convert it into your own mechanism's inches per second squared.
    */
-  public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 900.0;
-
-  /** Profile cruise velocity, in drum RPM. */
-  public static final double CRUISE_VELOCITY_RPM = CRUISE_VELOCITY_RPM_DEFAULT;
-
-  /** Profile acceleration, in drum RPM per second. */
-  public static final double ACCELERATION_RPM_PER_SEC = ACCELERATION_RPM_PER_SEC_DEFAULT;
+  public static final double ACCELERATION_RPM_PER_SEC = 900.0;
 
   /**
-   * Compiled-in default for {@link #JERK_RPM_PER_SEC_SQUARED}, in mechanism RPM per second squared.
+   * Profile jerk, in mechanism RPM per second squared.
    *
    * <p>Ten times the acceleration default, which is the usual starting ratio. Jerk bounds how fast
    * the acceleration itself is allowed to change, so it rounds the corners at the start and the end
@@ -379,11 +386,7 @@ public class ExampleLiftConstants {
    * proportionate instead of quietly taking over. Zero disables jerk limiting entirely, which is
    * Phoenix's default and what this scaffold used to do.
    */
-  public static final double JERK_RPM_PER_SEC_SQUARED_DEFAULT =
-      ACCELERATION_RPM_PER_SEC_DEFAULT * 10.0;
-
-  /** Profile jerk, in mechanism RPM per second squared. */
-  public static final double JERK_RPM_PER_SEC_SQUARED = JERK_RPM_PER_SEC_SQUARED_DEFAULT;
+  public static final double JERK_RPM_PER_SEC_SQUARED = ACCELERATION_RPM_PER_SEC * 10.0;
 
   // ==========================================================================================
   // TOLERANCE
@@ -400,10 +403,7 @@ public class ExampleLiftConstants {
    * then edited here. A plain constant: it is read by match code, and nothing match code reads may
    * be a dashboard tunable (see docs/tunables.md).
    */
-  public static final double POSITION_TOLERANCE_INCHES_DEFAULT = 0.25;
-
-  /** How close counts as "at height", in carriage inches. */
-  public static final double POSITION_TOLERANCE_INCHES = POSITION_TOLERANCE_INCHES_DEFAULT;
+  public static final double POSITION_TOLERANCE_INCHES = 0.25;
 
   // ==========================================================================================
   // ZEROING — how this mechanism learns where it is
@@ -436,20 +436,10 @@ public class ExampleLiftConstants {
    * <p>The single value most likely to be wrong on the first try. Find it by creeping into the
    * stop, reading stator current in the log, and editing it here.
    */
-  public static final double ZEROING_STALL_CURRENT_AMPS_DEFAULT = 25.0;
+  public static final double ZEROING_STALL_CURRENT_AMPS = 25.0;
 
-  /** Stall-detection stator current, in amps. */
-  public static final double ZEROING_STALL_CURRENT_AMPS = ZEROING_STALL_CURRENT_AMPS_DEFAULT;
-
-  /** Compiled-in default for {@link #ZEROING_VELOCITY_THRESHOLD_RPM}, in drum RPM. */
-  public static final double ZEROING_VELOCITY_THRESHOLD_RPM_DEFAULT = 5.0;
-
-  /**
-   * Drum velocity, in RPM, below which the carriage counts as "not moving" while creeping. Read in
-   * {@code isAtZeroingStall()}.
-   */
-  public static final double ZEROING_VELOCITY_THRESHOLD_RPM =
-      ZEROING_VELOCITY_THRESHOLD_RPM_DEFAULT;
+  /** In drum RPM. */
+  public static final double ZEROING_VELOCITY_THRESHOLD_RPM = 5.0;
 
   /**
    * How long BOTH conditions must hold before this counts as a real stall.

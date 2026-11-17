@@ -69,6 +69,9 @@ public class ExampleRollerIOSim implements ExampleRollerIO {
 
   private double appliedVolts = 0.0;
 
+  /** Bus voltage used to turn simulated stator current into supply current. */
+  private static final double NOMINAL_BUS_VOLTS = 12.0;
+
   /** Integrated by hand — FlywheelSim carries no position state. */
   private double positionRotations = 0.0;
 
@@ -96,8 +99,15 @@ public class ExampleRollerIOSim implements ExampleRollerIO {
     inputs.motorVoltage = Volts.of(appliedVolts);
     inputs.motorVelocity = RotationsPerSecond.of(measuredRotationsPerSec);
     inputs.motorPosition = Rotations.of(positionRotations);
-    inputs.motorStatorAmps = Amps.of(sim.getCurrentDrawAmps());
-    inputs.motorSupplyAmps = Amps.of(sim.getCurrentDrawAmps());
+    // WPILib models winding (stator) current. Supply current is what the battery sees, which under
+    // PWM is stator scaled by duty cycle, |applied| / bus voltage. Reporting stator as supply
+    // overstates battery draw exactly when the mechanism works hardest — the 2026 mistake in
+    // .claude/rules/02-hardware.md — and that number feeds BatteryLogger. An estimate, not a model
+    // of the Talon, but the right quantity.
+    double statorAmps = sim.getCurrentDrawAmps();
+    inputs.motorStatorAmps = Amps.of(statorAmps);
+    inputs.motorSupplyAmps =
+        Amps.of(Math.abs(statorAmps) * Math.abs(appliedVolts) / NOMINAL_BUS_VOLTS);
     inputs.motorTemperature = Celsius.of(25.0);
 
     inputs.closedLoopReference = closedLoop ? goalRotationsPerSec : 0.0;

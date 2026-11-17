@@ -120,11 +120,13 @@ public class ExampleArmCommands {
    * <p>It does <b>not</b> stop when it ends: the arm keeps holding the last angle, because zero
    * output on a gravity-loaded arm lets it fall.
    *
-   * <p><b>Test mode only.</b> It does nothing unless the robot is enabled in test mode, and ends
-   * the moment it is not, so the dashboard value it reads can never reach the field. Bind it with
-   * {@code triggers.tuningEnabled.whileTrue(...)}. This is the only kind of code allowed to read a
-   * {@code LoggedTunableNumber}; see docs/tunables.md. At the 2027 port it becomes a
-   * {@code @Utility} OpMode.
+   * <p><b>Test mode, with Start held.</b> Bind it with {@code
+   * triggers.tuningEnabled.whileTrue(...)}, which is true only while the robot is enabled in test
+   * mode AND the operator holds Start — a dead-man switch, so enabling test mode for something else
+   * does not move the mechanism. It also refuses to start outside test mode and ends the moment the
+   * robot leaves it, and {@code LoggedTunableNumber.get()} returns its default outside test mode
+   * anyway, so the dashboard value can never reach the field. At the 2027 port it becomes a
+   * {@code @Utility} OpMode; keep the held button.
    *
    * <p>When the number is right, write it into {@code Constants.Setpoints} and commit it. The
    * dashboard value lives only in NetworkTables and is gone at the next boot.

@@ -254,6 +254,16 @@ public class ExampleArmConstants {
                   + "is. See the case table above this check.",
               NAME, ROTOR_TO_SENSOR_RATIO, SENSOR_TO_MECHANISM_RATIO, product, GEAR_RATIO));
     }
+    // Travel bounds the right way round. ExampleArm.setPosition clamps every goal between them, and
+    // with them swapped the clamp sends every goal to one bound — while both soft limits disagree
+    // with each other on the Talon. Checked here, at class load, so it fails before anything moves
+    // (NASA/JPL Power of 10 rule 5; see docs/review-checklist.md).
+    if (!(REVERSE_SOFT_LIMIT_DEGREES < FORWARD_SOFT_LIMIT_DEGREES)) {
+      throw new IllegalStateException(
+          String.format(
+              "%s: REVERSE_SOFT_LIMIT_DEGREES (%.2f) must be below FORWARD_SOFT_LIMIT_DEGREES (%.2f).",
+              NAME, REVERSE_SOFT_LIMIT_DEGREES, FORWARD_SOFT_LIMIT_DEGREES));
+    }
   }
 
   // TODO: supply the CANcoder calibration, then uncomment.
@@ -403,28 +413,23 @@ public class ExampleArmConstants {
   // something breaks: an arm is where an over-fast profile does mechanical damage, and gravity
   // torque changes with angle in a way an aggressive profile will not respect.
   //
-  // These differ from exampleLift's on purpose. A lift cruises at MAX_SPEED_RPM / 2 and
-  // accelerates at 9000 RPM/s. An arm inheriting a lift's row gets roughly 30x the acceleration
-  // it should have, aimed at a hard stop — which is precisely why the three scaffolds are separate
-  // files rather than one file with a comment telling you which block to delete.
+  // These differ from the other scaffolds' on purpose. A lift cruises at MAX_SPEED_RPM / 2 and
+  // accelerates at 900 RPM/s; a roller accelerates at 9000. An arm inheriting the roller's row gets
+  // 30x the acceleration it should have, and the lift's row triple, aimed at a hard stop — which
+  // is precisely why the three scaffolds are separate files rather than one file with a comment
+  // telling you which block to delete.
   //
   // Plain constants: they are read by match code. Adjust them in Phoenix Tuner X with the
   // mechanism in front of you, then write the result here. See docs/tunables.md.
 
-  /** Compiled-in default for {@link #CRUISE_VELOCITY_RPM}, in mechanism RPM. */
-  public static final double CRUISE_VELOCITY_RPM_DEFAULT = 60.0;
-
-  /** Compiled-in default for {@link #ACCELERATION_RPM_PER_SEC}, in mechanism RPM per second. */
-  public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 300.0;
-
   /** Profile cruise velocity, in mechanism RPM. */
-  public static final double CRUISE_VELOCITY_RPM = CRUISE_VELOCITY_RPM_DEFAULT;
+  public static final double CRUISE_VELOCITY_RPM = 60.0;
 
   /** Profile acceleration, in mechanism RPM per second. */
-  public static final double ACCELERATION_RPM_PER_SEC = ACCELERATION_RPM_PER_SEC_DEFAULT;
+  public static final double ACCELERATION_RPM_PER_SEC = 300.0;
 
   /**
-   * Compiled-in default for {@link #JERK_RPM_PER_SEC_SQUARED}, in mechanism RPM per second squared.
+   * Profile jerk, in mechanism RPM per second squared.
    *
    * <p>Ten times the acceleration default, which is the usual starting ratio. Jerk bounds how fast
    * the acceleration itself is allowed to change, so it rounds the corners at the start and the end
@@ -438,11 +443,7 @@ public class ExampleArmConstants {
    * proportionate instead of quietly taking over. Zero disables jerk limiting entirely, which is
    * Phoenix's default and what this scaffold used to do.
    */
-  public static final double JERK_RPM_PER_SEC_SQUARED_DEFAULT =
-      ACCELERATION_RPM_PER_SEC_DEFAULT * 10.0;
-
-  /** Profile jerk, in mechanism RPM per second squared. */
-  public static final double JERK_RPM_PER_SEC_SQUARED = JERK_RPM_PER_SEC_SQUARED_DEFAULT;
+  public static final double JERK_RPM_PER_SEC_SQUARED = ACCELERATION_RPM_PER_SEC * 10.0;
 
   // ==========================================================================================
   // TOLERANCE AND GRAVITY REFERENCE
@@ -458,10 +459,7 @@ public class ExampleArmConstants {
    * then edited here. A plain constant: it is read by match code, and nothing match code reads may
    * be a dashboard tunable (see docs/tunables.md).
    */
-  public static final double POSITION_TOLERANCE_DEGREES_DEFAULT = 1.0;
-
-  /** How close counts as "at position", in mechanism degrees. */
-  public static final double POSITION_TOLERANCE_DEGREES = POSITION_TOLERANCE_DEGREES_DEFAULT;
+  public static final double POSITION_TOLERANCE_DEGREES = 1.0;
 
   /**
    * Where horizontal sits, in mechanism degrees.
@@ -484,11 +482,7 @@ public class ExampleArmConstants {
    * measurement: tuning either without the other is how an arm ends up with a kG that only holds at
    * one angle. Find them together in Phoenix Tuner X.
    */
-  public static final double GRAVITY_HORIZONTAL_OFFSET_DEGREES_DEFAULT = 0.0;
-
-  /** Where horizontal sits, in mechanism degrees. */
-  public static final double GRAVITY_HORIZONTAL_OFFSET_DEGREES =
-      GRAVITY_HORIZONTAL_OFFSET_DEGREES_DEFAULT;
+  public static final double GRAVITY_HORIZONTAL_OFFSET_DEGREES = 0.0;
 
   // ==========================================================================================
   // VISUALIZATION — display only. Delete with ExampleArmVisualizer if unused.

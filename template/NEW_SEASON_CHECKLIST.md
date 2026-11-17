@@ -123,9 +123,9 @@ and are wrong. If you only remember one thing: **measure top speed and slip curr
 - [ ] **15.** Weigh the robot, estimate MOI, measure wheel COF and bumpers → the Choreo GUI
       robot config in `src/main/deploy/choreo/` (2026 values are in that folder's README)
 - [ ] **16.** Tune the Choreo follower (`trajectoryX/Y/HeadingController` in `Drive.java`) and
-      the drive-to-pose controller and FF radii (`driveController`, `Drive/ToPose/FF*` in
+      the drive-to-pose controller and FF radii (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS` in
       `DriveCommands`) — the PID-to-pose finish and point-to-point autos depend on the latter
-- [ ] **17.** Re-tune `ANGLE_KP` / `ANGLE_KD` in `DriveCommands` for the new chassis
+- [ ] **17.** Re-tune `angleController` (heading kP/kD) in `DriveCommands` for the new chassis
 
 - [ ] Record every measured value, the date, the battery voltage and the surface in
       `docs/robot-spec.md`. These numbers are not portable between surfaces
@@ -135,7 +135,7 @@ and are wrong. If you only remember one thing: **measure top speed and slip curr
 
 For each mechanism, **first pick the scaffold** in `template/src/` — the choice sets the control
 request, neutral mode, gravity type, motion profile, sim model and units, and carrying a value
-across scaffolds is how an arm ends up with 30x the acceleration it should have:
+across scaffolds is how an arm ends up with up to 30x the acceleration it should have:
 
 - [ ] It spins, and only speed matters → `exampleRoller`
 - [ ] It pivots to an angle → `exampleArm`

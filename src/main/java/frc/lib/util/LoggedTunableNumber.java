@@ -1,5 +1,6 @@
 package frc.lib.util;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.DoubleSupplier;
@@ -8,13 +9,15 @@ import org.littletonrobotics.junction.networktables.LoggedNetworkNumber;
 /**
  * A number that can be adjusted from the dashboard while the robot is running.
  *
- * <p><b>Always live.</b> There is no tuning-mode flag: every instance publishes to NetworkTables
- * under {@code Tuning/} and reads back from it. The dashboard value is an AdvantageKit logged input
- * ({@link LoggedNetworkNumber}), so a replay sees exactly what the robot saw.
+ * <p><b>Live only in test mode.</b> There is no tuning-mode flag: every instance publishes to
+ * NetworkTables under {@code Tuning/}, but {@link #get()} returns the dashboard value only while
+ * the robot is enabled in test mode, and the compiled-in default in every other mode. The field
+ * never enables test mode, so a stray dashboard edit at an event reaches nothing — enforced here,
+ * not by convention. The dashboard value is an AdvantageKit logged input ({@link
+ * LoggedNetworkNumber}), so a replay sees exactly what the robot saw.
  *
- * <p><b>The rule that makes always-live safe: only a tuning command may read one.</b> A tuning
- * command runs in test mode, which the field never enables, so a stray dashboard edit at an event
- * reaches nothing. Match code reads compiled values from {@code Constants.Setpoints}. Each scaffold
+ * <p><b>Still, only a tuning command should read one.</b> Match code reads compiled values from
+ * {@code Constants.Setpoints}; a tunable there is dead weight that reads its default. Each scaffold
  * in {@code template/} has a {@code tune*} command showing the pattern. At the 2027 port that
  * command becomes a {@code @Utility} OpMode.
  *
@@ -57,10 +60,17 @@ public class LoggedTunableNumber implements DoubleSupplier {
   }
 
   /**
-   * @return the current dashboard value. Only a tuning command should call this
+   * Returns the dashboard value <b>only while the robot is enabled in test mode</b>, and the
+   * compiled-in default otherwise.
+   *
+   * <p>This is the enforcement behind "only a tuning command may read a tunable". Tuning commands
+   * run in test mode, which the field never enables, so in auto and teleop every tunable reads its
+   * default no matter what is on the dashboard or left over in NetworkTables. A tunable read by
+   * match code by mistake is therefore inert rather than live. Test mode is part of the logged
+   * Driver Station state, so replay takes the same branch the robot did.
    */
   public double get() {
-    return dashboardNumber.get();
+    return DriverStation.isTestEnabled() ? dashboardNumber.get() : defaultValue;
   }
 
   /**

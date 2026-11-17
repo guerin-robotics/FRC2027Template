@@ -192,11 +192,12 @@ public class ExampleLiftIOReal implements ExampleLiftIO {
   }
 
   @Override
-  public void zeroPosition() {
+  public boolean zeroPosition() {
     // tryUntilOk, with a timeout, because this is the one write where a silent failure is
     // catastrophic: the mechanism carries on believing a zero it never actually set, and every
-    // height and soft limit afterward is off by a fixed unknown offset.
-    PhoenixUtil.tryUntilOk(5, () -> motor.setPosition(0.0, 0.25));
+    // height and soft limit afterward is off by a fixed unknown offset. Its result is returned, not
+    // dropped, so the subsystem can refuse to call itself zeroed (Power of 10 rule 7).
+    return PhoenixUtil.tryUntilOk(5, () -> motor.setPosition(0.0, 0.25));
   }
 
   @Override

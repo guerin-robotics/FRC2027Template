@@ -198,12 +198,23 @@ public class ExampleLift extends SubsystemBase {
    * <p>Only call this once the carriage is genuinely at the hard stop — {@code
    * ExampleLiftCommands.zero()} is what establishes that. A zero taken at an unknown position is
    * worse than no zero: the mechanism believes it for the rest of the match, soft limits included.
+   *
+   * <p>If the write does not reach the Talon, the lift stays <b>not zeroed</b> and {@code
+   * ZeroWriteFailed} is logged. Declaring zero on a write that never landed is the silent
+   * fixed-offset failure this whole routine exists to prevent.
+   *
+   * @return true if the lift is now zeroed
    */
-  public void zeroAtCurrentPosition() {
-    io.zeroPosition();
+  public boolean zeroAtCurrentPosition() {
+    boolean written = io.zeroPosition();
+    Logger.recordOutput(ExampleLiftConstants.NAME + "/ZeroWriteFailed", !written);
+    if (!written) {
+      return false;
+    }
     zeroed = true;
     goalInches = 0.0;
     closedLoopActive = false;
+    return true;
   }
 
   // ============================================================================================
@@ -267,8 +278,10 @@ public class ExampleLift extends SubsystemBase {
    * <p>Read it beside {@code closedLoopReference}: reference tracking the goal, measured lagging
    * behind, and this flag true is saturation. The same lag with this flag false is a gain problem.
    *
-   * <p>In simulation this stays false — the limits are not enforced there, by design. See the note
-   * in {@code getFXConfig()}.
+   * <p><b>Read it with care in simulation.</b> Sim current comes from WPILib's model, which knows
+   * nothing about the Talon's limits, so this can read true at currents the real device would never
+   * allow. In sim that means the sim gains are pushing harder than the robot could — not that the
+   * limit needs raising.
    */
   public boolean isAtStatorLimit() {
     // Magnitude: Phoenix signs stator current with the direction of output, so a bare comparison

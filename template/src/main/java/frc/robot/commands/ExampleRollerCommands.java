@@ -100,12 +100,20 @@ public class ExampleRollerCommands {
    * never becomes true, and a robot that hangs mid-sequence scores zero. This is a competition
    * safety rule, not a style preference — see {@code .claude/rules/03-commands.md}.
    *
+   * <p>Phase 3 is {@code act} — the feeder push, the release, whatever the readiness was for. It
+   * runs <b>while the roller is still held at velocity</b>; the roller is only stopped once {@code
+   * act} has finished, so a feeder never pushes into a flywheel that is already coasting down.
+   * {@code act} must end on its own (bound it with {@code withTimeout} or make it a finite
+   * sequence), or this command never ends either.
+   *
    * <p>Acting anyway on timeout is deliberate: a shot taken slightly misaligned is worth more than
-   * a shot never taken. If that is the wrong tradeoff for a particular action, make the last phase
+   * a shot never taken. If that is the wrong tradeoff for a particular action, make {@code act}
    * conditional on {@code isAligned} rather than removing the timeout.
+   *
+   * @param act the action the readiness gates; must be finite
    */
   public static Command runWhenReady(
-      ExampleRoller roller, AngularVelocity velocity, BooleanSupplier isAligned) {
+      ExampleRoller roller, AngularVelocity velocity, BooleanSupplier isAligned, Command act) {
     return Commands.sequence(
             Commands.runOnce(() -> roller.setVelocity(velocity), roller),
             Commands.waitUntil(roller::isAtVelocity)
@@ -113,7 +121,8 @@ public class ExampleRollerCommands {
             Commands.waitUntil(isAligned)
                 .withTimeout(
                     Constants.Waits.TOTAL_TIMEOUT_SECONDS
-                        - Constants.Waits.MECHANISM_READY_SECONDS))
+                        - Constants.Waits.MECHANISM_READY_SECONDS),
+            act)
         .finallyDo(interrupted -> roller.stop())
         .withName("ExampleRoller_WhenReady");
   }
@@ -148,11 +157,13 @@ public class ExampleRollerCommands {
    * front of you. Edit {@code Tuning/ExampleRoller/Tune/VelocityRpm} and the roller follows on the
    * next loop; it stops when the command ends.
    *
-   * <p><b>Test mode only.</b> It does nothing unless the robot is enabled in test mode, and ends
-   * the moment it is not, so the dashboard value it reads can never reach the field. Bind it with
-   * {@code triggers.tuningEnabled.whileTrue(...)}. This is the only kind of code allowed to read a
-   * {@code LoggedTunableNumber}; see docs/tunables.md. At the 2027 port it becomes a
-   * {@code @Utility} OpMode.
+   * <p><b>Test mode, with Start held.</b> Bind it with {@code
+   * triggers.tuningEnabled.whileTrue(...)}, which is true only while the robot is enabled in test
+   * mode AND the operator holds Start — a dead-man switch, so enabling test mode for something else
+   * does not move the mechanism. It also refuses to start outside test mode and ends the moment the
+   * robot leaves it, and {@code LoggedTunableNumber.get()} returns its default outside test mode
+   * anyway, so the dashboard value can never reach the field. At the 2027 port it becomes a
+   * {@code @Utility} OpMode; keep the held button.
    *
    * <p>When the number is right, write it into {@code Constants.Setpoints} and commit it. The
    * dashboard value lives only in NetworkTables and is gone at the next boot.

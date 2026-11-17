@@ -58,7 +58,7 @@ public class ExampleArmIOSim implements ExampleArmIO {
    * mechanism, so the physics uses the measurement rather than any later estimate.
    */
   private static final double GRAVITY_FRAME_OFFSET_RADIANS =
-      Units.degreesToRadians(ExampleArmConstants.GRAVITY_HORIZONTAL_OFFSET_DEGREES_DEFAULT);
+      Units.degreesToRadians(ExampleArmConstants.GRAVITY_HORIZONTAL_OFFSET_DEGREES);
 
   // The starting angle and both travel bounds cross into the sim's gravity frame here; every angle
   // read back out crosses back through mechanismRadians().
@@ -107,6 +107,9 @@ public class ExampleArmIOSim implements ExampleArmIO {
 
   private double appliedVolts = 0.0;
 
+  /** Bus voltage used to turn simulated stator current into supply current. */
+  private static final double NOMINAL_BUS_VOLTS = 12.0;
+
   @Override
   public void updateInputs(ExampleArmIOInputs inputs) {
     if (closedLoop) {
@@ -138,8 +141,15 @@ public class ExampleArmIOSim implements ExampleArmIO {
     inputs.motorVelocity = RadiansPerSecond.of(sim.getVelocityRadPerSec());
     inputs.encoderAbsolutePosition = Radians.of(mechanismRadians());
     inputs.encoderMagnetHealth = 3; // green — sim has no magnet to mount badly
-    inputs.motorStatorAmps = Amps.of(sim.getCurrentDrawAmps());
-    inputs.motorSupplyAmps = Amps.of(sim.getCurrentDrawAmps());
+    // WPILib models winding (stator) current. Supply current is what the battery sees, which under
+    // PWM is stator scaled by duty cycle, |applied| / bus voltage. Reporting stator as supply
+    // overstates battery draw exactly when the mechanism works hardest — the 2026 mistake in
+    // .claude/rules/02-hardware.md — and that number feeds BatteryLogger. An estimate, not a model
+    // of the Talon, but the right quantity.
+    double statorAmps = sim.getCurrentDrawAmps();
+    inputs.motorStatorAmps = Amps.of(statorAmps);
+    inputs.motorSupplyAmps =
+        Amps.of(Math.abs(statorAmps) * Math.abs(appliedVolts) / NOMINAL_BUS_VOLTS);
     inputs.motorTemperature = Celsius.of(25.0);
 
     inputs.closedLoopReference = closedLoop ? Units.radiansToRotations(goalRadians) : 0.0;

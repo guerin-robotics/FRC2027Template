@@ -234,11 +234,8 @@ public class ExampleRollerConstants {
   // Plain constants: they are read by match code. Adjust them in Phoenix Tuner X with the
   // mechanism in front of you, then write the result here. See docs/tunables.md.
 
-  /** Compiled-in default for {@link #ACCELERATION_RPM_PER_SEC}, in mechanism RPM per second. */
-  public static final double ACCELERATION_RPM_PER_SEC_DEFAULT = 9000.0;
-
   /** Profile acceleration, in mechanism RPM per second. */
-  public static final double ACCELERATION_RPM_PER_SEC = ACCELERATION_RPM_PER_SEC_DEFAULT;
+  public static final double ACCELERATION_RPM_PER_SEC = 9000.0;
 
   // ==========================================================================================
   // TOLERANCE
@@ -256,10 +253,7 @@ public class ExampleRollerConstants {
    * then edited here. A plain constant: it is read by match code, and nothing match code reads may
    * be a dashboard tunable (see docs/tunables.md).
    */
-  public static final double VELOCITY_TOLERANCE_RPM_DEFAULT = 120.0;
-
-  /** How close counts as "at velocity", in mechanism RPM. */
-  public static final double VELOCITY_TOLERANCE_RPM = VELOCITY_TOLERANCE_RPM_DEFAULT;
+  public static final double VELOCITY_TOLERANCE_RPM = 120.0;
 
   // ==========================================================================================
   // JAM DETECTION — keep this if the mechanism can stall against a game piece

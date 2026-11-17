@@ -148,8 +148,15 @@ public interface ExampleLiftIO {
    *
    * <p>The routine that decides <i>when</i> this is safe to call is a command, not a subsystem
    * method — see {@code ExampleLiftCommands.zero()}.
+   *
+   * @return true if the zero reached the device. The caller must not treat the mechanism as zeroed
+   *     otherwise. The default returns true so replay and stub IOs take the success path; a replay
+   *     of a match where the real write failed will therefore diverge at that point, which is the
+   *     reason the real IO reports the failure loudly to the Driver Station when it happens.
    */
-  default void zeroPosition() {}
+  default boolean zeroPosition() {
+    return true;
+  }
 
   /**
    * Switches the REVERSE soft limit on or off. Leader only.
