@@ -56,6 +56,12 @@ public class ExampleRollerCommands {
   private ExampleRollerCommands() {}
 
   /**
+   * Built once. {@link #idle} is a default command, so it runs every loop of every match, and a
+   * {@code Volts.of(0)} written inline would allocate a new object each time.
+   */
+  private static final Voltage ZERO_VOLTS = Volts.of(0);
+
+  /**
    * Spins at a velocity while the command runs, and stops on release.
    *
    * <p>{@code startEnd} rather than {@code runOnce} because a roller left spinning after its button
@@ -86,8 +92,7 @@ public class ExampleRollerCommands {
    * and a released button leaves it in whatever state it was last commanded to.
    */
   public static Command idle(ExampleRoller roller) {
-    return Commands.run(() -> roller.setVoltage(Volts.of(0)), roller)
-        .withName("ExampleRoller_Idle");
+    return Commands.run(() -> roller.setVoltage(ZERO_VOLTS), roller).withName("ExampleRoller_Idle");
   }
 
   /**

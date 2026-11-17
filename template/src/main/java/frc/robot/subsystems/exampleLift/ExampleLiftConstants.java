@@ -453,6 +453,24 @@ public class ExampleLiftConstants {
    */
   public static final double ZEROING_STALL_DEBOUNCE_SECONDS = 0.1;
 
+  /**
+   * How close to zero, in drum rotations, the logged position must read for a sent zero to count as
+   * landed. The zero is sent without waiting, so this is how the routine learns it arrived.
+   */
+  public static final double ZERO_CONFIRM_TOLERANCE_ROTATIONS = 0.05;
+
+  /**
+   * How long a sent zero has to show up in the logged position before it counts as failed. Position
+   * is a 50 Hz signal, so a zero that landed reads back within a loop or two; 0.2 s is ten loops.
+   */
+  public static final double ZERO_CONFIRM_SECONDS = 0.2;
+
+  /**
+   * Per-attempt timeout for the one zeroing write that is waited for, the reverse soft limit. Five
+   * attempts, so the worst case is 0.25 s — once per zero, with the carriage at rest on its stop.
+   */
+  public static final double SOFT_LIMIT_WRITE_TIMEOUT_SECONDS = 0.05;
+
   // ==========================================================================================
   // VISUALIZATION — display only. Delete with ExampleLiftVisualizer if unused.
   // ==========================================================================================
@@ -712,7 +730,10 @@ public class ExampleLiftConstants {
     // Inches in, rotations out — the one conversion boundary.
     config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
     config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = inchesToRotations(MAX_TRAVEL_INCHES);
-    config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
+    // The REVERSE bound boots OFF. Before zeroing it is measured from wherever the carriage sat at
+    // power-on, so it means nothing, and with it on the Talon refuses to creep down to the stop.
+    // ExampleLiftCommands.zero() turns it on once a zero is confirmed. See ExampleLiftIO.
+    config.SoftwareLimitSwitch.ReverseSoftLimitEnable = false;
     config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = inchesToRotations(MIN_TRAVEL_INCHES);
 
     // ---- Feedback ----

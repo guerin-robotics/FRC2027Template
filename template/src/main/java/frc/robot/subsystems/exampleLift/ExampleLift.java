@@ -6,6 +6,8 @@ import static edu.wpi.first.units.Units.Rotations;
 
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.units.measure.Voltage;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.lib.util.CommandLogger;
 import frc.robot.Robot;
@@ -70,8 +72,14 @@ public class ExampleLift extends SubsystemBase {
    */
   private boolean closedLoopActive = false;
 
-  /** False until the zeroing routine has found the hard stop. Every height is a lie until then. */
+  /** False until a zero has been sent AND confirmed. Every height is a lie until then. */
   private boolean zeroed = false;
+
+  /** True between sending a zero and seeing it land (or giving up). See {@link #requestZero()}. */
+  private boolean zeroPending = false;
+
+  /** When the pending zero was sent, for the {@code ZERO_CONFIRM_SECONDS} window. */
+  private double zeroRequestedAt = 0.0;
 
   /**
    * Debounces the zeroing stall check.
@@ -115,10 +123,13 @@ public class ExampleLift extends SubsystemBase {
     // Once per loop, before anything reads it. See the field comment.
     atZeroingStall = zeroingStallDebounce.calculate(isZeroingStallConditionPresent());
 
+    updateZeroConfirmation();
+
     Logger.recordOutput(ExampleLiftConstants.NAME + "/GoalInches", goalInches);
     Logger.recordOutput(ExampleLiftConstants.NAME + "/PositionInches", getPositionInches());
     Logger.recordOutput(ExampleLiftConstants.NAME + "/AtPosition", isAtPosition());
     Logger.recordOutput(ExampleLiftConstants.NAME + "/Zeroed", zeroed);
+    Logger.recordOutput(ExampleLiftConstants.NAME + "/ZeroPending", zeroPending);
     Logger.recordOutput(ExampleLiftConstants.NAME + "/AtZeroingStall", atZeroingStall);
     Logger.recordOutput(ExampleLiftConstants.NAME + "/AtStatorLimit", isAtStatorLimit());
 
@@ -172,13 +183,16 @@ public class ExampleLift extends SubsystemBase {
   }
 
   /**
-   * Switches the reverse soft limit off for zeroing, and back on afterward.
+   * Switches the reverse soft limit, writing only if the device does not already report that state.
    *
-   * <p>Only {@code ExampleLiftCommands.zero()} should call this. See {@code
-   * ExampleLiftIO.setReverseSoftLimitEnabled} for why the routine cannot work without it.
+   * <p>Only {@code ExampleLiftCommands.zero()} should call this. The write is the one the zeroing
+   * routine waits for — see {@code ExampleLiftIO.setReverseSoftLimitEnabled} — so skipping it when
+   * nothing would change is what keeps a first zero after boot to a single waited write.
    */
   public void setReverseSoftLimitEnabled(boolean enabled) {
-    io.setReverseSoftLimitEnabled(enabled);
+    if (inputs.reverseSoftLimitEnabled != enabled) {
+      io.setReverseSoftLimitEnabled(enabled);
+    }
   }
 
   /**
@@ -193,28 +207,60 @@ public class ExampleLift extends SubsystemBase {
   }
 
   /**
-   * Declares the current position to be zero.
+   * Sends "the current position is zero" to the device and starts confirming it.
    *
    * <p>Only call this once the carriage is genuinely at the hard stop — {@code
    * ExampleLiftCommands.zero()} is what establishes that. A zero taken at an unknown position is
    * worse than no zero: the mechanism believes it for the rest of the match, soft limits included.
    *
-   * <p>If the write does not reach the Talon, the lift stays <b>not zeroed</b> and {@code
-   * ZeroWriteFailed} is logged. Declaring zero on a write that never landed is the silent
-   * fixed-offset failure this whole routine exists to prevent.
+   * <p>The write is sent without waiting, so the robot loop never stalls on it. The lift becomes
+   * {@link #isZeroed() zeroed} only once the logged position reads within {@code
+   * ZERO_CONFIRM_TOLERANCE_ROTATIONS} of zero, inside {@code ZERO_CONFIRM_SECONDS}; otherwise it
+   * stays not zeroed and {@code ZeroFailed} is logged. Declaring zero on a write that never landed
+   * is the silent fixed-offset failure this routine exists to prevent. Because the decision is made
+   * from logged inputs, replay reaches the same verdict the robot did.
    *
-   * @return true if the lift is now zeroed
+   * <p>The one ambiguous case is harmless: if the write is lost but the position already read near
+   * zero, the lift booted on its stop, so its power-on zero was already the right one.
    */
-  public boolean zeroAtCurrentPosition() {
-    boolean written = io.zeroPosition();
-    Logger.recordOutput(ExampleLiftConstants.NAME + "/ZeroWriteFailed", !written);
-    if (!written) {
-      return false;
-    }
-    zeroed = true;
-    goalInches = 0.0;
+  public void requestZero() {
+    zeroed = false; // the frame is about to change; nothing may trust the old one meanwhile
     closedLoopActive = false;
-    return true;
+    zeroPending = true;
+    zeroRequestedAt = Timer.getFPGATimestamp();
+    io.zeroPosition();
+  }
+
+  /** Settles a pending zero. Called once per loop from {@link #periodic()}, after the inputs. */
+  private void updateZeroConfirmation() {
+    if (!zeroPending) {
+      return;
+    }
+    if (Math.abs(inputs.motorPosition.in(Rotations))
+        < ExampleLiftConstants.ZERO_CONFIRM_TOLERANCE_ROTATIONS) {
+      zeroPending = false;
+      zeroed = true;
+      goalInches = 0.0;
+      Logger.recordOutput(ExampleLiftConstants.NAME + "/ZeroFailed", false);
+    } else if (Timer.getFPGATimestamp() - zeroRequestedAt
+        > ExampleLiftConstants.ZERO_CONFIRM_SECONDS) {
+      zeroPending = false;
+      Logger.recordOutput(ExampleLiftConstants.NAME + "/ZeroFailed", true);
+      DriverStation.reportError(
+          ExampleLiftConstants.NAME
+              + " zero failed: the position never read zero after the zero was sent",
+          false);
+    }
+  }
+
+  /** True between sending a zero and its confirmation or failure. */
+  public boolean isZeroPending() {
+    return zeroPending;
+  }
+
+  /** Whether the device has confirmed the reverse soft limit is on. */
+  public boolean isReverseSoftLimitEnabled() {
+    return inputs.reverseSoftLimitEnabled;
   }
 
   // ============================================================================================
@@ -242,7 +288,7 @@ public class ExampleLift extends SubsystemBase {
             < ExampleLiftConstants.POSITION_TOLERANCE_INCHES;
   }
 
-  /** Has the hard stop been found and zero established this power cycle? */
+  /** Has the hard stop been found, and the zero confirmed, this power cycle? */
   public boolean isZeroed() {
     return zeroed;
   }

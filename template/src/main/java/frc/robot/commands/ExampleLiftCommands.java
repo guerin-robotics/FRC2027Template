@@ -59,9 +59,13 @@ public class ExampleLiftCommands {
    *       first loop and be zeroed mid-air. The creep runs for {@code settleSeconds} first, then
    *       the detector is reset, so the stall that ends zeroing is one that happened under the
    *       creep. {@code settleSeconds} must exceed the time the carriage takes to start moving.
-   *   <li><b>The reverse soft limit is off while creeping</b>, and back on in {@code finallyDo}
-   *       after the zero, on every exit path. At boot the bound sits at the encoder's zero, so with
-   *       it on the Talon refuses to drive down at all.
+   *   <li><b>The reverse soft limit is off while creeping</b>. It boots off — before a zero it is
+   *       measured from the power-on position and means nothing — and goes on in {@code finallyDo}
+   *       only once the lift is zeroed.
+   *   <li><b>Nothing waits on the bus except one short write.</b> The zero itself is sent without
+   *       waiting and confirmed from the logged position, so a slow or missing Talon cannot stall
+   *       the robot loop. Only the soft-limit write is waited for, bounded to 0.25 s; see {@code
+   *       ExampleLiftIO.setReverseSoftLimitEnabled} for why.
    *   <li><b>On timeout it GIVES UP WITHOUT ZEROING.</b> A zero taken at an unknown position is
    *       worse than no zero: the mechanism believes it for the rest of the match and every height
    *       afterward is wrong by a silent, fixed offset. Failing loudly and leaving {@code
@@ -92,9 +96,11 @@ public class ExampleLiftCommands {
   public static Command zero(
       ExampleLift lift, Voltage creepVoltage, double settleSeconds, double timeoutSeconds) {
     return Commands.sequence(
-            // The reverse bound has to come off first. At boot the encoder reads zero wherever the
-            // carriage is, and the bound sits at zero, so the Talon refuses to drive down — and a
-            // carriage that does not move passes the stall check and gets zeroed in the air.
+            // The reverse bound has to be off to creep down to the stop. It boots off, so on a
+            // first
+            // zero this writes nothing; it only costs a (waited-for) write when re-zeroing a lift
+            // that was already zeroed. If that write fails, the creep is stopped by the bound
+            // instead of the stop, never stalls, and the routine times out without zeroing.
             Commands.runOnce(() -> lift.setReverseSoftLimitEnabled(false), lift),
             Commands.run(() -> lift.setVoltage(creepVoltage), lift).withTimeout(settleSeconds),
             // Forget anything the detector saw before or during the settle.
@@ -103,7 +109,15 @@ public class ExampleLiftCommands {
                 .until(lift::isAtZeroingStall)
                 .withTimeout(timeoutSeconds),
             Commands.either(
-                Commands.runOnce(lift::zeroAtCurrentPosition, lift),
+                // Send the zero without waiting, keep the carriage pressed into the stop, and let
+                // the subsystem confirm it from the logged position. The wait is bounded by twice
+                // the subsystem's own confirmation window, as a backstop.
+                Commands.deadline(
+                    Commands.sequence(
+                        Commands.runOnce(lift::requestZero),
+                        Commands.waitUntil(() -> !lift.isZeroPending())
+                            .withTimeout(2.0 * ExampleLiftConstants.ZERO_CONFIRM_SECONDS)),
+                    Commands.run(() -> lift.setVoltage(creepVoltage))),
                 Commands.runOnce(
                     () ->
                         DriverStation.reportError(
@@ -113,12 +127,15 @@ public class ExampleLiftCommands {
                                 + "s",
                             false)),
                 lift::isAtZeroingStall))
-        // Stop, then restore the bound. It goes back on after the zero, so it is re-applied in the
-        // corrected frame, and on every exit path including interruption and timeout.
+        // Stop, then put the bound back on if — and only if — the lift is zeroed. That covers a
+        // fresh zero (bound on in the new frame), an interrupted re-zero (bound back on in the old,
+        // still valid frame), and a failed one (left off, because an unzeroed bound means nothing).
         .finallyDo(
             interrupted -> {
               lift.stop();
-              lift.setReverseSoftLimitEnabled(true);
+              if (lift.isZeroed()) {
+                lift.setReverseSoftLimitEnabled(true);
+              }
             })
         .withName("ExampleLift_Zero");
   }

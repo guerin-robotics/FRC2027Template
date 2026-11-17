@@ -117,6 +117,9 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
    */
   private double zeroOffsetMeters = 0.0;
 
+  /** Mirrors the real IO's confirmed state; the boot config has the reverse bound off. */
+  private boolean reverseSoftLimitEnabled = false;
+
   @Override
   public void updateInputs(ExampleLiftIOInputs inputs) {
     if (closedLoop) {
@@ -135,6 +138,7 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
     sim.update(LOOP_PERIOD_SECONDS);
 
     inputs.connected = true;
+    inputs.reverseSoftLimitEnabled = reverseSoftLimitEnabled;
     inputs.motorVoltage = Volts.of(appliedVolts);
     inputs.motorPosition = Rotations.of(metersToRotations(reportedMeters()));
     inputs.motorVelocity =
@@ -184,9 +188,16 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
   }
 
   @Override
-  public boolean zeroPosition() {
+  public void zeroPosition() {
     zeroOffsetMeters = sim.getPositionMeters();
-    return true;
+  }
+
+  @Override
+  public void setReverseSoftLimitEnabled(boolean enabled) {
+    // Sim enforces travel with ElevatorSim's own limits, so there is no device bound to switch.
+    // Track the state anyway so the logged input — and everything the subsystem decides from it —
+    // matches what the real IO reports.
+    reverseSoftLimitEnabled = enabled;
   }
 
   /** Height as the mechanism believes it, measured from wherever zero was last declared. */

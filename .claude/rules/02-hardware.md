@@ -87,8 +87,8 @@ how the rotor extends the absolute reading, so the fusion ends up wrong by the w
 while every config call reports success.
 
 Applying a sub-config is fine when the object came from a fully-built config — that is what
-`ExampleLiftIOReal.setReverseSoftLimitEnabled` does with `config.SoftwareLimitSwitch`: it takes
-the block from a fresh `getFXConfig()` rather than building one by hand. (There is no live gain
+`ExampleLiftIOReal` does with its reverse soft-limit blocks: it takes `config.SoftwareLimitSwitch`
+from `getFXConfig()` once, in the constructor, rather than building one by hand. (There is no live gain
 push any more: gains are tuned in Phoenix Tuner X and committed, then applied once at
 construction. See `docs/tunables.md`.) The rule
 is not "never apply a sub-config", it is **never apply one you hand-built**.

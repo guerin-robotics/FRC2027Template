@@ -4,6 +4,7 @@ import static edu.wpi.first.units.Units.Rotations;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.configs.SoftwareLimitSwitchConfigs;
 import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
@@ -64,6 +65,20 @@ public class ExampleLiftIOReal implements ExampleLiftIO {
   private final VoltageOut voltageRequest = new VoltageOut(0).withEnableFOC(true);
 
   private final MotionMagicTorqueCurrentFOC positionRequest = new MotionMagicTorqueCurrentFOC(0);
+
+  // ---- Reverse soft limit ----
+  //
+  // The two blocks are built ONCE, from getFXConfig(), so switching the bound allocates nothing and
+  // never applies a hand-built sub-config (which would also reset the FORWARD bound to its class
+  // default, off — see .claude/rules/02-hardware.md).
+
+  private final SoftwareLimitSwitchConfigs reverseLimitOn =
+      ExampleLiftConstants.getFXConfig().SoftwareLimitSwitch.withReverseSoftLimitEnable(true);
+  private final SoftwareLimitSwitchConfigs reverseLimitOff =
+      ExampleLiftConstants.getFXConfig().SoftwareLimitSwitch.withReverseSoftLimitEnable(false);
+
+  /** Last state the device CONFIRMED. Boot config has the reverse bound off. */
+  private boolean reverseSoftLimitEnabled = false;
 
   public ExampleLiftIOReal() {
     // TODO: add the real ID to Constants.CanIds, and pick the bus deliberately — RIO_BUS here, or
@@ -174,6 +189,7 @@ public class ExampleLiftIOReal implements ExampleLiftIO {
     inputs.stickyUndervoltage = stickyUndervoltage.getValue();
     inputs.stickyOverTemp = stickyOverTemp.getValue();
     inputs.stickyHardwareFault = stickyHardware.getValue();
+    inputs.reverseSoftLimitEnabled = reverseSoftLimitEnabled;
   }
 
   @Override
@@ -192,25 +208,32 @@ public class ExampleLiftIOReal implements ExampleLiftIO {
   }
 
   @Override
-  public boolean zeroPosition() {
-    // tryUntilOk, with a timeout, because this is the one write where a silent failure is
-    // catastrophic: the mechanism carries on believing a zero it never actually set, and every
-    // height and soft limit afterward is off by a fixed unknown offset. Its result is returned, not
-    // dropped, so the subsystem can refuse to call itself zeroed (Power of 10 rule 7).
-    return PhoenixUtil.tryUntilOk(5, () -> motor.setPosition(0.0, 0.25));
+  public void zeroPosition() {
+    // Timeout 0: queue the write and return. Waiting here would stall the whole robot loop — up to
+    // 1.25 s with a slow or missing Talon. Whether it landed is checked by ExampleLift against the
+    // logged position over the next few loops, which is both non-blocking and replayable.
+    motor.setPosition(0.0, 0);
   }
 
   @Override
   public void setReverseSoftLimitEnabled(boolean enabled) {
-    // The block comes from getFXConfig(), never a hand-built SoftwareLimitSwitchConfigs: apply()
-    // writes the whole sub-group, and a fresh one would also reset the FORWARD bound to its class
-    // default — off. See .claude/rules/02-hardware.md.
+    // A waited-for write, deliberately — see the interface. Bounded short: five tries at
+    // SOFT_LIMIT_WRITE_TIMEOUT_SECONDS each. The state reported in the inputs changes only if the
+    // device confirmed it, so a lost write shows up in the log instead of being assumed.
     //
     // Leader only. A follower mirrors the leader's output and owns no travel; its config has both
     // bounds switched off, and pushing this block to it would hand it the leader's forward bound.
-    var softLimits = ExampleLiftConstants.getFXConfig().SoftwareLimitSwitch;
-    softLimits.ReverseSoftLimitEnable = enabled;
-    PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(softLimits, 0.25));
+    SoftwareLimitSwitchConfigs block = enabled ? reverseLimitOn : reverseLimitOff;
+    boolean confirmed =
+        PhoenixUtil.tryUntilOk(
+            5,
+            () ->
+                motor
+                    .getConfigurator()
+                    .apply(block, ExampleLiftConstants.SOFT_LIMIT_WRITE_TIMEOUT_SECONDS));
+    if (confirmed) {
+      reverseSoftLimitEnabled = enabled;
+    }
   }
 
   // ==========================================================================================
@@ -257,7 +280,7 @@ public class ExampleLiftIOReal implements ExampleLiftIO {
   //
   //   - setReverseSoftLimitEnabled(): LEADER ONLY. The follower's bounds are off for good; pushing
   //     the leader's block to it would hand it the leader's forward bound in the wrong frame.
-  //   - zeroPosition(): zero the follower too, with follower.setPosition(0.0, 0.25). Nothing reads
+  //   - zeroPosition(): zero the follower too, with follower.setPosition(0.0, 0). Nothing reads
   //     it, but a follower a whole boot offset away from its leader is confusing to scrub past in
   //     a hoot log. Zero is zero in either alignment, so no sign correction is needed.
   //

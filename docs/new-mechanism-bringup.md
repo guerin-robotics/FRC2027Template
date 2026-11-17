@@ -131,10 +131,14 @@ Work at low output, 1–2 V, with a hand on disable.
    - On timeout it **gives up without zeroing**. A zero taken at an unknown position is worse
      than no zero, because the mechanism believes it for the rest of the match — including in
      its soft limits.
-   - It **takes the reverse soft limit off before creeping and puts it back in its
-     `finallyDo`**. At boot the encoder reads zero wherever the carriage is and the reverse bound
-     sits at zero, so with the bound on the Talon refuses to drive down — and a carriage that does
-     not move passes the stall check and is zeroed in the air.
+   - **The reverse soft limit boots off, and goes on only once the lift is zeroed.** Before a
+     zero it is measured from the power-on position and means nothing — and with it on, the Talon
+     refuses to drive down, so a carriage that does not move passes the stall check and is zeroed
+     in the air. Re-zeroing an already-zeroed lift switches it off first.
+   - **It never stalls the robot loop on the bus.** The zero is sent without waiting and confirmed
+     from the logged position within `ZERO_CONFIRM_SECONDS`; `ZeroPending` and `ZeroFailed` show
+     the outcome in the log. The only write it waits for is the soft-limit switch, bounded to
+     0.25 s. Watch `ReverseSoftLimitEnabled` in the inputs after the first zero on the robot.
    - It compares stator current **by magnitude**. Phoenix signs it with output direction, and the
      creep is downward.
    - **With a follower, halve the creep voltage** (`Constants.Setpoints`, passed to `zero()`). The follower mirrors the leader in hardware, so

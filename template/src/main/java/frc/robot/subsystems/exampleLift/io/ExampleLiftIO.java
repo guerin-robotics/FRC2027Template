@@ -119,6 +119,17 @@ public interface ExampleLiftIO {
     public boolean stickyUndervoltage = false;
     public boolean stickyOverTemp = false;
     public boolean stickyHardwareFault = false;
+
+    // ---- Reverse soft limit ----
+
+    /**
+     * Whether the REVERSE soft limit is on, as last confirmed by the device.
+     *
+     * <p>An input, not a subsystem field, because it is the outcome of a CAN write the code cannot
+     * assume landed. Logging it is what lets replay take the same branch the robot did, and it is
+     * the channel to check if a zeroed lift ever drives below its bottom bound.
+     */
+    public boolean reverseSoftLimitEnabled = false;
   }
 
   /** Called every loop. Implementations must update every field in {@code inputs}. */
@@ -140,36 +151,31 @@ public interface ExampleLiftIO {
   default void stop() {}
 
   /**
-   * Declares the CURRENT position to be zero.
+   * Sends "the CURRENT position is zero" to the device, <b>without waiting</b> for it to answer.
    *
    * <p>Only call this once the carriage is genuinely at the hard stop. A zero taken at an unknown
    * position is worse than no zero: the mechanism believes it for the rest of the match, soft
    * limits included, and every height afterward is wrong by a silent fixed offset.
    *
-   * <p>The routine that decides <i>when</i> this is safe to call is a command, not a subsystem
-   * method — see {@code ExampleLiftCommands.zero()}.
-   *
-   * @return true if the zero reached the device. The caller must not treat the mechanism as zeroed
-   *     otherwise. The default returns true so replay and stub IOs take the success path; a replay
-   *     of a match where the real write failed will therefore diverge at that point, which is the
-   *     reason the real IO reports the failure loudly to the Driver Station when it happens.
+   * <p>Non-blocking on purpose: waiting for the device holds the whole robot loop, and with a slow
+   * or missing Talon that is over a second per attempt. Whether the zero landed is decided by the
+   * subsystem from the logged position over the next few loops, which also makes the outcome replay
+   * exactly. See {@code ExampleLift.requestZero()}.
    */
-  default boolean zeroPosition() {
-    return true;
-  }
+  default void zeroPosition() {}
 
   /**
-   * Switches the REVERSE soft limit on or off. Leader only.
+   * Switches the REVERSE soft limit on or off, and reports the result in {@link
+   * ExampleLiftIOInputs#reverseSoftLimitEnabled}. Leader only.
    *
-   * <p>Exists for the zeroing routine and nothing else. At boot the motor encoder reads zero
-   * wherever the carriage is, and the reverse bound sits at {@code MIN_TRAVEL_INCHES} — zero — so
-   * the Talon believes it is already against that bound and refuses to drive toward the stop. The
-   * carriage does not move, velocity stays at zero, the stall check passes, and the routine zeroes
-   * the lift wherever it was parked. Nothing about that looks like a failure.
+   * <p>The lift <b>boots with it off</b>: before zeroing, the bound is measured from wherever the
+   * carriage happened to be at power-on, so it means nothing — and with it on, the Talon would
+   * refuse to creep down toward the stop at all. {@code ExampleLiftCommands.zero()} switches it on
+   * once a zero is confirmed, and off again only when re-zeroing a lift that already had one.
    *
-   * <p>{@code ExampleLiftCommands.zero()} takes the bound off before creeping and puts it back in
-   * its {@code finallyDo}, after the zero, so it is re-applied against the corrected frame on every
-   * exit path. While it is off, the stall detection and the timeout bound downward travel.
+   * <p>This is the one write the routine still <b>waits</b> for, with a short bounded timeout. A
+   * lost "enable" would leave the lift with no lower bound and nothing saying so, and the device
+   * has no cheap status signal that reports the bound, so it is confirmed rather than assumed.
    */
   default void setReverseSoftLimitEnabled(boolean enabled) {}
 }
