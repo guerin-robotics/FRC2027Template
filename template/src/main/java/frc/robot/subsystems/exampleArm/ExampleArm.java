@@ -2,7 +2,6 @@ package frc.robot.subsystems.exampleArm;
 
 import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.Degrees;
-import static edu.wpi.first.units.Units.Rotations;
 
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Voltage;
@@ -50,8 +49,18 @@ public class ExampleArm extends SubsystemBase {
   private final ExampleArmIO io;
   private final ExampleArmIOInputsAutoLogged inputs;
 
-  /** Last commanded position, so {@link #isAtPosition()} has something to compare against. */
-  private Angle goalPosition = Rotations.of(0);
+  /**
+   * Last commanded position, already clamped to travel, so {@link #isAtPosition()} has something to
+   * compare against. Starts at the reverse bound rather than zero, because zero is not necessarily
+   * inside travel.
+   */
+  private Angle goalPosition = Degrees.of(ExampleArmConstants.REVERSE_SOFT_LIMIT_DEGREES);
+
+  /**
+   * True only while a closed-loop position is being commanded. Open-loop voltage and stop clear it,
+   * so a goal nobody is holding any more cannot report the arm as arrived.
+   */
+  private boolean closedLoopActive = false;
 
   /**
    * Draws the mechanism. Diagnostic only — deleting this field and the file changes nothing except
@@ -99,13 +108,21 @@ public class ExampleArm extends SubsystemBase {
   /**
    * Commands a profiled move to an angle, and holds there.
    *
-   * <p>Soft limits are enforced on the Talon, so an out-of-range goal is clamped by the device
-   * rather than driving into a hard stop. That does mean {@link #isAtPosition()} will read false
-   * forever for such a goal, which is the intended tell.
+   * <p>The goal is <b>clamped to the soft limits</b> before it is sent, and {@code GoalWasClamped}
+   * is logged. Unclamped, the Talon would stop at the bound and {@link #isAtPosition()} would read
+   * false forever, so every sequence waiting on it would burn its whole timeout with nothing in the
+   * log saying why. The clamp flag is that missing line.
    */
   public void setPosition(Angle position) {
-    goalPosition = position;
-    io.setPosition(position);
+    double requested = position.in(Degrees);
+    double clamped =
+        Math.max(
+            ExampleArmConstants.REVERSE_SOFT_LIMIT_DEGREES,
+            Math.min(ExampleArmConstants.FORWARD_SOFT_LIMIT_DEGREES, requested));
+    Logger.recordOutput(ExampleArmConstants.NAME + "/GoalWasClamped", clamped != requested);
+    goalPosition = Degrees.of(clamped);
+    closedLoopActive = true;
+    io.setPosition(goalPosition);
   }
 
   /**
@@ -115,11 +132,13 @@ public class ExampleArm extends SubsystemBase {
    * resting state — the default command holds a position instead.
    */
   public void setVoltage(Voltage volts) {
+    closedLoopActive = false;
     io.setVoltage(volts);
   }
 
   /** Stops commanding output. See the warning on {@link #setVoltage}. */
   public void stop() {
+    closedLoopActive = false;
     io.stop();
   }
 
@@ -139,8 +158,10 @@ public class ExampleArm extends SubsystemBase {
    * it, so a log gap reads as "the robot stopped checking" rather than "nothing asked".
    */
   public boolean isAtPosition() {
-    return Math.abs(inputs.motorPosition.in(Degrees) - goalPosition.in(Degrees))
-        < ExampleArmConstants.POSITION_TOLERANCE_DEGREES.get();
+    // False under open-loop or stop: sitting near an old goal is not the same as holding it.
+    return closedLoopActive
+        && Math.abs(inputs.motorPosition.in(Degrees) - goalPosition.in(Degrees))
+            < ExampleArmConstants.POSITION_TOLERANCE_DEGREES.get();
   }
 
   /** Current mechanism angle. Useful for interpolation tables and for logging call sites. */
@@ -163,6 +184,17 @@ public class ExampleArm extends SubsystemBase {
    */
   public boolean isEncoderConnected() {
     return inputs.encoderConnected;
+  }
+
+  /**
+   * True when the CANcoder reports a red magnet while it is connected.
+   *
+   * <p>Register with {@code FaultMonitor} beside {@link #isEncoderConnected()}. A red magnet is the
+   * worse of the two failures: the encoder keeps answering, with readings that look plausible and
+   * are wrong.
+   */
+  public boolean isEncoderMagnetRed() {
+    return inputs.encoderConnected && inputs.encoderMagnetHealth == 1;
   }
 
   /**

@@ -794,9 +794,15 @@ public class ExampleArmConstants {
         .withSensorToMechanismRatio(SENSOR_TO_MECHANISM_RATIO);
 
     // ---- Gains ----
+    // All seven, even the ones usually left at zero. Every gain here is a tunable in
+    // TUNABLE_GAINS, and one that is watched but never written moves on the dashboard while the
+    // Talon ignores it — which reads as a dead gain, not a missing line.
     config.Slot0.kS = getKS();
+    config.Slot0.kV = getKV();
+    config.Slot0.kA = getKA();
     config.Slot0.kG = getKG();
     config.Slot0.kP = getKP();
+    config.Slot0.kI = getKI();
     config.Slot0.kD = getKD();
 
     // Arm_Cosine, because gravity torque on a pivoting mechanism varies with the cosine of its

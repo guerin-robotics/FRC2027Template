@@ -137,7 +137,7 @@ Work at low output, 1–2 V, with a hand on disable.
      not move passes the stall check and is zeroed in the air.
    - It compares stator current **by magnitude**. Phoenix signs it with output direction, and the
      creep is downward.
-   - **With a follower, halve `ZEROING_VOLTAGE`.** The follower mirrors the leader in hardware, so
+   - **With a follower, halve the creep voltage** (`Constants.Setpoints`, passed to `zero()`). The follower mirrors the leader in hardware, so
      the force into the stop doubles.
 
    **Verify it on the robot; simulation cannot.** The sim carriage always starts at the bottom, so

@@ -10,6 +10,7 @@ import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.MagnetHealthValue;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
@@ -71,6 +72,7 @@ public class ExampleArmIOReal implements ExampleArmIO {
 
   private final StatusSignal<Angle> encoderAbsolutePosition;
   private final StatusSignal<AngularVelocity> encoderVelocity;
+  private final StatusSignal<MagnetHealthValue> encoderMagnetHealth;
 
   /**
    * Debounces the motor connection check.
@@ -152,6 +154,7 @@ public class ExampleArmIOReal implements ExampleArmIO {
     stickyHardware = motor.getStickyFault_Hardware();
     encoderAbsolutePosition = encoder.getAbsolutePosition();
     encoderVelocity = encoder.getVelocity();
+    encoderMagnetHealth = encoder.getMagnetHealth();
 
     // ---- Signal rates. This split is the team standard; use it on every mechanism. ----
     //
@@ -211,13 +214,20 @@ public class ExampleArmIOReal implements ExampleArmIO {
     // encoderConnected, which a 4 Hz signal would report as stale rather than present.
     BaseStatusSignal.setUpdateFrequencyForAll(
         50.0, encoder.getPosition(), encoder.getVelocity(), encoder.getAbsolutePosition());
+
+    // Magnet health at 10 Hz: it is a mounting property, not something that changes as the arm
+    // moves. Registered here, before optimizing, or it falls to the 4 Hz floor by omission.
+    BaseStatusSignal.setUpdateFrequencyForAll(10.0, encoder.getMagnetHealth());
     encoder.optimizeBusUtilization();
   }
 
   @Override
   public void updateInputs(ExampleArmIOInputs inputs) {
     // Refresh the slow groups. Cheap — a signal that has not updated repeats its last value.
+    // Magnet health is refreshed here, NOT in the encoder's connected group below: it is a 10 Hz
+    // signal, and folding it into that status would let the slower frame govern connected.
     BaseStatusSignal.refreshAll(
+        encoderMagnetHealth,
         motorTemperature,
         closedLoopError,
         stickyBootDuringEnable,
@@ -254,6 +264,7 @@ public class ExampleArmIOReal implements ExampleArmIO {
     inputs.motorPosition = motorPosition.getValue();
     inputs.motorVelocity = motorVelocity.getValue();
     inputs.encoderAbsolutePosition = encoderAbsolutePosition.getValue();
+    inputs.encoderMagnetHealth = encoderMagnetHealth.getValue().value;
     inputs.motorTemperature = motorTemperature.getValue();
     inputs.closedLoopReference = closedLoopReference.getValueAsDouble();
     inputs.closedLoopError = closedLoopError.getValueAsDouble();

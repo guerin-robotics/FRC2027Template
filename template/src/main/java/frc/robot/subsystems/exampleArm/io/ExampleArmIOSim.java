@@ -138,6 +138,7 @@ public class ExampleArmIOSim implements ExampleArmIO {
     inputs.motorPosition = Radians.of(mechanismRadians());
     inputs.motorVelocity = RadiansPerSecond.of(sim.getVelocityRadPerSec());
     inputs.encoderAbsolutePosition = Radians.of(mechanismRadians());
+    inputs.encoderMagnetHealth = 3; // green — sim has no magnet to mount badly
     inputs.motorStatorAmps = Amps.of(sim.getCurrentDrawAmps());
     inputs.motorSupplyAmps = Amps.of(sim.getCurrentDrawAmps());
     inputs.motorTemperature = Celsius.of(25.0);

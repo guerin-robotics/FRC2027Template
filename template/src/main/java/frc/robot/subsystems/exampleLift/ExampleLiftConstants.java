@@ -6,7 +6,6 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 import static edu.wpi.first.units.Units.Second;
 import static edu.wpi.first.units.Units.Seconds;
-import static edu.wpi.first.units.Units.Volts;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.GravityTypeValue;
@@ -18,7 +17,6 @@ import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.Time;
-import edu.wpi.first.units.measure.Voltage;
 import frc.lib.util.LoggedTunableNumber;
 import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
@@ -437,8 +435,10 @@ public class ExampleLiftConstants {
   // GenericSlamElevator uses the same velocity-near-zero-for-a-dwell idea. 5419's current-based
   // check exists in their source but is commented out and unused.
 
-  /** Downward creep voltage while seeking the hard stop. Negative is down. */
-  public static final Voltage ZEROING_VOLTAGE = Volts.of(-3.0);
+  // The creep voltage, the settle time and the timeout are NOT here: they are a commanded value
+  // and two waits, so they live in Constants.Setpoints and Constants.Waits and are passed to
+  // ExampleLiftCommands.zero(). Its javadoc has starting values. What stays here is how the
+  // detector decides "that was the stop", which is a property of the mechanism.
 
   /**
    * Stator current, in amps, that counts as "pushing against the hard stop" while creeping.
@@ -472,14 +472,10 @@ public class ExampleLiftConstants {
    *
    * <p><b>Not a tunable, deliberately.</b> A {@code Debouncer} reads its dwell once, when it is
    * constructed in the {@code ExampleLift} constructor, so a dashboard edit would move the logged
-   * number and change nothing about the robot. Same for the timeout below, which {@code
-   * .withTimeout()} captures when the command is built. A knob that appears to work and does not is
-   * worse than no knob — edit these here and redeploy.
+   * number and change nothing about the robot. A knob that appears to work and does not is worse
+   * than no knob — edit this here and redeploy.
    */
   public static final double ZEROING_STALL_DEBOUNCE_SECONDS = 0.1;
-
-  /** Give up and refuse to zero if the stop is never found within this budget. Not tunable. */
-  public static final double ZEROING_TIMEOUT_SECONDS = 3.0;
 
   // ==========================================================================================
   // VISUALIZATION — display only. Delete with ExampleLiftVisualizer if unused.
@@ -754,9 +750,15 @@ public class ExampleLiftConstants {
     config.Feedback.SensorToMechanismRatio = SENSOR_TO_MECHANISM_RATIO;
 
     // ---- Gains ----
+    // All seven, even the ones usually left at zero. Every gain here is a tunable in
+    // TUNABLE_GAINS, and one that is watched but never written moves on the dashboard while the
+    // Talon ignores it — which reads as a dead gain, not a missing line.
     config.Slot0.kS = getKS();
+    config.Slot0.kV = getKV();
+    config.Slot0.kA = getKA();
     config.Slot0.kG = getKG();
     config.Slot0.kP = getKP();
+    config.Slot0.kI = getKI();
     config.Slot0.kD = getKD();
 
     // Elevator_Static: the same weight at every height. An arm would use Arm_Cosine, whose gravity

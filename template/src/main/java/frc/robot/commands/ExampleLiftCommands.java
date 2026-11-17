@@ -43,7 +43,7 @@ public class ExampleLiftCommands {
    * height — and every soft limit, which bounds that same reported height — is off by an unknown
    * offset.
    *
-   * <p>Three things make this safe, and all three matter:
+   * <p>What makes it safe:
    *
    * <ol>
    *   <li><b>It is a COMMAND, not a subsystem method</b>, so it requires the subsystem and the
@@ -52,24 +52,54 @@ public class ExampleLiftCommands {
    *   <li><b>It detects the stop with CURRENT HIGH AND VELOCITY NEAR ZERO, debounced</b> — not
    *       current alone, which spikes the instant the motor breaks static friction, long before the
    *       carriage is anywhere near the real hard stop.
+   *   <li><b>A stall only counts once the creep has settled.</b> The detector runs every loop, so a
+   *       carriage already jammed when the button is pressed would otherwise end the routine on its
+   *       first loop and be zeroed mid-air. The creep runs for {@code settleSeconds} first, then
+   *       the detector is reset, so the stall that ends zeroing is one that happened under the
+   *       creep. {@code settleSeconds} must exceed the time the carriage takes to start moving.
+   *   <li><b>The reverse soft limit is off while creeping</b>, and back on in {@code finallyDo}
+   *       after the zero, on every exit path. At boot the bound sits at the encoder's zero, so with
+   *       it on the Talon refuses to drive down at all.
    *   <li><b>On timeout it GIVES UP WITHOUT ZEROING.</b> A zero taken at an unknown position is
    *       worse than no zero: the mechanism believes it for the rest of the match and every height
    *       afterward is wrong by a silent, fixed offset. Failing loudly and leaving {@code
    *       isZeroed()} false is the correct outcome.
    * </ol>
    *
-   * <p>Bind it to a button the operator can reach, and run it as part of the pre-match routine. See
-   * {@code docs/new-mechanism-bringup.md} Phase 1 step 6.
+   * <p><b>Every value is a parameter</b>, per {@code .claude/rules/03-commands.md}: the creep
+   * voltage is a commanded value and lives in {@code Constants.Setpoints}; the two times are waits
+   * and live in {@code Constants.Waits}. Starting points — measure them with the carriage in front
+   * of you:
+   *
+   * <pre>
+   * // Constants.Setpoints
+   * public static final Voltage LIFT_ZEROING_VOLTAGE = Volts.of(-3.0); // negative is down
+   * // Constants.Waits
+   * public static final double LIFT_ZEROING_SETTLE_SECONDS = 0.25;
+   * public static final double LIFT_ZEROING_TIMEOUT_SECONDS = 3.0;
+   * </pre>
+   *
+   * <p>With a follower, halve the voltage: the follower mirrors the leader, so the force into the
+   * stop doubles. Bind it to a button the operator can reach, and run it as part of the pre-match
+   * routine. See {@code docs/new-mechanism-bringup.md} Phase 1 step 6.
+   *
+   * @param creepVoltage downward creep while seeking the stop; negative is down
+   * @param settleSeconds how long to creep before a stall may count
+   * @param timeoutSeconds how long after settling to look for the stop before giving up
    */
-  public static Command zero(ExampleLift lift) {
+  public static Command zero(
+      ExampleLift lift, Voltage creepVoltage, double settleSeconds, double timeoutSeconds) {
     return Commands.sequence(
             // The reverse bound has to come off first. At boot the encoder reads zero wherever the
             // carriage is, and the bound sits at zero, so the Talon refuses to drive down — and a
             // carriage that does not move passes the stall check and gets zeroed in the air.
             Commands.runOnce(() -> lift.setReverseSoftLimitEnabled(false), lift),
-            Commands.run(() -> lift.setVoltage(ExampleLiftConstants.ZEROING_VOLTAGE), lift)
+            Commands.run(() -> lift.setVoltage(creepVoltage), lift).withTimeout(settleSeconds),
+            // Forget anything the detector saw before or during the settle.
+            Commands.runOnce(lift::resetZeroingStallDetection, lift),
+            Commands.run(() -> lift.setVoltage(creepVoltage), lift)
                 .until(lift::isAtZeroingStall)
-                .withTimeout(ExampleLiftConstants.ZEROING_TIMEOUT_SECONDS),
+                .withTimeout(timeoutSeconds),
             Commands.either(
                 Commands.runOnce(lift::zeroAtCurrentPosition, lift),
                 Commands.runOnce(
@@ -77,7 +107,7 @@ public class ExampleLiftCommands {
                         DriverStation.reportError(
                             ExampleLiftConstants.NAME
                                 + " zero failed: hard stop not found within "
-                                + ExampleLiftConstants.ZEROING_TIMEOUT_SECONDS
+                                + (settleSeconds + timeoutSeconds)
                                 + "s",
                             false)),
                 lift::isAtZeroingStall))

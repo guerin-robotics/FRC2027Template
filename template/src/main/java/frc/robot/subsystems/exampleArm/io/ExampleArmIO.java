@@ -85,6 +85,17 @@ public interface ExampleArmIO {
     public Angle encoderAbsolutePosition = Rotations.of(0);
 
     /**
+     * CANcoder magnet health, as {@code MagnetHealthValue.value}: 1 red, 2 orange, 3 green, 0 not
+     * yet read.
+     *
+     * <p>A mounting property — a loose or misaligned magnet. Red means the readings look plausible
+     * and are wrong, which on a fused arm is a position loop chasing a bad sensor. Without this
+     * channel the log shows only the symptom. Same convention as {@code frc/lib/device}'s {@code
+     * AbsoluteEncoderIO}.
+     */
+    public int encoderMagnetHealth = 0;
+
+    /**
      * Device temperature.
      *
      * <p>GOTCHA: AdvantageKit logs {@code Measure}-typed fields in SI base units, so this logs in

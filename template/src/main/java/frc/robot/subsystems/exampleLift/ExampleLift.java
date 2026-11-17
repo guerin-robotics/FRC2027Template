@@ -61,8 +61,14 @@ public class ExampleLift extends SubsystemBase {
   private final ExampleLiftIO io;
   private final ExampleLiftIOInputsAutoLogged inputs;
 
-  /** Last commanded height in inches, so {@link #isAtPosition()} has something to compare to. */
-  private double goalInches = 0.0;
+  /** Last commanded height in inches, already clamped to travel, for {@link #isAtPosition()}. */
+  private double goalInches = ExampleLiftConstants.MIN_TRAVEL_INCHES;
+
+  /**
+   * True only while a closed-loop height is being commanded. Open-loop voltage, stop and the
+   * zeroing creep clear it, so a goal nobody is holding any more cannot report the lift as arrived.
+   */
+  private boolean closedLoopActive = false;
 
   /** False until the zeroing routine has found the hard stop. Every height is a lie until then. */
   private boolean zeroed = false;
@@ -128,17 +134,24 @@ public class ExampleLift extends SubsystemBase {
   /**
    * Commands a profiled move to a height, in inches, and holds there.
    *
-   * <p>Soft limits are enforced on the Talon, so an out-of-range goal is clamped by the device
-   * rather than driving into a hard stop. That does mean {@link #isAtPosition()} will read false
-   * forever for such a goal, which is the intended tell.
+   * <p>The goal is <b>clamped to travel</b> before it is sent, and {@code GoalWasClamped} is
+   * logged. Unclamped, the Talon would stop at the soft limit and {@link #isAtPosition()} would
+   * read false forever, so every sequence waiting on it would burn its whole timeout with nothing
+   * in the log saying why. The clamp flag is that missing line.
    *
    * <p><b>Only meaningful once {@link #isZeroed()} is true.</b> Nothing here blocks the call — a
    * subsystem that silently refuses commands is harder to debug than one that obeys — so the check
    * belongs in the command factory, where refusing is visible in the command log.
    */
   public void setPositionInches(double inches) {
-    goalInches = inches;
-    io.setPosition(Rotations.of(ExampleLiftConstants.inchesToRotations(inches)));
+    double clamped =
+        Math.max(
+            ExampleLiftConstants.MIN_TRAVEL_INCHES,
+            Math.min(ExampleLiftConstants.MAX_TRAVEL_INCHES, inches));
+    Logger.recordOutput(ExampleLiftConstants.NAME + "/GoalWasClamped", clamped != inches);
+    goalInches = clamped;
+    closedLoopActive = true;
+    io.setPosition(Rotations.of(ExampleLiftConstants.inchesToRotations(clamped)));
   }
 
   /**
@@ -148,11 +161,13 @@ public class ExampleLift extends SubsystemBase {
    * resting state — the default command holds a height instead.
    */
   public void setVoltage(Voltage volts) {
+    closedLoopActive = false;
     io.setVoltage(volts);
   }
 
   /** Stops commanding output. See the warning on {@link #setVoltage}. */
   public void stop() {
+    closedLoopActive = false;
     io.stop();
   }
 
@@ -167,6 +182,17 @@ public class ExampleLift extends SubsystemBase {
   }
 
   /**
+   * Forgets any stall the detector has already seen. Called by {@code ExampleLiftCommands.zero()}
+   * once its creep has settled, so the stall that ends zeroing is one that happened <b>under the
+   * creep</b> — not one left over from a carriage that was already jammed when the button was
+   * pressed. Without this, {@code zero()} could finish on its first loop and declare zero mid-air.
+   */
+  public void resetZeroingStallDetection() {
+    zeroingStallDebounce.calculate(false);
+    atZeroingStall = false;
+  }
+
+  /**
    * Declares the current position to be zero.
    *
    * <p>Only call this once the carriage is genuinely at the hard stop — {@code
@@ -177,6 +203,7 @@ public class ExampleLift extends SubsystemBase {
     io.zeroPosition();
     zeroed = true;
     goalInches = 0.0;
+    closedLoopActive = false;
   }
 
   // ============================================================================================
@@ -198,8 +225,10 @@ public class ExampleLift extends SubsystemBase {
    * <p>This is a pure predicate: it is logged from {@link #periodic()}, not from inside here.
    */
   public boolean isAtPosition() {
-    return Math.abs(getPositionInches() - goalInches)
-        < ExampleLiftConstants.POSITION_TOLERANCE_INCHES.get();
+    // False under open-loop or stop: sitting near an old goal is not the same as holding it.
+    return closedLoopActive
+        && Math.abs(getPositionInches() - goalInches)
+            < ExampleLiftConstants.POSITION_TOLERANCE_INCHES.get();
   }
 
   /** Has the hard stop been found and zero established this power cycle? */

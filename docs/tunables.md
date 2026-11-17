@@ -306,8 +306,9 @@ once per `apply()`, which is why Pattern B exists to re-apply them. There is no 
 the entire point.
 
 So either make it read live, or leave it a plain `double` and say in the Javadoc that it is not
-tunable and why. `ExampleLiftConstants.ZEROING_STALL_DEBOUNCE_SECONDS` and
-`ZEROING_TIMEOUT_SECONDS` are the worked examples. A knob that appears to work and does not is
+tunable and why. `ExampleLiftConstants.ZEROING_STALL_DEBOUNCE_SECONDS` is the worked example; the
+zeroing timeout passed to `ExampleLiftCommands.zero()` is the other kind, baked in by
+`.withTimeout()`. A knob that appears to work and does not is
 worse than no knob, because it costs a tuning session before anyone suspects the knob.
 
 ---
