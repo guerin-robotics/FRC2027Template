@@ -7,6 +7,7 @@ import static edu.wpi.first.units.Units.Rotations;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.lib.util.CommandLogger;
 import frc.robot.Robot;
 import frc.robot.subsystems.exampleArm.io.ExampleArmIO;
 import frc.robot.subsystems.exampleArm.io.ExampleArmIOInputsAutoLogged;
@@ -67,6 +68,9 @@ public class ExampleArm extends SubsystemBase {
   public void periodic() {
     io.updateInputs(inputs);
     Logger.processInputs(ExampleArmConstants.NAME, inputs); // NEVER remove this line
+    // Which command owns this mechanism right now, default included. Answers "what was driving
+    // the arm at 47 s?" without reconstructing it from the global command list.
+    CommandLogger.recordCurrentCommand(ExampleArmConstants.NAME, this);
 
     // Supply current, not stator — this feeds a battery-power calculation. In 2026 the drivetrain
     // passed stator current here and every power and energy figure from that season is inflated.

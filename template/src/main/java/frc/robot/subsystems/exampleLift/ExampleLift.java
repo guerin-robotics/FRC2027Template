@@ -7,6 +7,7 @@ import static edu.wpi.first.units.Units.Rotations;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.lib.util.CommandLogger;
 import frc.robot.Robot;
 import frc.robot.subsystems.exampleLift.io.ExampleLiftIO;
 import frc.robot.subsystems.exampleLift.io.ExampleLiftIOInputsAutoLogged;
@@ -95,6 +96,9 @@ public class ExampleLift extends SubsystemBase {
   public void periodic() {
     io.updateInputs(inputs);
     Logger.processInputs(ExampleLiftConstants.NAME, inputs); // NEVER remove this line
+    // Which command owns this mechanism right now, default included. Answers "what was driving
+    // the lift at 47 s?" without reconstructing it from the global command list.
+    CommandLogger.recordCurrentCommand(ExampleLiftConstants.NAME, this);
 
     // Supply current, not stator — this feeds a battery-power calculation. In 2026 the drivetrain
     // passed stator current here and every power and energy figure from that season is inflated.

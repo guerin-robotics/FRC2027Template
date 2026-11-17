@@ -10,10 +10,11 @@ import org.littletonrobotics.junction.AutoLog;
 /**
  * A standalone absolute encoder: one that is not the feedback sensor of a motor.
  *
- * <p><b>If the encoder belongs to a motor, use {@code MotorConfig.Builder.encoder(...)}
- * instead.</b> Fused into the TalonFX, the motor reads it off the bus and closes its loop on it;
- * read through this class, it is only a number the code can look at. Reach for this one for a
- * turret's second-gear encoder, a passive hinge, or anything with no motor of its own.
+ * <p><b>If the encoder belongs to a motor, configure it in that mechanism's {@code *IOReal}
+ * instead</b>, the way {@code ExampleArmIOReal} does. Fused into the TalonFX, the motor reads it
+ * off the bus and closes its loop on it; read through this class, it is only a number the code can
+ * look at. Reach for this one for a turret's second-gear encoder, a passive hinge, or anything with
+ * no motor of its own.
  *
  * <p>Three implementations, like every device here: {@code AbsoluteEncoderIOCANcoder} on the robot,
  * {@code AbsoluteEncoderIOSim} in simulation, and {@code new AbsoluteEncoderIO() {}} in replay.

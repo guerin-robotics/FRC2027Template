@@ -13,11 +13,12 @@ import java.util.Map;
  * catches collisions among the constants at build time; this catches the ones the test cannot see —
  * an ID typed straight into a constructor, or two mechanisms built from the same constant.
  *
- * <p><b>Who claims.</b> Every IO that constructs a CTRE or Grapple device: {@code MotorIOTalonFX}
- * (and so its Phoenix sim subclass, because simulated devices on one ID collide too) and each real
- * IO under {@code frc/lib/device}. Replay and pure-Java sim IOs construct no device and claim
- * nothing. Swerve devices are not claimed here: they live in generated {@code TunerConstants} and
- * {@code CanIdUniquenessTest} already cross-checks them against {@code Constants.CanIds}.
+ * <p><b>Who claims.</b> Every IO that constructs a CTRE or Grapple device: each mechanism's {@code
+ * *IOReal} (motor, follower and encoder alone) and each real IO under {@code frc/lib/device}. An IO
+ * that drives Phoenix's device simulation claims too, because simulated devices on one ID collide.
+ * Replay and pure-Java sim IOs construct no device and claim nothing. Swerve devices are not
+ * claimed here: they live in generated {@code TunerConstants} and {@code CanIdUniquenessTest}
+ * already cross-checks them against {@code Constants.CanIds}.
  */
 public final class CanIdRegistry {
 
