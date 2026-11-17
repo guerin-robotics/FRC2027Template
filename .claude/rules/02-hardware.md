@@ -86,10 +86,11 @@ mechanism used `RemoteCANcoder`, where position comes straight off the encoder a
 how the rotor extends the absolute reading, so the fusion ends up wrong by the whole reduction
 while every config call reports success.
 
-Applying a sub-config is fine when the object came from a fully-built config — that is what the
-scaffolds' `updateTunedConfig()` does with `config.Slot0` and `config.MotionMagic`, and what
-`ExampleLiftIOReal.setReverseSoftLimitEnabled` does with `config.SoftwareLimitSwitch`: each takes
-the block from a fresh `getFXConfig()` rather than building one by hand. The rule
+Applying a sub-config is fine when the object came from a fully-built config — that is what
+`ExampleLiftIOReal.setReverseSoftLimitEnabled` does with `config.SoftwareLimitSwitch`: it takes
+the block from a fresh `getFXConfig()` rather than building one by hand. (There is no live gain
+push any more: gains are tuned in Phoenix Tuner X and committed, then applied once at
+construction. See `docs/tunables.md`.) The rule
 is not "never apply a sub-config", it is **never apply one you hand-built**.
 
 Always set:
@@ -423,8 +424,8 @@ harder to spot than data that is missing. Either register them explicitly or wri
 
 Each scaffold `*IOReal` ends with a commented FOLLOWER MOTORS block that is the whole pattern:
 claim the ID, apply the leader's config, give it the `Follower` request with the right alignment,
-log it, check it with `isConnected()`, decide its rate, and push live tuning to it too. Count its
-supply current in the battery report.
+log it, check it with `isConnected()`, and decide its rate. Count its supply current in the
+battery report.
 
 **Travel bounds are the one thing a follower does not inherit.** Build the follower's config from
 `getFXConfig()` and switch both soft limits off before applying it — the scaffold blocks do.

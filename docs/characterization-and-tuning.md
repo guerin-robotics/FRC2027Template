@@ -138,8 +138,8 @@ plausible and are wrong.
 | 11 | **Top speed** | `kSpeedAt12Volts` | Needs correct wheel radius *and* working feedforward |
 | 12 | Mass / MOI / wheel COF | Choreo GUI robot config (`deploy/choreo/*.chor`) | Trajectory generation inputs |
 | 13 | Trajectory follower PID | `Drive.java` (`trajectoryX/Y/HeadingController`) | Needs all of the above |
-| 13b | Drive-to-pose PID and FF radii | `DriveCommands` (`driveController`, `Drive/ToPose/FF*`) | Same — the PID-to-pose finish and point-to-point autos |
-| 14 | Heading-hold gains | `ANGLE_KP` / `ANGLE_KD` | Needs a drivetrain that tracks velocity |
+| 13b | Drive-to-pose PID and FF radii | `DriveCommands` (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS`) | Same — the PID-to-pose finish and point-to-point autos |
+| 14 | Heading-hold gains | `angleController` (heading kP/kD) | Needs a drivetrain that tracks velocity |
 
 The three easiest mistakes, all of which produce confident nonsense:
 

@@ -155,8 +155,8 @@ check is the requirement; the original rule is context.
 | Mechanism position / velocity tolerances | `[Subsystem]Constants.java` |
 | PID gains (mechanisms) | `[Subsystem]Constants.java` or IO implementation |
 | Trajectory-following gains | `Drive.java` (`trajectoryX/Y/HeadingController`) |
-| Drive-to-pose gains / FF radii | `DriveCommands.java` (`driveController`, `Drive/ToPose/FF*`) |
-| Heading-hold gains | `DriveCommands.java` (`ANGLE_KP` / `ANGLE_KD`) |
+| Drive-to-pose gains / FF radii | `DriveCommands.java` (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS`) |
+| Heading-hold gains | `DriveCommands.java` (`angleController` (heading kP/kD)) |
 | Vision thresholds | `subsystems/vision/VisionConstants.java` |
 | Field dimensions / AprilTag layout | `frc/lib/util/FieldConstants.java` |
 | Game geometry, scoring targets, zones | `RobotState.java` + `FieldConstants` |

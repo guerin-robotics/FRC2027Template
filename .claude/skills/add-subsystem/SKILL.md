@@ -132,12 +132,13 @@ three of them:
 
 | Scaffold | Cruise velocity | Acceleration |
 |---|---|---|
-| `exampleLift` | `MAX_SPEED_RPM / 2` | 9000 RPM/s |
+| `exampleLift` | `MAX_SPEED_RPM / 2` | 900 RPM/s |
 | `exampleArm` | 60 RPM | 300 RPM/s |
 | `exampleRoller` | n/a — the setpoint is the cruise | 9000 RPM/s |
 
-Do not carry a value across scaffolds. An arm that inherits the lift's row gets 30x the
-acceleration it should have, aimed at a hard stop — and it compiles. That failure is exactly what
+Do not carry a value across scaffolds. An arm that inherits the roller's row gets 30x the
+acceleration it should have, and one that inherits the lift's gets triple the acceleration and
+a cruise in the hundreds of RPM, aimed at a hard stop — and it compiles. That failure is exactly what
 splitting one scaffold into three was meant to make impossible, so do not reintroduce it by hand.
 
 Both are compiled constants. Choose the profile while observing the mechanism, then commit the values in its constants file.

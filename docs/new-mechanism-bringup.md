@@ -206,7 +206,7 @@ The template starts you at:
 
 | Mechanism | Cruise velocity | Acceleration |
 |---|---|---|
-| Linear position | `MAX_SPEED_RPM / 2` | 9000 RPM/s |
+| Linear position | `MAX_SPEED_RPM / 2` | 900 RPM/s |
 | Rotation position | 60 RPM | 300 RPM/s |
 | Velocity | n/a — the setpoint is the cruise | 9000 RPM/s |
 
@@ -232,9 +232,10 @@ sloppy tuning rather than an impossible request. This is why `MAX_SPEED_RPM` is 
 
 ### Raising acceleration
 
-9000 RPM/s is deliberately close to unlimited — most mechanisms reach cruise in tens of
-milliseconds, so motion ends up bounded by cruise velocity and the current limit. That is the
-intent for rollers and lifts.
+A roller's 9000 RPM/s is deliberately close to unlimited — it reaches cruise in tens of
+milliseconds, so motion ends up bounded by cruise velocity and the current limit. A lift starts
+at 900: on a light carriage 9000 RPM/s is a real 4+ g, and the profile asks for more than the
+motor can deliver (see the comment above `ACCELERATION_RPM_PER_SEC` in `ExampleLiftConstants`).
 
 Rotation mechanisms start at 300 for a reason: an arm that accelerates hard arrives at its hard
 stop hard, and gravity torque changes with angle in a way an aggressive profile will not

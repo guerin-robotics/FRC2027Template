@@ -270,7 +270,7 @@ Everything carried over describes the **2026** robot. In rough order:
 5. **`src/main/deploy/choreo/`** — create the Choreo project with the 2027 robot's mass, MOI,
    wheel COF and bumpers (2026 values are in its README), then tune the follower gains in
    `Drive.java` (`trajectoryX/Y/HeadingController`).
-6. **`commands/DriveCommands.java`** — `ANGLE_KP` / `ANGLE_KD` for heading hold.
+6. **`commands/DriveCommands.java`** — `angleController` (heading kP/kD) for heading hold.
 
 Vision filter thresholds are geometry-independent and were earned from real match logs.
 Keep them.

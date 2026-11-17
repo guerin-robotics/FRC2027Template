@@ -35,7 +35,7 @@ drives anything, these must be revisited:
 | Camera names and `robotToCameraN` transforms | `subsystems/vision/VisionConstants.java` | Identity placeholders — measure on the real robot |
 | AprilTag layout | `frc/lib/util/FieldConstants.java` | Points at the 2026 field; update when WPILib ships 2027 |
 | Choreo robot config (mass, MOI, wheel COF, bumpers) | `src/main/deploy/choreo/*.chor` (Choreo GUI) | No project yet — create it; 2026 values are in `deploy/choreo/README.md` |
-| Heading-hold gains | `commands/DriveCommands.java` | `ANGLE_KP` / `ANGLE_KD` tuned on the 2026 chassis |
+| Heading-hold gains | `commands/DriveCommands.java` | `angleController` (heading kP/kD) tuned on the 2026 chassis |
 | Team number | `.wpilib/wpilib_preferences.json` | Verify |
 
 Vision filter thresholds in `VisionConstants` are geometry-independent and were tuned

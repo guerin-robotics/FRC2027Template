@@ -16,14 +16,23 @@ Each mechanism scaffold provides a `tune*` command for one setpoint:
 - `ExampleArmCommands.tunePosition` — mechanism degrees
 - `ExampleLiftCommands.tuneHeight` — inches; it refuses to run until the lift is zeroed
 
-These commands are guarded by enabled Test mode and end as soon as the robot leaves it. A lift
-command holds its last position, an arm holds its last angle, and a roller stops. When wiring a
-scaffold into a robot, expose its command only through the team's test-mode controls. The 2027 port
-can replace that binding with a `@Utility` OpMode.
+Bind each one with `Triggers.getInstance().tuningEnabled.whileTrue(...)`. Two gates have to be open
+at once, and each covers a different failure:
+
+- **Test mode.** The field never enables it, so tuning cannot happen in a match. This is also
+  enforced inside `LoggedTunableNumber.get()`, which returns the compiled default in every other
+  mode — a tunable read by match code by mistake is inert, not live.
+- **The operator holding Start.** Test mode alone is not consent to move: it gets enabled in the
+  pit to check one sensor. Without a held button, every bound mechanism would jump to whatever
+  value was left on the dashboard the moment anyone enabled test. Let go and the command ends.
+
+When a command ends, a lift holds its last height, an arm holds its last angle, and a roller stops.
+The 2027 port can replace the binding with a `@Utility` OpMode; keep the held button inside it.
 
 When the value is right, copy it into `Constants.Setpoints` and commit it. The dashboard value is
 not persistent configuration and disappears at reboot. Match commands must use the compiled
-setpoint, never call `LoggedTunableNumber.get()`.
+setpoint, never call `LoggedTunableNumber.get()` — outside test mode it only returns its
+default anyway.
 
 ## Gains and limits
 

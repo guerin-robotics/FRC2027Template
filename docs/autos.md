@@ -26,7 +26,7 @@ Researched from public repos, October 2026:
 | **254** (2025) | Code | `AutoAlignToPoseCommand` | Profiled PID + **setpoint feedforward × ffScaler** | 4 cm / 2° |
 | **1678** (2025) | Choreo | Choreo trajectory, then `PIDToPoseCommand` | Profiled PID | Tolerance |
 | **3467** W8-Library | Code | Chain of `DriveToPose` per waypoint | Profiled PID on distance, angular PID, output clamps | Optional distance/angle tolerance |
-| **Us** | Choreo GUI + code | Layers 1–3 above | **Velocity-seeded** profiles + **setpoint feedforward** faded inside `Drive/ToPose/FFMinRadius`–`FFMaxRadius` | `driveToPoseWithin`: tolerance **or mandatory timeout** |
+| **Us** | Choreo GUI + code | Layers 1–3 above | **Velocity-seeded** profiles + **setpoint feedforward** faded inside `DRIVE_TO_POSE_FF_MIN_RADIUS_METERS`–`DRIVE_TO_POSE_FF_MAX_RADIUS_METERS` | `driveToPoseWithin`: tolerance **or mandatory timeout** |
 
 **What 1114 actually does.** "PID with the PathPlanner GUI" means PathPlanner's path follower,
 which is PID on the path — the same thing layer 1 does with Choreo's follower. Their PID-to-pose is

@@ -62,8 +62,8 @@ exactly that (see [autos.md](autos.md)). There is no on-the-fly pathfinding sinc
 PathPlanner to Choreo.
 
 Both profiles are **seeded with the robot's current velocity** and the profile's setpoint velocity
-is **fed forward**, faded to zero inside `Drive/ToPose/FFMinRadius` (0.05 m) and full beyond
-`FFMaxRadius` (0.2 m) — the pattern 1114, 6328 and 254 use. A robot already moving keeps moving
+is **fed forward**, faded to zero inside `DRIVE_TO_POSE_FF_MIN_RADIUS_METERS` (0.05 m) and full beyond
+`DRIVE_TO_POSE_FF_MAX_RADIUS_METERS` (0.2 m) — the pattern 1114, 6328 and 254 use. A robot already moving keeps moving
 instead of braking at the start of every segment, and it tracks the profile rather than trailing
 it. `AutoAim/DriveToPose/FFScaler` logs the scaler every loop.
 
