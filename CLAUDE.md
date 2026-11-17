@@ -192,7 +192,7 @@ Common task templates are in `.claude/prompts/`:
 
 Team skills (slash commands) are in `.claude/skills/`:
 
-- `/add-subsystem` — scaffold a new mechanism: subsystem, constants, wiring, triggers
+- `/add-subsystem` — scaffold a new mechanism: six files, constants, wiring, triggers
 - `/debug-match-log` — root-cause a field problem from an AdvantageKit log
 - `/pid-tune` — sim-based PID/FF tuning loop; proposes gains, user confirms
 
@@ -225,34 +225,28 @@ behavior after you changed it is worse than no doc — update it in the same com
 
 ## Style Reference
 
-A mechanism is **two files**: the subsystem and its constants. Everything else lives in
-`frc/lib/mechanism/` — the motor IO, the log schema, the config builder, the simulation, the
-visualizers and the common command factories. That library is in the build, and `MotorConfigTest`
-pins its config builder — which the scaffolds never could be.
+A mechanism is the standard AdvantageKit subsystem: **six files** that it owns outright — `io/XxxIO`
+(interface + `@AutoLog` inputs), `io/XxxIOReal` (every Phoenix call, and only there), `io/XxxIOSim`,
+the subsystem, its constants, and `commands/XxxCommands` — plus a visualizer on position mechanisms.
+There is no shared mechanism base class; each mechanism's IO is its own copy, so check a new one
+against its scaffold rather than against another mechanism.
 
 A mechanism that has sensors or lights owns them too: `frc/lib/device/` holds the absolute
 encoder, distance sensor, beam break and lights, each a wrapper the subsystem calls `periodic()`
-on, with real, sim and replay IOs. [docs/library.md](docs/library.md) maps all of `frc/lib`; it is
-our own version of 3467's W8-Library, written fresh because theirs is GPL-3.0.
+on, with real, sim and replay IOs. [docs/library.md](docs/library.md) maps all of `frc/lib`.
 
-`template/` holds **three** scaffolds of the two-file pattern, one per kind of mechanism. Copy the
-one that matches; each is complete, with nothing to delete and no commented-out fork to choose
-between.
+`template/` holds **three** scaffolds of that pattern, one per kind of mechanism. Copy the one that
+matches; each is complete, with nothing to delete and no commented-out fork to choose between.
 
-| Scaffold | For | Library type | Owes you |
-|---|---|---|---|
-| `exampleRoller/` | roller, flywheel, feeder, intake — velocity | `RollerSubsystem` | CAN ID, gear ratio |
-| `exampleArm/` | arm, pivot, hood, turret — rotary position, degrees | `RotarySubsystem` | 7 values incl. encoder split |
-| `exampleLift/` | elevator, lift, extension — linear position, inches | `LinearSubsystem` | 5 values incl. drum geometry |
+| Scaffold | For | Owes you |
+|---|---|---|
+| `exampleRoller/` | roller, flywheel, feeder, intake — velocity | CAN ID, gear ratio |
+| `exampleArm/` | arm, pivot, hood, turret — rotary position, degrees | 8 values incl. encoder split |
+| `exampleLift/` | elevator, lift, extension — linear position, inches | 5 values incl. drum geometry |
 
 The scaffolds are **not** part of the Gradle build, so they are never compiled or deployed, and
 each **deliberately fails to compile** until you supply the values that cannot be guessed — the
 compiler names them one at a time.
-
-`MotorConfig.builder(...)` is the second net: it throws at startup, naming the mechanism and every
-missing value at once, if a current limit, gear ratio, gain set or — on a position mechanism —
-travel bound was never stated. A limit nobody chose is how 2026 logged hundreds of brownouts across
-one event.
 
 - [template/GUIDE.md](template/GUIDE.md) — how the three differ and why, what carried over, what debt is still open
 - [template/NEW_SEASON_CHECKLIST.md](template/NEW_SEASON_CHECKLIST.md) — season startup sequence

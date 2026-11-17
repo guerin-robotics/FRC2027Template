@@ -59,7 +59,6 @@ Versions live in `vendordeps/` — see `docs/hardware-layout.md` for the table.
 
 ```
 frc/lib/util/                ALL shared utilities — see docs/subsystem-ownership.md
-frc/lib/mechanism/           motor abstraction and the three mechanism kinds
 frc/lib/device/              non-motor devices (encoder, distance, beam break, lights) + CanIdRegistry
 frc/lib/auto/                Waypoint, WaypointAuto — point-to-point autos as data
 frc/lib/command/             command infrastructure (SteppableCommandGroup)
@@ -84,7 +83,7 @@ TODO — add mechanism packages as they are created.
 Summarized here; authoritative version is `.claude/rules/01-architecture.md`.
 
 - Every subsystem wraps hardware behind an IO interface; hardware objects exist only in IO
-  implementations (`MotorIOTalonFX` for every mechanism, `ModuleIOTalonFX` / `GyroIOPigeon2` /
+  implementations (each mechanism's own `*IOReal`, `ModuleIOTalonFX` / `GyroIOPigeon2` /
   `VisionIOPhotonVision` for drive and vision). This is what makes log replay work.
 - No subsystem holds a reference to another subsystem. Shared state goes through
   `RobotState`; one-off values go through a `Supplier` passed at construction.
@@ -368,8 +367,8 @@ No game logic here. Ever.
 | `MotorSpecs` | Motor free speeds and sim gearboxes from WPILib's `DCMotor` |
 | `CommandLogger`, `LoopTimeMonitor`, `CANBusMonitor`, `FaultMonitor`, `MatchMetadataLogger`, `PhoenixSignalLogger` | Instrumentation — see the README table |
 
-`frc/lib/mechanism/` is the motor abstraction and the three mechanism kinds; see
-`template/GUIDE.md`.
+Mechanisms are not in `frc/lib`: each owns its IO layer, copied from a scaffold in `template/src/`;
+see `template/GUIDE.md`.
 
 ---
 

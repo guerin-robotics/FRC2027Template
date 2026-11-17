@@ -1,11 +1,11 @@
 ---
 name: add-subsystem
-description: Scaffold a new mechanism subsystem end to end — the two files, CAN IDs, setpoints, RobotContainer wiring in all three modes, and operator triggers. Use when adding any new mechanism (intake, elevator, arm, shooter, climber, hood, feeder). Produces code that compiles and runs in sim, with everything unmeasured clearly marked.
+description: Scaffold a new mechanism subsystem end to end — the six files, CAN IDs, setpoints, RobotContainer wiring in all three modes, and operator triggers. Use when adding any new mechanism (intake, elevator, arm, shooter, climber, hood, feeder). Produces code that compiles and runs in sim, with everything unmeasured clearly marked.
 ---
 
 # Add a Subsystem
 
-Scaffold a mechanism from the template's two-file pattern, wired into the robot and
+Scaffold a mechanism from the template's six-file pattern, wired into the robot and
 building, with every value that has to be measured on hardware marked as unmeasured
 rather than quietly guessed.
 
@@ -103,13 +103,11 @@ rotations across full travel = full travel / travel per sensor rotation
 
 Under one turn, fit the encoder. Over one turn, you have three options: gear the sensor down so
 its full range covers the travel, accept a relative encoder and establish zero another way, or
-add a limit switch. **A relative encoder needs a zeroing routine**, and
-`LinearCommands.zeroAtHardStop(...)` is it — do not write one. It drives into the stop on torque
-current, waits out a settle time, waits for the carriage to stop moving, and declares that position
-to be a height you supply; on timeout it gives up without zeroing, because a zero taken at an
-unknown position is worse than no zero. Pick its arguments per
-[docs/new-mechanism-bringup.md](../../../docs/new-mechanism-bringup.md), which also covers the
-hardware check — simulation cannot verify the answer, only that the routine runs.
+add a limit switch. **A relative encoder needs a zeroing routine**, and `exampleLift` ships one working — `ExampleLiftCommands.zero()`, the zeroing state in `ExampleLift.java`, and `zeroPosition()` in
+`ExampleLiftIO`. Copy it rather than writing one. The shape: drive into a hard stop under current
+AND velocity sensing (not current alone — it spikes on static-friction breakaway well before the
+real stop), declare that position zero, and **refuse to zero if the stop was never found within a
+timeout**. A zero taken at an unknown position is worse than no zero.
 
 This is also the question that picks `exampleArm` vs `exampleLift`: the arm assumes a fused
 CANcoder and has no zeroing at all, the lift assumes the motor encoder and needs it.
@@ -153,15 +151,10 @@ profile stops being followed, which looks like bad tuning rather than an impossi
 
 **Gravity reference on a pivot.** `GravityTypeValue.Arm_Cosine` scales kG by
 `cos(position + offset)` and assumes the peak — arm horizontal — lands at a cosine argument of
-zero. Mechanism zero is usually the *stow* position instead, so pass the angle at which the arm is
-level to `MotorConfig.Builder.gravityOffset(...)` — it negates it on the way to Phoenix's
-`Slot0.GravityArmPositionOffset`, which is added to the position before the cosine is taken. Left at
+zero. Mechanism zero is usually the *stow* position instead, so set
+`Slot0.GravityArmPositionOffset` to the negative of the angle at which the arm is level. Left at
 zero, the pivot gets too little hold current where gravity is strongest and too much where there
 is none. Ask for the horizontal angle; do not assume zero.
-
-Never write that Phoenix field directly. The subsystem's two files do not touch a
-`TalonFXConfiguration`, and the builder rejects the offset on a constant-gravity mechanism, where
-it would be meaningless.
 
 **CANcoder discontinuity point.** `1.0` looks like the natural default and is usually wrong: it
 puts the reading's wrap at 0, which is where the mechanism sits most of the match, so the value
@@ -171,7 +164,7 @@ defaults to `0.5`; leave it there unless you can say where this mechanism travel
 
 ---
 
-## Step 2 — Generate the two files
+## Step 2 — Generate the six files
 
 Copy **the scaffold that matches the mechanism** — not a generic one:
 
@@ -179,7 +172,8 @@ Copy **the scaffold that matches the mechanism** — not a generic one:
 | Mechanism pivots to an angle | `template/src/main/java/frc/robot/subsystems/exampleArm/` |
 | Mechanism travels in a line | `template/src/main/java/frc/robot/subsystems/exampleLift/` |
 
-Read the files first — they carry the current conventions, and they are kept up to date.
+plus the matching `template/src/main/java/frc/robot/commands/Example*Commands.java`. Read the
+files first — they carry the current conventions, and they are kept up to date.
 
 Each one is complete and internally consistent: there is nothing to delete and no commented-out
 branch to choose. If you find yourself deleting a block to make a scaffold fit, you probably
@@ -187,41 +181,41 @@ picked the wrong scaffold.
 
 ```
 subsystems/<name>/
-├── <Name>.java               extends RollerSubsystem / RotarySubsystem / LinearSubsystem
-└── <Name>Constants.java      NAME, the MotorConfig, the settings, the sim model
+├── io/<Name>IO.java          interface + @AutoLog inputs
+├── io/<Name>IOReal.java      every Phoenix call, and only here
+├── io/<Name>IOSim.java       physics sim against the same interface
+├── <Name>.java               logic; zero hardware imports
+├── <Name>Constants.java      gains, ratios, limits, getFXConfig()
+└── <Name>Visualizer.java     OPTIONAL — position mechanisms only
+
+commands/<Name>Commands.java  static factories, all .withName()'d
 ```
 
-**Do not write an IO layer.** `frc/lib/mechanism/` already has it: `MotorIO` and its one shared
-`@AutoLog` schema, `MotorIOTalonFX` for hardware, `MotorIOTalonFXSim` for simulation, the
-visualizers, and `RollerCommands` / `RotaryCommands` / `LinearCommands` for the verbs every
-mechanism of that kind shares. Generating a per-mechanism copy of any of those is the mistake this
-library exists to prevent — through 2026 every subsystem carried one, and the differences between
-the copies were accidents more often than decisions.
+**Generate the visualizer for position mechanisms; skip it for velocity ones.** It draws the
+mechanism as a `LoggedMechanism2d` and publishes a `Pose3d` for the AdvantageScope 3D model,
+which is how an inverted sense, a wrong gear ratio or a wrong zero become visible — each of
+those produces perfectly plausible numbers in a position plot. A spinning roller has no
+position worth drawing, so the file is dead weight there.
 
-**Write a `commands/<Name>Commands.java` only when the mechanism has verbs of its own.** A scoring
-sequence, an interlock, anything game-specific. "Run at a velocity", "move to an angle", "hold
-where it is", "zero against the hard stop" are already there.
-
-**Do not write a visualizer.** `RotaryVisualizer` and `LinearVisualizer` are built by the mechanism
-from its own soft limits and geometry, so the picture cannot disagree with the mechanism. There is
-deliberately none for a roller: a ligament turning at 6000 RPM sampled at 50 Hz aliases into a bar
-that appears to drift backward, and the velocity plot answers the question better.
+Copy `ExampleArmVisualizer` or `ExampleLiftVisualizer` — each already has just the one `update()`
+for its kind, and the soft-limit bound markers already live rather than commented. Copy the
+`Visualization` block from the matching constants file with it, and tell the user which values need
+CAD numbers: `PIVOT_OFFSET` / `PIVOT_ROTATION` on the arm, `CARRIAGE_OFFSET` on the lift.
+Everything else in that block is cosmetic and can be nudged by eye while watching AdvantageScope.
 
 Non-negotiables, each of which has burned this team or is load-bearing for replay:
 
-- **No hardware imports in the subsystem or its constants.** A `TalonFX` import in either ends
-  replay. The constants file describes the motor; `MotorIOTalonFX` talks to it.
-- **State every value `MotorConfig` asks for.** It throws at startup naming the mechanism and every
-  missing one, so the failure is loud — but do not satisfy it with a guess. A current limit nobody
-  chose is how 2026 logged hundreds of brownouts across one event.
-- **A follower is one line in the config**, `.follower(id, opposed)`. It is then configured, logged
-  as its own group with its own sticky faults, counted in the battery report and counted in the
-  simulation gearbox. Do not hand-roll one.
-- **You do not register signals; the config does.** `MotorIOTalonFX` sets every rate from the
-  `MotorConfig` and calls `optimizeBusUtilization()` last, on every device. A follower's rate is
-  the one dial: `.followerSignalHz(...)`, defaulting to 4 Hz, which is a fine rate arrived at on
-  purpose rather than by omission. Writing signal registration by hand means you have written an
-  IO layer the library exists to prevent.
+- `Logger.processInputs()` in `periodic()`. Removing it breaks log replay.
+- Hardware imports appear in `<Name>IOReal` only. A `TalonFX` import in the subsystem
+  class ends replay.
+- `CanIdRegistry.claim(id, bus, owner)` before constructing every CAN device — motor, follower,
+  CANcoder. A duplicate then stops boot with both owners named instead of half-working.
+- `PhoenixUtil.tryUntilOk(5, ...)` around every config apply. CTRE silently ignores config
+  when the bus is busy at startup, and the motor then boots with no current limits.
+- Log **both** motors of a follower pair. A follower that has quietly died looks exactly
+  like a leader that is underpowered.
+- Register status signals for both motors at 50 Hz **before** `optimizeBusUtilization()`,
+  or the unregistered ones drop to 4 Hz and read stale.
 - Torque current is logged whenever the control mode is any `*TorqueCurrentFOC` — it is the
   control signal, and stator current is not a substitute.
 - **Closed-loop reference and error are logged on every closed-loop mechanism.** Reference at
@@ -241,6 +235,20 @@ Non-negotiables, each of which has burned this team or is load-bearing for repla
 - `Follower(int, MotorAlignmentValue)`. The old boolean overload does not exist in Phoenix 6
   2026.
 - Supply current, not stator, goes to `BatteryLogger.reportCurrentUsage()`.
+- **Stator current is compared by magnitude** (`Math.abs`). Phoenix signs it with the direction of
+  output, so a bare `> threshold` only ever trips driving forward — a lift's downward zeroing
+  creep would never see its stall.
+- **A follower gets the leader's config with both soft limits switched off.** It runs a
+  `Follower` request, not a position loop; on an `Opposed` follower its position register runs
+  backwards, so the leader's bounds land on the wrong half of travel. The leader owns travel.
+- **If the mechanism can stall against a game piece, it gets jam detection.** Rollers, feeders,
+  intakes, transports. 2026 ran these open-loop and jams were silent — the mechanism stopped
+  working and nothing in the log said why. Copy the JAM DETECTION block from
+  `ExampleRoller` and `ExampleRollerConstants`: the conjunction of commanded-motion AND
+  not-turning AND high **stator** current, debounced for longer than spin-up takes. Detect in
+  the subsystem, respond in a command, register it with `FaultMonitor`. Ask for the thresholds
+  or mark them unmeasured — telling a jam from a normal pickup is the whole job, and it needs
+  real current data.
 
 **Sensors and lights come from `frc/lib/device/`, never a hand-written IO.** A beam break, distance
 sensor, absolute encoder or LED strip is a wrapper the subsystem owns and calls `periodic()` on,
@@ -265,12 +273,11 @@ Real-robot gains and the Motion Magic profile are `LoggedTunableNumber`s so they
 without a redeploy; sim gains stay plain doubles. Gear ratio and `MAX_SPEED_RPM` are static —
 they describe the machine, not a knob.
 
-Live tuning is automatic and needs no code in the mechanism. `Mechanism` builds a
-`LoggedTunableNumber` for every gain and every profile value from the `MotorConfig`, watches them
-together, and pushes both `Slot0` and `MotionMagic` when one moves — gains are in the first, cruise
-and acceleration in the second, and pushing only the gains leaves the profile knobs moving on the
-dashboard while the mechanism ignores them. All of it is inert unless `Constants.tuningMode` is
-true. See `docs/tunables.md`.
+If the mechanism is closed-loop, include the `updateTunedConfig()` block from the scaffold's
+`*IOReal`. It must apply **both** `config.Slot0` and `config.MotionMagic`:
+the gains are in the first, cruise and acceleration in the second, and applying only Slot0
+leaves the profile knobs moving on the dashboard while the mechanism ignores them. See
+`docs/tunables.md`.
 
 **`RobotContainer` must end up with no bare numbers in it.** If a unit import is still
 needed there, a setpoint was left behind.
@@ -279,13 +286,9 @@ needed there, a setpoint was left behind.
 
 ## Step 4 — Wire it up
 
-**`RobotContainer`** — construct in all three branches of the mode switch, using
-`<Kind>Mechanism.real(...)`, `.sim(...)` and `.replay(...)`. The replay branch matters: without it
-the logged inputs are not replayed and the whole point of AdvantageKit is lost for that mechanism.
-
-Then call `registerFaultMonitors()` on it. That is what puts a motor that has dropped off the bus,
-rebooted mid-match or overheated in front of the pit crew instead of only in the log, and each
-device is registered separately so a dead CANcoder is distinguishable from a dead motor.
+**`RobotContainer`** — construct in all three branches of the mode switch. The replay
+branch needs an anonymous `<Name>IO() {}`; without it the logged inputs are not replayed
+and the whole point of AdvantageKit is lost for that mechanism.
 
 **`Triggers.java`** — every controller button accessor. `RobotContainer` never touches a
 controller object, and never constructs a `Trigger`. Name accessors for the action, not the
@@ -330,12 +333,10 @@ See [docs/testing.md](../../../docs/testing.md).
   `.claude/prompts/write-test.md`; known-correct cases come from measurement, not from the
   code.
 - Optionally, a sim convergence test for a closed-loop mechanism. The template no longer ships
-  one; if the user wants it, recover the matching `*MechanismSimTest` from commit `f9b09f9` in
-  `src/test/java/frc/lib/mechanism/`. Two harness details are load-bearing and are commented in
-  those files: the test must let
-  wall-clock time pass, because Phoenix's device simulation does not advance on the FPGA sim
-  clock; and it must wait for a condition to hold rather than run a fixed loop count, or it
-  races how loaded the machine is.
+  one; `DriveToPoseSimTest` is the shape to copy, recoverable with
+  `git show 2359b72^:src/test/java/frc/robot/commands/DriveToPoseSimTest.java`. It requires a
+  physics `IOSim` — if the scaffold left it as stubs, say so rather than writing a test that
+  asserts against fiction.
 
 Then state plainly:
 
@@ -366,7 +367,7 @@ If the request needs one of those, say so and ask.
 
 ## Related
 
-- `template/GUIDE.md` — the two-file pattern and what goes where
+- `template/GUIDE.md` — the six-file pattern and what goes where
 - `.claude/prompts/add-subsystem.md` — the fill-in-the-blanks request form
 - `.claude/rules/01-architecture.md` — IO layer, `RobotState`, `Triggers`
 - `.claude/rules/02-hardware.md` — CAN, config, inversion, signal frequency

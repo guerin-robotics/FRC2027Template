@@ -95,12 +95,14 @@ Add one section per mechanism, following this shape:
 ```
 subsystems/myMechanism/MyMechanism.java
 subsystems/myMechanism/MyMechanismConstants.java
-commands/MyMechanismCommands.java   ← only for verbs the library's *Commands do not cover
+subsystems/myMechanism/MyMechanismVisualizer.java   (position mechanisms only)
+subsystems/myMechanism/io/MyMechanismIO.java (+ Real, Sim)
+commands/MyMechanismCommands.java
 ```
 
-The IO layer is not per-mechanism — it is `frc/lib/mechanism/` (`MotorIO`, `MotorIOTalonFX`,
-`MotorIOTalonFXSim`), shared by every mechanism. Log keys, the `@AutoLog` schema and the sim
-implementation come from there.
+The IO layer is the mechanism's own, so its log keys, `@AutoLog` schema and sim implementation are
+owned here too. A device it owns from `frc/lib/device` (beam break, distance sensor, encoder,
+lights) is part of the same section.
 
 **Permitted cross-boundary interactions:** list them explicitly. If a mechanism needs a
 value from another subsystem, it goes through `RobotState` or a `Supplier` passed at
@@ -132,8 +134,7 @@ not your code reads it. Delete the annotation when a method loses its last calle
 ## Utility (shared, no owner)
 
 All shared utilities live in `frc/lib/` — the general-purpose helpers under
-`frc/lib/util/`, the mechanism library under `frc/lib/mechanism/`, devices under
-`frc/lib/device/`, and point-to-point auto data under `frc/lib/auto/` (see
+`frc/lib/util/`, devices under `frc/lib/device/`, and point-to-point auto data under `frc/lib/auto/` (see
 [library.md](library.md)). There is no
 `frc/robot/util/` — utilities either belong to every robot, in which case they go here, or
 they belong to a subsystem, in which case they go in that subsystem's package.
@@ -177,11 +178,6 @@ Four classes read `frc.robot.Constants` — `AllianceFlipUtil`, the two tunables
 `currentMode`), never for robot structure. If you lift this package into another project,
 those flags are the only thing you need to supply.
 
-**One known exception:** `frc/lib/mechanism/Mechanism.java` imports `frc.robot.Robot` to reach
-the static `Robot.batteryLogger`. It is the only thing tying the mechanism library to this
-robot's `Robot` class; injecting the `BatteryLogger` instead would remove it. Worth doing at the
-2027 port, when `Robot` is rewritten anyway.
-
-Keep it that way otherwise: `frc.lib` may depend on `frc.robot.Constants` and nothing else under
+Keep it that way: `frc.lib` may depend on `frc.robot.Constants` and nothing else under
 `frc.robot`. Nothing checks this automatically, so a new `frc.lib` class reaching into a
 subsystem or `RobotState` will compile happily — catch it in review.

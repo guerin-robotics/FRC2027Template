@@ -119,7 +119,7 @@ The governance lives in the repo, so it applies wherever the agent runs — term
   for edits, and when the agent must ask before acting.
 - **`.claude/rules/`** carries the architecture, hardware, command, build and git rules that
   `CLAUDE.md` pulls in.
-- **`.claude/skills/`** — `/add-subsystem` scaffolds a mechanism (the two files, CAN IDs,
+- **`.claude/skills/`** — `/add-subsystem` scaffolds a mechanism (the six files, CAN IDs,
   setpoints, three-mode wiring, triggers); `/debug-match-log` root-causes a field problem from an
   AdvantageKit log; `/pid-tune` runs a sim-first tuning loop.
 - **`.claude/prompts/`** holds task templates for the common jobs.
@@ -150,13 +150,6 @@ moves the robot as needing a human at the driver station.
   rejection filters tuned against real 2026 match logs (ambiguity, tag distance, a stricter
   single-tag distance limit, angular velocity, pitch/roll, field bounds), per-observation
   rejection-reason logging, and distance/tag-count std dev scaling.
-
-**Mechanism library** — `frc/lib/mechanism`: one shared `MotorIO` schema, `MotorIOTalonFX` /
-`MotorIOTalonFXSim`, the `MotorConfig` builder that refuses to build without current limits,
-ratios and gains — plus travel bounds on a position mechanism — and three mechanism kinds — `roller/`, `rotary/`, `linear/` —
-each with its subsystem, command factories, physics sim and (for the position kinds) a
-visualizer. A new mechanism is two files on top of it. In the build; the config builder is under
-test (`MotorConfigTest`).
 
 **Device library** — `frc/lib/device`: CANcoder absolute encoder, CANrange and LaserCAN
 distance sensors, DIO and LaserCAN beam breaks, CANdle lights — each a wrapper a subsystem owns
@@ -237,9 +230,10 @@ and skills forward.
 `change-classification.md`) are ready to use; the robot-describing ones are skeletons with
 banners saying what to fill in. See [docs/README.md](docs/README.md).
 
-**Style reference** — `template/` holds three scaffolds of the two-file mechanism pattern (the
-subsystem and its constants, on top of `frc/lib/mechanism`): `exampleRoller` (velocity), `exampleArm` (rotary position), `exampleLift`
-(linear position). Plus [GUIDE.md](template/GUIDE.md) and a
+**Style reference** — `template/` holds three scaffolds of the standard per-mechanism subsystem
+pattern (its own `XxxIO` / `XxxIOReal` / `XxxIOSim`, the subsystem, constants, command factory and,
+for position mechanisms, a visualizer): `exampleRoller` (velocity), `exampleArm` (rotary position),
+`exampleLift` (linear position). Plus [GUIDE.md](template/GUIDE.md) and a
 [new-season checklist](template/NEW_SEASON_CHECKLIST.md). Not part of the Gradle build.
 
 **Tooling** — `tools/` holds ClaudeScope (`.wpilog` / NT querying with `/scope` and

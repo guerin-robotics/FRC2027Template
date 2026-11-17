@@ -143,15 +143,23 @@ across scaffolds is how an arm ends up with 30x the acceleration it should have:
 
 Then, for each mechanism:
 
-- [ ] `subsystems/myMechanism/MyMechanism.java` — extends the library subsystem for its kind
+- [ ] `subsystems/myMechanism/io/MyMechanismIO.java`
+- [ ] `subsystems/myMechanism/io/MyMechanismIOReal.java` — claims every CAN ID with `CanIdRegistry`
+- [ ] `subsystems/myMechanism/io/MyMechanismIOSim.java`
+- [ ] `subsystems/myMechanism/MyMechanism.java`
 - [ ] `subsystems/myMechanism/MyMechanismConstants.java`
-- [ ] `commands/MyMechanismCommands.java` — **only** if the mechanism has verbs the library's
-      `RollerCommands` / `RotaryCommands` / `LinearCommands` do not already cover
+- [ ] `subsystems/myMechanism/MyMechanismVisualizer.java` — position mechanisms only
+- [ ] `commands/MyMechanismCommands.java`
 - [ ] Wire real/sim/replay in `RobotContainer` — all three branches
-- [ ] Call `registerFaultMonitors()` on it in `RobotContainer`, so a device that drops off the
+- [ ] Confirm `Logger.processInputs()` is called in `periodic()`
+- [ ] Confirm `Robot.batteryLogger.reportCurrentUsage()` is called in `periodic()`, with supply
+      current
+- [ ] Register a `FaultMonitor` disconnect condition per device, so a device that drops off the
       bus, reboots mid-match or overheats reaches the pit rather than only the log
-- [ ] If it has no absolute encoder, run `LinearCommands.zeroAtHardStop(...)` before trusting any
-      reported position
+- [ ] If it has no absolute encoder, run its zeroing command (`ExampleLiftCommands.zero()` in the
+      scaffold) before trusting any reported position
+- [ ] Add stator-current jam detection if the mechanism can stall — uncomment the block in
+      `ExampleRoller` and fill in thresholds measured from a real jam
 - [ ] Sensors and lights it owns come from `frc/lib/device` (see `docs/devices.md`): IDs in
       `Constants.CanIds` / `Constants.DioPorts`, LaserCAN IDs set in **GrappleHook** (not Tuner X),
       and the owner's `periodic()` calls each device's `periodic()`
@@ -178,7 +186,8 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
       drives — it sweeps gains against the physics sim
       and reports rise time, overshoot and steady-state error, the same way the 2026 season
       found its path-following gains without touching the robot. Point it at the new mechanism's
-      library's `*Mechanism.sim(...)` rather than building a harness from scratch
+      `IOSim` rather than building a harness from scratch, and remember the `IOSim` closes its
+      loop on its own `Sim` gains — the sweep tunes those, not the Talon's
 - [ ] Build any distance → setpoint interpolation tables against the real field element
 - [ ] Validate vision std dev scaling against real AprilTag observations
 - [ ] Re-validate the vision rejection thresholds against 2027 logs (they're 2026-derived)

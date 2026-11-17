@@ -22,7 +22,9 @@ For changes to `@AutoLog` inputs classes:
 ```
 
 **The build covers very little of what follows.** The suite checks CAN ID collisions,
-`RobotContainer` wiring and `MotorConfig` safety values — see [testing.md](testing.md). Vision
+`RobotContainer` wiring and Choreo event-marker bindings — see [testing.md](testing.md). A
+mechanism's config — current limits, soft limits, signal rates — is checked by nobody but you;
+compare each new `*IOReal` and `getFXConfig()` against the scaffold it was copied from. Vision
 filtering and sim convergence are no longer tested, so a change to either is reviewed by hand.
 The architecture rules below are enforced by *this checklist* and nothing else, so read them
 rather than assuming a green build means they hold.

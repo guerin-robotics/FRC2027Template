@@ -103,49 +103,51 @@ This is a RAM-side helper. It has nothing to do with TalonFX gains.
 Declare the gains as tunables in the subsystem's constants file, then have the **IO
 implementation** push them when they move.
 
-**For a mechanism built on `frc/lib/mechanism`, none of this is code you write.** State the
-gains and the profile in the `MotorConfig`, and `Mechanism` does the rest: it builds a
-`LoggedTunableNumber` for every gain and every profile value, watches them all together, and pushes
-`Slot0` and `MotionMagic` to the device when any of them moves.
-
 ```java
-// MyMechanismConstants.java — the whole of it
-.gains(new Gains(kP, kI, kD, kS, kV, kA, kG))
-.motionProfile(MotionProfile.of(cruiseVelocity, acceleration))
+// MyMechanismConstants.java
+public static final LoggedTunableNumber KP = new LoggedTunableNumber(NAME + "/kP", KP_DEFAULT);
+// ...one per gain, and one per Motion Magic value...
+
+/** The watch lists for ifChanged. Keep them next to the declarations — a tunable missing from
+ *  here still moves on the dashboard but never reaches the motor, which looks like a dead gain
+ *  rather than a missing array entry. */
+public static final LoggedTunableNumber[] TUNABLE_GAINS = {KS, KV, KA, KG, KP, KI, KD};
+public static final LoggedTunableNumber[] TUNABLE_PROFILE = {CRUISE_VELOCITY_RPM, ACCELERATION_RPM_PER_SEC};
 ```
 
-They appear on the dashboard under `Tuning/MyMechanism/Gains/` and `Tuning/MyMechanism/Profile/`.
-
-The rest of this section is why that machinery is shaped the way it is — worth reading before
-changing it, and worth reading if you are tuning something that is not a mechanism, such as a
-WPILib `PIDController` in a command. Here is what it does, once per loop:
-
 ```java
-// Mechanism.pushTunables(), simplified
-LoggedTunableNumber.ifChanged(
-    hashCode(),
-    () -> {
-      io.setGains(Gains.fromTunables(gainTunables));
-      io.setMotionProfile(MotionProfile.fromTunables(profileTunables));
-    },
-    allTunables);
+// MyMechanismIOReal.java — called from updateInputs()
+private void updateTunedConfig() {
+  if (!Constants.tuningMode) {
+    return;
+  }
+  LoggedTunableNumber.ifChanged(
+      hashCode(),
+      () -> {
+        // Rebuilding the config re-reads every accessor, which reads the tunables.
+        TalonFXConfiguration config = MyMechanismConstants.getFXConfig();
+        PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.Slot0));
+        PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.MotionMagic));
+      },
+      LIVE_TUNABLES); // TUNABLE_GAINS and TUNABLE_PROFILE together
+}
 ```
 
-Six things in that are deliberate.
+Every scaffold `*IOReal` already carries this block. Copy it with the scaffold rather than writing
+it again. Six things in it are deliberate.
 
 **`apply(config.Slot0)`, not `apply(config)`.** The Slot0 overload writes only the gain block.
 Applying a whole `TalonFXConfiguration` would also rewrite current limits, soft limits, inversion
 and feedback ratios — so a full apply in a tuning loop silently reverts any other change made on
 the device, including anything typed into Tuner X.
 
-**The Slot0 block comes from the config the device already has, not a hand-built one.** This is
-easy to get wrong and the failure is silent. A hand-built `new Slot0Configs().withKS(...).withKP(...)`
-carries only the gains you list, leaving `GravityType` and `StaticFeedforwardSign` at their
-defaults. Tuning kP on an arm would then quietly switch its gravity compensation from `Arm_Cosine`
-to `Elevator_Static`, and the arm would start sagging at angles where it used to hold — while the
-log shows only that you changed kP. `MotorIOTalonFX` holds the `TalonFXConfiguration` it applied at
-construction and mutates the gain numbers in place, so the gains and their modifiers cannot
-disagree.
+**The Slot0 block comes from `getFXConfig()`, not hand-built.** This one is easy to get wrong and
+the failure is silent. A hand-built `new Slot0Configs().withKS(...).withKP(...)` carries only the
+gains you list, leaving `GravityType` and `StaticFeedforwardSign` at their defaults. Tuning kP on
+an arm would then quietly switch its gravity compensation from `Arm_Cosine` to `Elevator_Static`,
+and the arm would start sagging at angles where it used to hold — while the log shows only that
+you changed kP. Taking the whole block from the canonical config means the gains and their
+modifiers cannot disagree.
 
 **Gains and profile are pushed together.** A mechanism that will not reach its setpoint might have
 weak gains or a profile too slow to ask for the motion, and telling those apart requires moving
@@ -163,16 +165,19 @@ overrun — acceptable in a tuning session, which is the only time it can happen
 enabling. That is harmless — it re-applies the same values the constructor already wrote — but
 it means the first "change" you see in a log is not a change.
 
+A mechanism with a follower pushes the same two blocks to the follower too — see the FOLLOWER
+MOTORS block at the bottom of each scaffold `*IOReal`.
+
 ### It belongs in the IO layer
 
-Gains are hardware configuration, so the `apply()` call lives in `MotorIOTalonFX`, next to every
-other Phoenix call. The subsystem and its constants stay free of hardware imports and log replay
-keeps working.
+Gains are hardware configuration, so the `apply()` call goes in `MyMechanismIOReal`, next to
+every other Phoenix call. `MyMechanism.java` stays free of hardware imports and log replay keeps
+working.
 
-**Simulation gets the same gains, not a second set.** `MotorIOTalonFXSim` extends the real IO and
-applies the same configuration to a simulated device, so tuning in simulation moves the numbers
-that will run on the robot. The 2026 sim IOs ran a separate roboRIO-side `PIDController` against
-their own gains, which is why a tuning session in sim taught you very little.
+**`MyMechanismIOSim` does not implement it — sim uses the nested `Sim` gains.** The scaffold sims
+close their loop on the roboRIO with a WPILib controller at 50 Hz against a model with no backlash,
+no belt stretch and a guessed inertia, so they need their own set, and a sim tuning session tunes
+that set rather than the robot's. Treat what it teaches as direction, not numbers.
 
 ### Units
 
@@ -204,10 +209,10 @@ for a specific set of jobs and the wrong tool for gains.
 
 **Gains typed into Tuner X are silently overwritten the next time robot code starts.**
 
-`MotorIOTalonFX`'s constructor does this, once per mechanism:
+Every `*IOReal` constructor does this:
 
 ```java
-PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config));
+PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(MyMechanismConstants.getFXConfig()));
 ```
 
 That runs on every boot, every redeploy, every code restart. It writes the compiled-in
