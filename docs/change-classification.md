@@ -47,7 +47,7 @@ Examples:
 - Changing a command's internal logic (not its trigger conditions)
 - Modifying a wait sequence (adding/removing a phase)
 - Adding a new button binding
-- Changing demo or tuning mode behavior
+- Changing test-mode tuning command gates or demo-mode behavior
 - Adding a new `LoggedTrigger`
 - Changing a constant that affects non-critical behavior (idle speeds, etc.)
 

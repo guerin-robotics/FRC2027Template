@@ -13,7 +13,7 @@ changes until you plug in real field geometry, which is the other half of this d
 | Controls | Heading only | Translation **and** heading |
 | Driver input | Still drives X/Y | None — fully autonomous |
 | Use it for | "Keep facing the target while I drive" | "Go park at this exact spot" |
-| Underlying control | One `LoggedTunableProfiledPID` (`angleController`) | Two — `angleController` (shared) + `driveController` |
+| Underlying control | One compiled `ProfiledPIDController` (`angleController`) | Two — `angleController` (shared) + `driveController` |
 | Obstacle avoidance | N/A | None — draw a Choreo trajectory for the route, then finish with `driveToPoseWithin` |
 
 Both live in `src/main/java/frc/robot/commands/DriveCommands.java`, next to `joystickDrive`. Read
@@ -62,8 +62,8 @@ exactly that (see [autos.md](autos.md)). There is no on-the-fly pathfinding sinc
 PathPlanner to Choreo.
 
 Both profiles are **seeded with the robot's current velocity** and the profile's setpoint velocity
-is **fed forward**, faded to zero inside `Drive/ToPose/FFMinRadius` (0.05 m) and full beyond
-`FFMaxRadius` (0.2 m) — the pattern 1114, 6328 and 254 use. A robot already moving keeps moving
+is **fed forward**, faded to zero inside `DRIVE_TO_POSE_FF_MIN_RADIUS_METERS` (0.05 m) and full beyond
+`DRIVE_TO_POSE_FF_MAX_RADIUS_METERS` (0.2 m) — the pattern 1114, 6328 and 254 use. A robot already moving keeps moving
 instead of braking at the start of every segment, and it tracks the profile rather than trailing
 it. `AutoAim/DriveToPose/FFScaler` logs the scaler every loop.
 

@@ -16,7 +16,7 @@ copy-paste.
 |---|---|---|---|
 | `frc/lib/util/LoggedTrigger.java` | FRC 3467 (Windham Windup) | **GPLv3** | Header intact. Load-bearing — required by `.claude/rules/01-architecture.md` |
 | `frc/lib/util/ThrowingRunnable.java` | FRC 3467 (Windham Windup) | **GPLv3** | Header intact |
-| `frc/lib/util/LoggedTunableProfiledPID.java` | FRC 3467 | WPILib BSD | Their file carries the WPILib BSD header, not their GPL one |
+
 | `frc/lib/util/LoggedTunableNumber.java` | FRC 6328 (Mechanical Advantage) | MIT-style | The `hasChanged(int id)` design is 6328's. 3467 ships a copy under GPL; ours descends from the MIT original |
 | `frc/lib/util/LoggedTunableBoolean.java` | FRC 6328 pattern | MIT-style | Same lineage as above |
 | `frc/lib/util/BatteryLogger.java` | FRC 6328 | MIT-style | Attributed in the file |

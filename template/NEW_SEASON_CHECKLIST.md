@@ -123,9 +123,9 @@ and are wrong. If you only remember one thing: **measure top speed and slip curr
 - [ ] **15.** Weigh the robot, estimate MOI, measure wheel COF and bumpers → the Choreo GUI
       robot config in `src/main/deploy/choreo/` (2026 values are in that folder's README)
 - [ ] **16.** Tune the Choreo follower (`trajectoryX/Y/HeadingController` in `Drive.java`) and
-      the drive-to-pose controller and FF radii (`driveController`, `Drive/ToPose/FF*` in
+      the drive-to-pose controller and FF radii (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS` in
       `DriveCommands`) — the PID-to-pose finish and point-to-point autos depend on the latter
-- [ ] **17.** Re-tune `ANGLE_KP` / `ANGLE_KD` in `DriveCommands` for the new chassis
+- [ ] **17.** Re-tune `angleController` (heading kP/kD) in `DriveCommands` for the new chassis
 
 - [ ] Record every measured value, the date, the battery voltage and the surface in
       `docs/robot-spec.md`. These numbers are not portable between surfaces
@@ -135,7 +135,7 @@ and are wrong. If you only remember one thing: **measure top speed and slip curr
 
 For each mechanism, **first pick the scaffold** in `template/src/` — the choice sets the control
 request, neutral mode, gravity type, motion profile, sim model and units, and carrying a value
-across scaffolds is how an arm ends up with 30x the acceleration it should have:
+across scaffolds is how an arm ends up with up to 30x the acceleration it should have:
 
 - [ ] It spins, and only speed matters → `exampleRoller`
 - [ ] It pivots to an angle → `exampleArm`
@@ -143,15 +143,23 @@ across scaffolds is how an arm ends up with 30x the acceleration it should have:
 
 Then, for each mechanism:
 
-- [ ] `subsystems/myMechanism/MyMechanism.java` — extends the library subsystem for its kind
+- [ ] `subsystems/myMechanism/io/MyMechanismIO.java`
+- [ ] `subsystems/myMechanism/io/MyMechanismIOReal.java` — claims every CAN ID with `CanIdRegistry`
+- [ ] `subsystems/myMechanism/io/MyMechanismIOSim.java`
+- [ ] `subsystems/myMechanism/MyMechanism.java`
 - [ ] `subsystems/myMechanism/MyMechanismConstants.java`
-- [ ] `commands/MyMechanismCommands.java` — **only** if the mechanism has verbs the library's
-      `RollerCommands` / `RotaryCommands` / `LinearCommands` do not already cover
+- [ ] `subsystems/myMechanism/MyMechanismVisualizer.java` — position mechanisms only
+- [ ] `commands/MyMechanismCommands.java`
 - [ ] Wire real/sim/replay in `RobotContainer` — all three branches
-- [ ] Call `registerFaultMonitors()` on it in `RobotContainer`, so a device that drops off the
+- [ ] Confirm `Logger.processInputs()` is called in `periodic()`
+- [ ] Confirm `Robot.batteryLogger.reportCurrentUsage()` is called in `periodic()`, with supply
+      current
+- [ ] Register a `FaultMonitor` disconnect condition per device, so a device that drops off the
       bus, reboots mid-match or overheats reaches the pit rather than only the log
-- [ ] If it has no absolute encoder, run `LinearCommands.zeroAtHardStop(...)` before trusting any
-      reported position
+- [ ] If it has no absolute encoder, run its zeroing command (`ExampleLiftCommands.zero()` in the
+      scaffold) before trusting any reported position
+- [ ] Add stator-current jam detection if the mechanism can stall — uncomment the block in
+      `ExampleRoller` and fill in thresholds measured from a real jam
 - [ ] Sensors and lights it owns come from `frc/lib/device` (see `docs/devices.md`): IDs in
       `Constants.CanIds` / `Constants.DioPorts`, LaserCAN IDs set in **GrappleHook** (not Tuner X),
       and the owner's `periodic()` calls each device's `periodic()`
@@ -178,7 +186,8 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
       drives — it sweeps gains against the physics sim
       and reports rise time, overshoot and steady-state error, the same way the 2026 season
       found its path-following gains without touching the robot. Point it at the new mechanism's
-      library's `*Mechanism.sim(...)` rather than building a harness from scratch
+      `IOSim` rather than building a harness from scratch, and remember the `IOSim` closes its
+      loop on its own `Sim` gains — the sweep tunes those, not the Talon's
 - [ ] Build any distance → setpoint interpolation tables against the real field element
 - [ ] Validate vision std dev scaling against real AprilTag observations
 - [ ] Re-validate the vision rejection thresholds against 2027 logs (they're 2026-derived)
@@ -215,8 +224,7 @@ before the robot is enabled for the first time. Short version:
 - [ ] `TunerConstants` has been regenerated with Tuner X **for this robot**
 - [ ] Phoenix Tuner device count matches what the code expects
 - [ ] `Constants.currentMode` resolves to `REAL`; `simMode` not left on `REPLAY`
-- [ ] `Constants.tuningMode` is FALSE — tunables must not be dashboard-adjustable at an event
-      (CI and `event*`-branch deploys refuse it, but check it anyway)
+- [ ] Only test-mode tuning commands read dashboard values; match commands use compiled setpoints
 - [ ] Any gain found during a tuning session has been written back into the constants and
       committed; dashboard values do not survive a reboot
 - [ ] USB drive present for logging

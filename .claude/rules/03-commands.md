@@ -84,6 +84,12 @@ All timeout constants must live in a constants class — not inline.
 Command factories take setpoints as **parameters**. They never read a setpoint
 themselves, and they never hardcode one.
 
+**Exception — test-only setpoint tuning.** A scaffold's `tune*` factory may read its own
+`LoggedTunableNumber` to discover a velocity or position setpoint. It must require the mechanism,
+run only while enabled Test mode is active, and end as soon as Test mode ends. Match commands must
+never read dashboard tunables; they use compiled values from `Constants.Setpoints`. See
+[docs/tunables.md](../../docs/tunables.md).
+
 The caller — almost always `RobotContainer` — supplies the value from
 `Constants.Setpoints`:
 

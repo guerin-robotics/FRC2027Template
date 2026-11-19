@@ -28,14 +28,18 @@ you cannot replay a match log to reproduce a bug. We caught real match bugs this
 **Corollary:** every subsystem must have a simulation implementation. It can be stubs.
 Without one, the robot cannot run in simulation.
 
-`Drive` and `Vision` own their IO layers directly and are the reference implementations for a
-subsystem whose hardware is not a motor.
+Every mechanism owns its own `XxxIO` (interface + `@AutoLog` inputs), `XxxIOReal` (every Phoenix
+call, and only there) and `XxxIOSim`. Copy them from the matching scaffold in `template/src/` —
+`exampleRoller`, `exampleArm` or `exampleLift` — which carry the signal-rate, `connected`,
+follower and sticky-fault patterns the hardware rules require. `Drive` and `Vision` are the same
+pattern in production form.
 
-**Motor-driven mechanisms do not write an IO layer at all.** `frc/lib/mechanism` provides it —
-one `MotorIO` with one shared `@AutoLog` schema, `MotorIOTalonFX` for hardware, and
-`MotorIOTalonFXSim` for simulation, which applies the same config to a simulated device so the
-gains that run in sim are the gains that run on the robot. Adding a per-mechanism copy of any of
-those is the thing that library exists to prevent.
+**Review a new IO against its scaffold, not against another mechanism.** Each mechanism carries its
+own copy, so a difference between two copies is an accident at least as often as a decision.
+
+Sensors and lights are the exception: `frc/lib/device` provides their IOs (absolute encoder,
+distance sensor, beam break, lights), and the owning subsystem calls each device's `periodic()`.
+See [docs/devices.md](../../docs/devices.md).
 
 ---
 

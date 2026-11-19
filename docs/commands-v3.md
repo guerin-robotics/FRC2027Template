@@ -46,18 +46,17 @@ never by `implements Command` classes, never by command methods on the subsystem
 
 V3 makes `mechanism.run(...)` the builder's entry point, which will tempt people to put factories on
 the mechanism. Keep them in `*Commands`. The reasons were never about the API — one file per verb
-set, testable without a subsystem subclass, and the library's `RollerCommands` / `RotaryCommands` /
-`LinearCommands` cover every mechanism of a kind.
+set, testable without a subsystem subclass, and every mechanism's verbs in one place to review.
 
 ```java
 // V2 — today
-public static Command runAtVelocity(RollerSubsystem roller, AngularVelocity velocity) {
+public static Command runAtVelocity(Intake roller, AngularVelocity velocity) {
   return Commands.startEnd(() -> roller.setVelocity(velocity), roller::stop, roller)
       .withName(roller.getName() + "_Velocity");
 }
 
 // V3 — the same factory
-public static Command runAtVelocity(RollerSubsystem roller, AngularVelocity velocity) {
+public static Command runAtVelocity(Intake roller, AngularVelocity velocity) {
   return roller
       .run(coroutine -> {
         roller.setVelocity(velocity);
@@ -187,7 +186,7 @@ exits. Keep setting ours in `RobotContainer` (global scope) unless there is a re
 ### `Logger.processInputs()` — the hard stop that V3 makes easy to break
 
 V2's `CommandScheduler` calls every registered `Subsystem.periodic()`. **V3 calls nothing** —
-`Mechanism` has no `periodic()`. Port `Drive`, `Vision` and the library `*Subsystem` classes
+`Mechanism` has no `periodic()`. Port `Drive`, `Vision` and every mechanism subsystem
 naively and `processInputs()` simply never runs: no inputs, no replay, no error.
 
 At the port, choose one of these and apply it to every subsystem, including `Vision`, which
@@ -266,11 +265,9 @@ trajectory command actually owns.
 | `ContinuousConditionalCommand` | **Probably delete.** It exists because V2's `ConditionalCommand` checks its condition once. In V3, a body that loops, re-checks the condition and forks the matching command does the same thing in a few lines — or a `StateMachine` with a transition each way (`a.switchTo(b).when(() -> !cond)`, `b.switchTo(a).when(cond)`). Check that the state machine's fixed initial state does not run the wrong branch for a cycle before relying on it |
 | `LoggedTrigger` | **Port.** V3 `Trigger` is still a subclassable `BooleanSupplier` with a `(BooleanSupplier)` constructor, so the wrapping-supplier approach carries over. The `debounce` overrides change to take `Time`. Scoped bindings do not affect it — logging is in the supplier |
 | `CommandLogger` | **Rewrite on `Scheduler.addEventListener`.** V3 emits typed `SchedulerEvent`s — `Scheduled`, `Mounted`, `Completed`, `CompletedWithError`, `Canceled`, `Interrupted(command, interrupter)`, `ForkFailure`. `Interrupted` carries **who** interrupted, which is exactly the "scheduled and interrupted — by what?" question this class was written to answer. `recordCurrentCommand` becomes `mechanism.getRunningCommands()`. V3's `Scheduler` is also protobuf-serializable (the command tree, with per-command runtimes); decide whether to log that instead of, or beside, ours |
-| `RollerCommands` / `RotaryCommands` / `LinearCommands` | **Port verb by verb** using the factory table above. `spinUpTo` becomes a body with `coroutine.waitUntil(roller::isAtVelocity, timeout)` — and can now log whether it timed out |
-| `RollerSubsystem` / `RotarySubsystem` / `LinearSubsystem` | **Implement `org.wpilib.command3.Mechanism`** instead of extending `SubsystemBase`. Wire `periodic()` per the processInputs section. `setName` goes away — override `getName()` |
+| Mechanism subsystems and their `*Commands` (the `template/` scaffolds and everything copied from them) | **Implement `org.wpilib.command3.Mechanism`** instead of extending `SubsystemBase`; wire `periodic()` per the processInputs section; `setName` goes away — override `getName()`. Port each `*Commands` class verb by verb with the factory table above — a spin-up wait becomes `coroutine.waitUntil(roller::isAtVelocity, timeout)` and can now log whether it timed out. Port the scaffolds first so every later mechanism is copied from V3 code |
 | `SteppableCommandGroup` | **Rewrite as a body.** V3 makes it a loop: run step *i* as a child, `co.waitUntil` a rising edge on forward/back, cancel and move. No custom `Command` subclass is needed, and the edge detection stays in the body |
 | `DriveCommands.driveToPoseWithin` / `driveToWaypoint` | **Port** with the factory table: `driveToPose` becomes a body that runs until the arrival check passes, under a `withTimeout(Time)`. The seeding and setpoint feedforward are plain math and carry over unchanged |
-| `frc.lib.mechanism.Mechanism` | **Rename.** Collides with `org.wpilib.command3.Mechanism`, which the `*Subsystem` classes will implement. `MotorMechanism` says what it is — the motor-backed core the three kinds extend — and keeps `RollerMechanism` / `RotaryMechanism` / `LinearMechanism` reading naturally. Decide once, before the V3 branch starts |
 
 ---
 
@@ -279,8 +276,8 @@ trajectory command actually owns.
 - **Scheduler isolation.** Today every sim test cancels and unregisters from the JVM-wide
   `CommandScheduler`. V3 offers `Scheduler.createIndependentScheduler()`, which can end the
   teardown ritual — but a `Mechanism` reports its scheduler through `getRegisteredScheduler()`,
-  which defaults to `Scheduler.getDefault()`. For a test scheduler to own a mechanism, the library
-  `*Subsystem` classes need to accept the scheduler at construction and return it there. Design
+  which defaults to `Scheduler.getDefault()`. For a test scheduler to own a mechanism, each
+  mechanism subsystem needs to accept the scheduler at construction and return it there. Design
   that in during the port rather than retrofitting it.
 - **Time.** V3's `coroutine.wait` / `waitUntil(…, timeout)` use WPILib's `Timer`, which reads
   `RobotController.getTime()` — the same clock V2 used. So the `RobotController.setTimeSource`

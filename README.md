@@ -119,7 +119,7 @@ The governance lives in the repo, so it applies wherever the agent runs — term
   for edits, and when the agent must ask before acting.
 - **`.claude/rules/`** carries the architecture, hardware, command, build and git rules that
   `CLAUDE.md` pulls in.
-- **`.claude/skills/`** — `/add-subsystem` scaffolds a mechanism (the two files, CAN IDs,
+- **`.claude/skills/`** — `/add-subsystem` scaffolds a mechanism (the six files, CAN IDs,
   setpoints, three-mode wiring, triggers); `/debug-match-log` root-causes a field problem from an
   AdvantageKit log; `/pid-tune` runs a sim-first tuning loop.
 - **`.claude/prompts/`** holds task templates for the common jobs.
@@ -150,13 +150,6 @@ moves the robot as needing a human at the driver station.
   rejection filters tuned against real 2026 match logs (ambiguity, tag distance, a stricter
   single-tag distance limit, angular velocity, pitch/roll, field bounds), per-observation
   rejection-reason logging, and distance/tag-count std dev scaling.
-
-**Mechanism library** — `frc/lib/mechanism`: one shared `MotorIO` schema, `MotorIOTalonFX` /
-`MotorIOTalonFXSim`, the `MotorConfig` builder that refuses to build without current limits,
-ratios and gains — plus travel bounds on a position mechanism — and three mechanism kinds — `roller/`, `rotary/`, `linear/` —
-each with its subsystem, command factories, physics sim and (for the position kinds) a
-visualizer. A new mechanism is two files on top of it. In the build; the config builder is under
-test (`MotorConfigTest`).
 
 **Device library** — `frc/lib/device`: CANcoder absolute encoder, CANrange and LaserCAN
 distance sensors, DIO and LaserCAN beam breaks, CANdle lights — each a wrapper a subsystem owns
@@ -220,9 +213,9 @@ All in `frc/lib/util/`.
 | `lib/GeomUtil` | Pose/Transform/Twist conversions |
 | `lib/PointInPolygon` | Ray-casting zone containment |
 | `lib/EdgeDetector` | Rising/falling edges, and counting edges in a window |
-| `lib/LoggedTunableNumber` | Dashboard-adjustable constant, gated on `tuningMode` |
+| `lib/LoggedTunableNumber` | Logged dashboard setpoint, read only by test-mode tuning commands |
 | `lib/LoggedTunableBoolean` | Same, for booleans |
-| `lib/LoggedTunableProfiledPID` | Tunable `ProfiledPIDController` gains and constraints |
+
 | `lib/MotorSpecs` | Motor free speeds from WPILib's `DCMotor`; computes top speed and the sim gearbox |
 
 Everything shared lives in `frc/lib` — there is no `frc/robot/util`. A utility either applies
@@ -237,9 +230,10 @@ and skills forward.
 `change-classification.md`) are ready to use; the robot-describing ones are skeletons with
 banners saying what to fill in. See [docs/README.md](docs/README.md).
 
-**Style reference** — `template/` holds three scaffolds of the two-file mechanism pattern (the
-subsystem and its constants, on top of `frc/lib/mechanism`): `exampleRoller` (velocity), `exampleArm` (rotary position), `exampleLift`
-(linear position). Plus [GUIDE.md](template/GUIDE.md) and a
+**Style reference** — `template/` holds three scaffolds of the standard per-mechanism subsystem
+pattern (its own `XxxIO` / `XxxIOReal` / `XxxIOSim`, the subsystem, constants, command factory and,
+for position mechanisms, a visualizer): `exampleRoller` (velocity), `exampleArm` (rotary position),
+`exampleLift` (linear position). Plus [GUIDE.md](template/GUIDE.md) and a
 [new-season checklist](template/NEW_SEASON_CHECKLIST.md). Not part of the Gradle build.
 
 **Tooling** — `tools/` holds ClaudeScope (`.wpilog` / NT querying with `/scope` and
@@ -276,7 +270,7 @@ Everything carried over describes the **2026** robot. In rough order:
 5. **`src/main/deploy/choreo/`** — create the Choreo project with the 2027 robot's mass, MOI,
    wheel COF and bumpers (2026 values are in its README), then tune the follower gains in
    `Drive.java` (`trajectoryX/Y/HeadingController`).
-6. **`commands/DriveCommands.java`** — `ANGLE_KP` / `ANGLE_KD` for heading hold.
+6. **`commands/DriveCommands.java`** — `angleController` (heading kP/kD) for heading hold.
 
 Vision filter thresholds are geometry-independent and were earned from real match logs.
 Keep them.
@@ -292,9 +286,8 @@ Keep them.
 ./gradlew simulateJava     # run in simulation
 ```
 
-Deploy with the WPILib VS Code extension, or `./gradlew deploy`. Every deploy runs
-`checkConstantsDeploy` first, which refuses one with `tuningMode` on from an `event*` branch or a
-detached checkout. See [docs/testing.md](docs/testing.md) for that gate and the three test classes.
+Deploy with the WPILib VS Code extension, or `./gradlew deploy`. See [docs/testing.md](docs/testing.md)
+for the three test classes and what the build verifies.
 
 Logs are written to `/U/logs` on the robot's USB drive. Replay a log with
 `./gradlew replayWatch`, or set `Constants.simMode = Mode.REPLAY`.

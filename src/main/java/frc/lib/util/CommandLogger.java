@@ -77,10 +77,9 @@ public class CommandLogger {
    * question is usually "what was driving *this* subsystem at that moment" — including whether it
    * had fallen back to its default command, which the global list does not make obvious.
    *
-   * <p>Already called by {@code RollerSubsystem}, {@code RotarySubsystem}, {@code LinearSubsystem}
-   * and {@code Drive}, so any subsystem built on those gets it for free. A subsystem that extends
-   * {@code SubsystemBase} directly (one that owns two mechanisms) must call it itself, from its
-   * {@code periodic()}:
+   * <p>Already called by {@code Drive} and by each mechanism scaffold in {@code template/}, so a
+   * mechanism copied from one gets it. Any other subsystem must call it itself, from its {@code
+   * periodic()}:
    *
    * <pre>
    * CommandLogger.recordCurrentCommand(getName(), this);

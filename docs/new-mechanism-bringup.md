@@ -114,38 +114,45 @@ Work at low output, 1–2 V, with a hand on disable.
    means nothing until it is established. Power-up assumes the mechanism is at zero, which is
    wrong the moment someone powers on with it raised or moves it by hand while disabled.
 
-   **Do not write the routine.** `LinearCommands.zeroAtHardStop(...)` is it: it drives into the
-   stop on torque current, waits out a settle time, waits for the carriage to stop moving, and
-   declares that position to be a height you supply. A lift needs this because its travel usually
-   exceeds one sensor rotation; `exampleArm` has none, because a fused CANcoder already knows where
-   it is at boot. Which of those two your mechanism is is the question to answer first.
+   Build a routine that drives into a hard stop and declares that position zero. **The
+   `exampleLift` scaffold ships this working, not commented out** — `ExampleLiftCommands.zero()`
+   plus the zeroing state in `ExampleLift.java` and the `zeroPosition()` primitive in
+   `ExampleLiftIO`. Copy it rather than rewriting it.
 
-   Four things about it matter when you pick its arguments:
+   A lift needs it because its travel usually exceeds one sensor rotation; `exampleArm` has no
+   zeroing at all, because a fused CANcoder already knows where it is at boot. Which of those two
+   your mechanism is is the question to answer first. These make the routine safe:
 
-   - It drives on **torque current, not voltage**. Under FOC the commanded current *is* the force,
-     so a small negative value is a bounded push into the stop whatever the mechanism's impedance
-     is. A voltage produces whatever current stall allows, which is a great deal more.
-   - The **settle time must exceed the time the carriage takes to start moving**. The mechanism
-     starts at zero velocity, so a stall check that ran immediately would zero it wherever it
-     already was — confidently, and wrong by exactly the amount the routine exists to remove.
-   - The **stall wait has a mandatory timeout**. A carriage that never stalls is one whose rope has
-     come off, and hanging on it costs the match. On timeout the routine does **not** zero — the
-     carriage is not at the stop — and logs `<Name>/ZeroingSucceeded` false; check that channel
-     after the first run on the robot.
-   - **With a follower, halve the current.** The follower mirrors the leader in hardware, so the
-     force into the stop doubles.
+   - It is a **command**, not a subsystem method, so it requires the subsystem and the scheduler
+     interrupts it if the operator commands a position mid-run. The subsystem holds only the
+     primitive: "declare the current position to be zero."
+   - It detects the stop with **current high AND velocity near zero**, debounced, so it does not
+     trigger on the inrush current at the instant the motor starts.
+   - On timeout it **gives up without zeroing**. A zero taken at an unknown position is worse
+     than no zero, because the mechanism believes it for the rest of the match — including in
+     its soft limits.
+   - **The reverse soft limit boots off, and goes on only once the lift is zeroed.** Before a
+     zero it is measured from the power-on position and means nothing — and with it on, the Talon
+     refuses to drive down, so a carriage that does not move passes the stall check and is zeroed
+     in the air. Re-zeroing an already-zeroed lift switches it off first.
+   - **It never stalls the robot loop on the bus.** The zero is sent without waiting and confirmed
+     from the logged position within `ZERO_CONFIRM_SECONDS`; `ZeroPending` and `ZeroFailed` show
+     the outcome in the log. The only write it waits for is the soft-limit switch, bounded to
+     0.25 s. Watch `ReverseSoftLimitEnabled` in the inputs after the first zero on the robot.
+   - It compares stator current **by magnitude**. Phoenix signs it with output direction, and the
+     creep is downward.
+   - **With a follower, halve the creep voltage** (`Constants.Setpoints`, passed to `zero()`). The follower mirrors the leader in hardware, so
+     the force into the stop doubles.
 
-   **Verify it on the robot; simulation cannot.** Simulation can show the moving parts — that it
-   travels to the stop, detects the stall and finishes rather than timing out — but not the answer.
-   In simulation the device's position is overwritten from the physics model every loop, and the
-   model is always right about where the carriage is, so there is no offset to correct. On the real
-   robot that offset is the whole point.
+   **Verify it on the robot; simulation cannot.** The sim carriage always starts at the bottom, so
+   there is no offset to correct. On the real robot that offset is the whole point.
 
    - [ ] Move the mechanism well away from the stop by hand
    - [ ] Run the zeroing routine
    - [ ] Confirm the reported height matches a **tape measurement**, not merely that it is stable
    - [ ] Power-cycle and repeat from a different starting position. A routine that works from one
-         position and not another almost always has too short a settle time
+         position and not another almost always has a stall threshold or dwell set wrong
+
 
    Log whether zeroing has happened and register it with `FaultMonitor`, so nobody silently trusts
    the power-up assumption.
@@ -159,8 +166,8 @@ Work at low output, 1–2 V, with a hand on disable.
    at the ends — which reads as a kP problem and is not one.
 
    - [ ] Measure the angle, in mechanism coordinates, at which the arm is horizontal
-   - [ ] Pass it to `.gravityOffset(Degrees.of(...))` in the mechanism's config, or write down in
-         the constants file that zero already is level
+   - [ ] Set `GRAVITY_HORIZONTAL_OFFSET_DEGREES` in the constants file to the **negative** of that
+         angle, or write down there that zero already is level
    - [ ] Confirm the arm holds at both ends of travel *and* in the middle on kG alone
 
    Because the reference is stated separately, encoder zero can go wherever is convenient — stow
@@ -176,7 +183,7 @@ Work at low output, 1–2 V, with a hand on disable.
 
 ## Phase 2 — Gains
 
-Turn on `Constants.tuningMode`, deploy once, and work from the dashboard.
+Gains and motion profiles are compiled constants. Explore Phoenix device gains with Tuner X, then copy the selected values into the mechanism constants and commit them. Use `/pid-tune` in simulation for roboRIO-side controllers.
 
 Full procedure per control mode is in
 [characterization-and-tuning.md](characterization-and-tuning.md) Part 3. The order, briefly:
@@ -203,11 +210,11 @@ The template starts you at:
 
 | Mechanism | Cruise velocity | Acceleration |
 |---|---|---|
-| Linear position | `MAX_SPEED_RPM / 2` | 9000 RPM/s |
+| Linear position | `MAX_SPEED_RPM / 2` | 900 RPM/s |
 | Rotation position | 60 RPM | 300 RPM/s |
 | Velocity | n/a — the setpoint is the cruise | 9000 RPM/s |
 
-Both are `LoggedTunableNumber`s, so raise them from the dashboard rather than redeploying.
+Both are compiled constants. Change them in the scaffold constants and redeploy between measured adjustments.
 
 ### Raising cruise velocity
 
@@ -229,9 +236,10 @@ sloppy tuning rather than an impossible request. This is why `MAX_SPEED_RPM` is 
 
 ### Raising acceleration
 
-9000 RPM/s is deliberately close to unlimited — most mechanisms reach cruise in tens of
-milliseconds, so motion ends up bounded by cruise velocity and the current limit. That is the
-intent for rollers and lifts.
+A roller's 9000 RPM/s is deliberately close to unlimited — it reaches cruise in tens of
+milliseconds, so motion ends up bounded by cruise velocity and the current limit. A lift starts
+at 900: on a light carriage 9000 RPM/s is a real 4+ g, and the profile asks for more than the
+motor can deliver (see the comment above `ACCELERATION_RPM_PER_SEC` in `ExampleLiftConstants`).
 
 Rotation mechanisms start at 300 for a reason: an arm that accelerates hard arrives at its hard
 stop hard, and gravity torque changes with angle in a way an aggressive profile will not
@@ -258,18 +266,14 @@ property of the mechanism, not a knob the drive team turns.
 
 ## Phase 5 — Write it back
 
-**Dashboard values are not saved.** Every number found in Phases 2–4 has to be typed into the
-constants file and committed, or the mechanism reverts at the next reboot.
-
-If a session ends before anyone writes them down they are still recoverable — AdvantageKit logs
-every tunable under `NetworkInputs/Tuning/...` on every loop, so open the log in AdvantageScope
-and read them off the end of the run. That is a recovery path, not a workflow.
+**Tuning-command values are not saved.** The test-mode setpoint command reads a logged dashboard
+number, but the value is not persistent configuration. When the setpoint is right, copy it into
+`Constants.Setpoints` and commit it. AdvantageKit records the dashboard input under
+`NetworkInputs/Tuning/...` if you need to recover it from a log.
 
 Then:
 
-- Set `Constants.tuningMode = false`. It must be false for competition, and CI will not merge it
-  on.
-- Move any value the drive team will ask about into `Constants.Setpoints`.
+- Confirm match commands use compiled values from `Constants.Setpoints`.
 - Run `./gradlew build` and commit.
 
 ---
@@ -280,10 +284,10 @@ Then:
 |---|---|---|
 | 0 | Gear ratio, encoder split, drum geometry, current limits | Subsystem constants, static |
 | 1 | Inversion, follower alignment, soft limits, magnet offset, gravity offset | Subsystem constants, static |
-| 2 | kS, kV, kA, kG, kP, kI, kD | Subsystem constants, tunable |
-| 3 | Cruise velocity, acceleration | Subsystem constants, tunable |
+| 2 | kS, kV, kA, kG, kP, kI, kD | Subsystem constants, compiled |
+| 3 | Cruise velocity, acceleration | Subsystem constants, compiled |
 | 4 | Tolerances | Subsystem constants, static |
-| 5 | Setpoints the drive team touches | `Constants.Setpoints` |
+| 5 | Setpoints the drive team touches | Tune in Test mode, then commit to `Constants.Setpoints` |
 
 ---
 

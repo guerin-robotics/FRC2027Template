@@ -60,9 +60,9 @@ Always state why the old limit was insufficient before raising it.
 | Swerve CAN IDs, gains, geometry, current limits | `generated/TunerConstants` (generated — see hardware rules) |
 | Other CAN IDs | `Constants.CanIds` |
 | Vision thresholds | `subsystems/vision/VisionConstants` |
-| Heading-hold gains | `commands/DriveCommands` (ANGLE_KP / ANGLE_KD) |
+| Heading-hold gains | `commands/DriveCommands` (`angleController` (heading kP/kD)) |
 | Trajectory-following gains (Choreo) | `subsystems/drive/Drive` (`trajectoryX/Y/HeadingController`) |
-| Drive-to-pose gains and FF radii | `commands/DriveCommands` (`driveController`, `Drive/ToPose/FF*`) |
+| Drive-to-pose gains and FF radii | `commands/DriveCommands` (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS`) |
 | Joystick shaping, limited speed | `subsystems/drive/DriveConstants` |
 | Field dimensions, AprilTag layout | `frc/lib/util/FieldConstants` |
 | PID/FF gains (mechanisms) | `[Subsystem]Constants` or IO implementation |

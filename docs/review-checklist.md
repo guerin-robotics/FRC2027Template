@@ -22,7 +22,9 @@ For changes to `@AutoLog` inputs classes:
 ```
 
 **The build covers very little of what follows.** The suite checks CAN ID collisions,
-`RobotContainer` wiring and `MotorConfig` safety values — see [testing.md](testing.md). Vision
+`RobotContainer` wiring and Choreo event-marker bindings — see [testing.md](testing.md). A
+mechanism's config — current limits, soft limits, signal rates — is checked by nobody but you;
+compare each new `*IOReal` and `getFXConfig()` against the scaffold it was copied from. Vision
 filtering and sim convergence are no longer tested, so a change to either is reviewed by hand.
 The architecture rules below are enforced by *this checklist* and nothing else, so read them
 rather than assuming a green build means they hold.
@@ -73,7 +75,7 @@ rather than assuming a green build means they hold.
 - [ ] Any new CAN device class calls `CanIdRegistry.claim(...)` before constructing the device *(the runtime duplicate check only covers devices that claim)*
 - [ ] No motor inversion flags changed
 - [ ] No swerve encoder offsets changed
-- [ ] All new TalonFX configurations use `PhoenixUtil.tryUntilOk(5, ...)`
+- [ ] All new TalonFX configurations use `PhoenixUtil.tryUntilOk(5, ...)` and closed-loop motion requires confirmed startup writes
 - [ ] All new signal frequencies are set with `BaseStatusSignal.setUpdateFrequencyForAll()`
 - [ ] `motor.optimizeBusUtilization()` called for new motors
 
@@ -117,17 +119,44 @@ rather than assuming a green build means they hold.
 
 ---
 
+## 10. NASA/JPL "Power of 10" Check (every code change)
+
+Gerard Holzmann's [Power of 10 rules](https://spinroot.com/gerard/pdf/P10.pdf) are NASA JPL's
+baseline for safety-critical flight software. They were written for C, so some do not carry over
+to Java on a roboRIO. The table says how each one applies here. Use it as a second lens on a diff:
+a rule this codebase already enforces is listed with the local rule that enforces it, so a
+violation is usually a breach of both.
+
+| # | Power of 10 rule | How it applies here | Check |
+|---|---|---|---|
+| 1 | Simple control flow: no `goto`, `setjmp`, or recursion | Applies as written. No recursion; no exceptions used for control flow | - [ ] No recursion; no `try`/`catch` steering normal logic |
+| 2 | Every loop has a fixed upper bound | Every `while`/`for` is bounded, and so is every *wait*: `waitUntil` always has `.withTimeout()`, retries are bounded (`tryUntilOk(5, ...)`). An unbounded wait is this rule's command-based form (`03-commands.md`) | - [ ] Every loop, retry and wait has a stated bound |
+| 3 | No dynamic allocation after initialization | Java always allocates, so the target is the 20 ms loop: no `new` in `periodic()`, `updateInputs()` or a command body when it can be built once. Cache `StatusSignal`s, control requests and colors (`04-build.md`, `02-hardware.md`) | - [ ] Nothing allocated per loop that could be built once |
+| 4 | Functions fit on one page (about 60 lines) | Applies as written. Long `periodic()` or factory methods split into named helpers | - [ ] No new method over about 60 lines without a reason in the PR |
+| 5 | At least two assertions per function, checking things that should never happen | Java `assert` is off on the robot, so check at **construction**: fail fast with a named exception when an invariant is broken (the arm's ratio-product check, `CanIdRegistry`). Runtime anomalies are logged and raised as `FaultMonitor` alerts rather than thrown | - [ ] New invariants are checked at startup, not assumed |
+| 6 | Declare data at the smallest possible scope | Applies as written. `private` by default, `final` wherever possible, no mutable `public static` state | - [ ] No wider visibility or mutability than needed |
+| 7 | Check every non-void return value, and validate parameters | Every Phoenix `StatusCode` goes through `tryUntilOk` or is checked. Callers that depend on the write check the retry result. Inputs that can be out of range are clamped or rejected, and the clamp is logged (`GoalWasClamped`) | - [ ] Required Phoenix writes confirmed and out-of-range inputs handled visibly |
+| 8 | Limit the preprocessor | No preprocessor in Java. The nearest equivalent is compile-time flags that change behavior, which this repo avoids (there is no tuning-mode flag) | - [ ] No new behavior-changing compile-time flag |
+| 9 | Restrict pointers; no function pointers | Not applicable as written: lambdas and suppliers are idiomatic WPILib. The spirit is traceable control flow, so keep a lambda short and give a command a `.withName()` | - [ ] Lambdas are short; commands are named |
+| 10 | Compile with all warnings on and zero warnings; run static analysis | Zero compiler warnings, never suppressed (a Hard Stop in `CLAUDE.md`), `spotlessCheck` clean, and `./gradlew build` green | - [ ] No new warnings, no `@SuppressWarnings` |
+
+A rule marked "applies as written" is a hard requirement for new code. For the rest, the adapted
+check is the requirement; the original rule is context.
+
+---
+
 ## Quick Reference: Where Things Belong
 
 | What | Where |
 |---|---|
 | Swerve CAN IDs, gains, geometry, current limits | `generated/TunerConstants.java` (Tuner X generated) |
 | Other CAN IDs | `Constants.CanIds` |
-| Setpoints / timeouts / tolerances | `Constants.Setpoints` / `.Waits` / `.Thresholds` — never inline |
+| Robot-wide setpoints / timeouts / alignment thresholds | `Constants.Setpoints` / `.Waits` / `.Thresholds` — never inline |
+| Mechanism position / velocity tolerances | `[Subsystem]Constants.java` |
 | PID gains (mechanisms) | `[Subsystem]Constants.java` or IO implementation |
 | Trajectory-following gains | `Drive.java` (`trajectoryX/Y/HeadingController`) |
-| Drive-to-pose gains / FF radii | `DriveCommands.java` (`driveController`, `Drive/ToPose/FF*`) |
-| Heading-hold gains | `DriveCommands.java` (`ANGLE_KP` / `ANGLE_KD`) |
+| Drive-to-pose gains / FF radii | `DriveCommands.java` (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS`) |
+| Heading-hold gains | `DriveCommands.java` (`angleController` (heading kP/kD)) |
 | Vision thresholds | `subsystems/vision/VisionConstants.java` |
 | Field dimensions / AprilTag layout | `frc/lib/util/FieldConstants.java` |
 | Game geometry, scoring targets, zones | `RobotState.java` + `FieldConstants` |

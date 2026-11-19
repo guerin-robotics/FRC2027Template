@@ -56,14 +56,14 @@ Do not write a single line of code until you have read and understood the releva
 ### Required reads before implementing
 1. **`README.md`** — understand the robot's physical mechanisms, software architecture, operator controls, and constants policy
 2. **`src/main/java/frc/robot/RobotContainer.java`** — understand how subsystems are instantiated and how commands are bound to buttons and autos
-3. **`src/main/java/frc/robot/Constants.java`** — the one constants file: CAN IDs, setpoints, timeouts, tolerances, mode flags (`currentMode`, `simMode`, `tuningMode`)
+3. **`src/main/java/frc/robot/Constants.java`** — the one constants file: CAN IDs, setpoints, timeouts, tolerances, mode flags (`currentMode`, `simMode`)
 4. **`src/main/java/frc/robot/Triggers.java`** — every controller and trigger; `RobotContainer` only reads it
-5. **Any subsystems directly touched by the issue** — the subsystem class and its constants. For a mechanism built on `frc/lib/mechanism/`, the IO layer is the shared `MotorIO` / `MotorIOTalonFX` / `MotorIOTalonFXSim`; for `drive/` and `vision/`, read their own IO interfaces and implementations
+5. **Any subsystems directly touched by the issue** — the subsystem class, its constants, and its own IO interface and implementations (`io/` beside it; `drive/` and `vision/` follow the same pattern)
 6. **Any command files directly touched by the issue** — read them fully, not just the method you plan to change
 
 ### How to explore effectively
 - Use file tree exploration to understand the directory layout before reading individual files
-- When you read a subsystem, also read its IO layer — `vision/io/`, the IO classes beside `Drive`, or `frc/lib/mechanism/` for any mechanism
+- When you read a subsystem, also read its IO layer — the `io/` package beside it, `vision/io/`, or the IO classes beside `Drive`
 - When you read a command that calls subsystem methods, trace into the subsystem to understand what those methods actually do
 - When you see a constant referenced, find where it's defined and understand its meaning
 - Follow the chain: button binding → command → subsystem method → IO interface → hardware implementation
@@ -188,21 +188,23 @@ These apply to every task you take on:
 | Controllers, button and state triggers | `src/main/java/frc/robot/Triggers.java` |
 | CAN IDs for non-swerve hardware | `src/main/java/frc/robot/Constants.java` (`CanIds`) |
 | The mechanism pattern to copy | `template/src/` (three scaffolds) and `template/GUIDE.md` |
-| Motor IO, config builder, mechanism kinds | `src/main/java/frc/lib/mechanism/` |
 
 ### Mechanism pattern summary
 
-A motor-driven mechanism is **two files**. Do not write a per-mechanism IO interface, real IO or
-sim IO — `frc/lib/mechanism/` already provides them, and a copy is exactly what that library
-exists to prevent.
+Every mechanism owns its IO layer. There is no shared mechanism base class.
 ```
 subsystems/
   <name>/
-    <Name>.java              ← extends RollerSubsystem / RotarySubsystem / LinearSubsystem
-    <Name>Constants.java     ← MotorConfig, settings, gains, limits, travel bounds, SIM model
+    io/<Name>IO.java         ← interface + @AutoLog inputs
+    io/<Name>IOReal.java     ← every Phoenix call, and only here
+    io/<Name>IOSim.java      ← physics sim, same interface
+    <Name>.java              ← logic only, zero hardware imports
+    <Name>Constants.java     ← gains, ratios, limits, getFXConfig(), Sim block
+    <Name>Visualizer.java    ← position mechanisms only
+commands/<Name>Commands.java ← static factories, all .withName()'d
 ```
 
 Copy the matching scaffold from `template/src/` (`exampleRoller`, `exampleArm`, `exampleLift`),
 and follow `.claude/skills/add-subsystem/SKILL.md` for CAN IDs, setpoints and three-mode wiring.
-A subsystem whose hardware is not a motor follows `vision/`: its own `XxxIO` interface with an
-`@AutoLog` inputs class, a real implementation and a sim implementation, changed together.
+Check a new `IOReal` against its scaffold, not against another mechanism. The `IO`, `IOReal` and
+`IOSim` are changed together — an `@AutoLog` field added to one is added to all.

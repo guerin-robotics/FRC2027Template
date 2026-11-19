@@ -25,9 +25,10 @@ complete and self-consistent, with nothing to delete and no commented-out fork t
 
 **This used to be a single `ExampleSubsystem` with the three variants commented out.** That version
 asked you to delete the blocks that did not apply, and the deletions it asked for were exactly the
-ones with the worst failure modes when you got them wrong. An arm that inherited the lift's motion
-profile row gets roughly 30x the acceleration it should have, aimed at a hard stop — and it
-compiles, deploys and runs. Three files that are each right beat one file with instructions.
+ones with the worst failure modes when you got them wrong. An arm that inherited the roller's motion
+profile row gets 30x the acceleration it should have (9000 RPM/s against 300), and one that
+inherited the lift's gets triple the acceleration and a cruise in the hundreds of RPM, aimed at a
+hard stop — and either one compiles, deploys and runs. Three files that are each right beat one file with instructions.
 
 ### What actually differs between them
 
@@ -40,11 +41,11 @@ Worth reading before you pick, because the differences are not cosmetic:
 | Soft limits | Off; a roller has no travel | On, in degrees | On, in inches |
 | Gravity | none — no `kG` at all | `Arm_Cosine` + horizontal offset | `Elevator_Static`, constant |
 | Cruise velocity | n/a — the setpoint is the cruise | 60 RPM | `MAX_SPEED_RPM / 2` |
-| Acceleration | 9000 RPM/s | 300 RPM/s | 9000 RPM/s |
+| Acceleration | 9000 RPM/s | 300 RPM/s | 900 RPM/s |
 | Knows position at boot | does not care | yes, absolute | **no — must be zeroed** |
 | Sim model | `FlywheelSim` | `SingleJointedArmSim` | `ElevatorSim` |
 | Visualizer | none, deliberately | yes | yes |
-| Extra block | — | — | zeroing routine |
+| Extra block | jam detection | — | zeroing routine |
 
 Two of those get copied wrong often enough to call out:
 
@@ -73,75 +74,53 @@ If your mechanism does not match its scaffold's assumption — a short extension
 one turn, or a continuously-rotating turret — take the encoder block from the other scaffold. Check
 the arithmetic before deciding; do not assume.
 
-### The two files
+### The six files
 
-Every mechanism is the same two, whichever scaffold you started from.
+Every mechanism is the same six, whichever scaffold you started from. No exceptions, no shortcuts.
 
 ```
 subsystems/myMechanism/
-├── MyMechanism.java            ← extends RollerSubsystem / RotarySubsystem / LinearSubsystem
-└── MyMechanismConstants.java   ← ratio, limits, gains, travel bounds, tolerance, the sim model
+├── io/
+│   ├── MyMechanismIO.java          ← interface + @AutoLog inputs class
+│   ├── MyMechanismIOReal.java      ← TalonFX code lives HERE and only here
+│   └── MyMechanismIOSim.java       ← physics sim, same interface
+├── MyMechanism.java                ← logic only, zero hardware imports
+├── MyMechanismConstants.java       ← gains, ratios, limits — how it is built
+└── MyMechanismVisualizer.java      ← position mechanisms only; see below
+
+commands/MyMechanismCommands.java   ← static factories, all .withName()'d
 ```
 
-**It used to be six**, and the other four are now in `frc/lib/mechanism/`. They were the same code
-in every subsystem with different names on it, and the differences between the copies were
-accidents at least as often as decisions — one logged stator current and called it supply, another
-never read a sticky fault, a third left its follower's signals at the optimize floor by omission.
+A mechanism with sensors or lights also owns those, from `frc/lib/device/` — the absolute encoder,
+distance sensor, beam break and lights wrappers, each with real, sim and replay IOs. The subsystem
+calls each device's `periodic()` from its own. See `docs/devices.md`.
 
-| What used to be a file | Where it lives now |
-|---|---|
-| `io/MyMechanismIO.java` | `MotorIO` — one interface, one `@AutoLog` schema for every mechanism |
-| `io/MyMechanismIOReal.java` | `MotorIOTalonFX` — signal rates, followers, CANcoder, `connected` |
-| `io/MyMechanismIOSim.java` | `MotorIOTalonFXSim` plus the per-kind `*MechanismSim` |
-| `MyMechanismVisualizer.java` | `RotaryVisualizer` / `LinearVisualizer`, geometry taken from the mechanism |
-| `commands/MyMechanismCommands.java` | `RollerCommands` / `RotaryCommands` / `LinearCommands` |
+**There was briefly a shared mechanism library.** For a while these six files were collapsed into
+two on top of a W8-style `frc/lib/mechanism` (one `MotorIO`, a config builder, per-kind
+subsystems). The team went back to this standard layout, and the library was removed; it is in git
+history before `4dcafdb` if anyone wants to read it. The bugs found while it was reviewed were
+ported back into these scaffolds: stator current judged by magnitude, the lift's reverse soft
+limit lifted while zeroing, the arm sim run in a gravity-referenced frame, the CANcoder's absolute
+position at 50 Hz, and followers kept off the leader's soft limits.
 
-You still write a `MyMechanismCommands.java` when the mechanism has verbs of its own. The library
-covers the verbs every mechanism of that kind shares; it does not know what your game does.
-
-### The library underneath
-
-```
-frc/lib/mechanism/
-├── MotorIO.java                ← the shared @AutoLog schema: motor, follower, encoder
-├── MotorConfig.java            ← the builder; refuses to build without the unguessable values
-├── MotorIOTalonFX.java         ← real hardware
-├── MotorIOTalonFXSim.java      ← the same config against a simulated device
-├── Mechanism.java              ← periodic, logging, battery reporting, tunable gains, faults
-├── Gains.java  MotionProfile.java  MechanismVisualization.java
-├── roller/    ← RollerMechanism, RollerSubsystem, RollerCommands, RollerSettings, sim
-├── rotary/    ← RotaryMechanism, RotarySubsystem, RotaryCommands, RotarySettings, sim, visualizer
-└── linear/    ← LinearMechanism, LinearSubsystem, LinearCommands, LinearGeometry, sim, visualizer
-```
-
-Unlike `template/`, this **is** in the build, so it compiles on every PR and `MotorConfigTest` pins
-the builder's safety checks. The scaffolds could only ever be proof-read. Its simulation tests were
-removed to keep the build fast; `docs/testing.md` lists the commit to recover them from.
-
-Two things it gives you that the old scaffolds could not:
-
-- **The builder refuses to build.** A mechanism with no current limit, no gear ratio, no gains or —
-  on a position mechanism — no travel bounds throws at startup, naming the mechanism and every
-  missing value at once. A limit nobody chose is how 2026 logged hundreds of brownouts across one
-  event.
-- **Simulation runs the real gains.** `MotorIOTalonFXSim` applies the same `TalonFXConfiguration` to
-  a simulated Talon, so the closed loop, the Motion Magic profile and the current limits in
-  simulation are the ones that will run on the robot. The 2026 sim IOs ran their own WPILib
-  `PIDController` against a second set of gains, which meant a tuning session in sim taught you very
-  little.
+The price of this layout is that every mechanism carries its own copy of the IO. **Review a new IO
+against these scaffolds**, not against another mechanism — a difference between two copies is an
+accident at least as often as a decision. In 2026 one copy logged stator current and called it
+supply, another never read a sticky fault, and a third left its follower's signals at the optimize
+floor by omission.
 
 ### The visualizer — and why the roller does not have one
 
-`RotaryVisualizer` and `LinearVisualizer` draw the mechanism as a `LoggedMechanism2d`. They are
-**diagnostic only** — nothing in them affects robot behaviour, and deleting them would change only
-what you can see.
+`MyMechanismVisualizer.java` draws the mechanism as a `LoggedMechanism2d` and publishes a `Pose3d`
+for the AdvantageScope 3D robot model. It is **diagnostic only** — nothing in it affects robot
+behavior, and deleting it changes nothing except what you can see.
 
-There is deliberately none for the roller. A spinning drum has no position worth drawing, and a
-ligament turning at 6000 RPM sampled at 50 Hz aliases into a bar that appears to drift slowly
-backward. The velocity plot beside `closedLoopReference` already answers every question a picture
-would, and answers it better.
+It ships with `exampleArm` and `exampleLift`, and is deliberately absent from `exampleRoller`. A
+spinning drum has no position worth drawing, and a ligament turning at 6000 RPM sampled at 50 Hz
+aliases into a bar that appears to drift slowly backward. The velocity plot beside
+`closedLoopReference` already answers every question a picture would, and answers it better.
 
-What they catch that a plot does not — all of these were real, and all of them look like perfectly
+What it catches that a plot does not — all of these were real, and all of them look like perfectly
 plausible numbers in a log:
 
 | Mistake | How it appears |
@@ -150,30 +129,27 @@ plausible numbers in a log:
 | Wrong gear ratio | The arm sweeps three times the travel it physically has |
 | Wrong zero | Stowed reads 90°, so every setpoint is offset by a constant nobody wrote down |
 | Goal never reached | Measured and goal drawn together — a saturated profile is obvious |
-| Goal outside the bounds | The bound markers show a setpoint that can never be reached |
+| Goal outside the bounds | The soft-limit markers show a setpoint that can never be reached |
 | Linear: wrong `STAGE_COUNT` | The carriage travels an exact integer multiple of its real travel |
 
-Three things about them are deliberate:
+Three things about it are deliberate:
 
-- **`MechanismVisualization.ENABLED` is one switch for all of them.** They publish to NetworkTables
-  every loop, and the 2026 robot ran closer to 30 Hz than 50 Hz all season. Leave it on through
-  bring-up, where it is the whole point; check `LoopTiming/` with it enabled before competition and
-  turn it off if the budget is tight. One flag rather than one per subsystem, because a switch you
-  have to find in every mechanism's files is a switch nobody throws.
+- **`Visualization.ENABLED` is a real switch, not decoration.** It publishes to NetworkTables every
+  loop, and the 2026 robot ran closer to 30 Hz than 50 Hz all season. Leave it on through bring-up,
+  where it is the whole point; check `LoopTiming/` with it enabled before competition and turn it
+  off if the budget is tight.
 - **`SmartDashboard.putData` is called once, in the constructor.** The 2026 `IntakePivotVisualizer`
-  called it inside its update method, republishing the Sendable fifty times a second. The dashboard
+  called it inside its update method, re-publishing the Sendable fifty times a second. The dashboard
   holds a reference and reads through it — once is all it ever needed.
-- **The geometry comes from the mechanism**, not from a block of display constants. The bounds
-  drawn are the soft limits actually enforced, and the elevator's travel is computed through the
-  same `LinearGeometry` the device was configured with. A picture built from a second copy of the
-  numbers draws a reassuring picture of a lie.
+- **The travel-bound markers read from the soft limits**, not from a second copy. A display bound
+  that disagrees with the enforced bound draws a reassuring picture of a lie.
 
 **What did not carry over:** 2026's `RobotModelVisualizer` published a single `Pose3d[]` at
 `RobotModel/ComponentPoses` for the articulated 3D model, which is the right shape once there are
 two or more moving components — AdvantageScope wants one field dragged onto the robot object, not
-four. It is not here because it described the 2026 robot's four components exactly and none of
-those numbers transfer. Rebuild it in `frc/lib` when the second articulated mechanism lands, taking
-a `Supplier<Angle>` per component rather than subsystem references.
+four. It is not in this template because it described the 2026 robot's four components exactly and
+none of those numbers transfer. Rebuild it in `frc/lib` when the second articulated mechanism lands,
+taking a `Supplier<Angle>` per component rather than subsystem references.
 
 2026's `FlywheelVisualizer` was not this pattern at all — it projected a shot trajectory, which is
 game logic and belongs with the sequences.
@@ -190,11 +166,10 @@ Fixed across every mechanism, so nobody has to check which one a given file uses
 | Linear position | inches |
 | Gains | amps — every closed loop is `TorqueCurrentFOC` |
 
-Phoenix works in rotations and rotations per second. The conversion happens **once**, at the
-library boundary: `MotorConfig` takes typed `Angle` soft limits, `MotionProfile.of` takes typed
-velocity and acceleration, and `LinearGeometry` is the single place a drum rotation becomes a
-height. A bare `/ 60.0` written by hand is how a factor-of-sixty error gets in — it compiles,
-deploys, and moves the mechanism, just not the way anyone expected.
+Phoenix works in rotations and rotations per second. The conversion happens **once**, in
+`getFXConfig()`, through the helpers at the top of the constants file. A bare `/ 60.0` in an IO
+class is how a factor-of-sixty error gets in — it compiles, deploys, and moves the mechanism, just
+not the way anyone expected.
 
 `exampleLift` is the sharpest case: its IO layer speaks **drum rotations**, because that is what the
 hardware reports and what a log should record, and the subsystem is the boundary that converts to
@@ -236,9 +211,10 @@ number driving the sim model are the same one. It also builds the sim gearbox, s
 apart either.
 
 Motion Magic defaults are **already correct in each scaffold** — they are the row in the differences
-table above, and they are the single most important reason the three are separate files. All of them
-are `LoggedTunableNumber`s, so the compiled-in value is only the starting dashboard value and the
-profile stays adjustable at runtime.
+table above, and they are the single most important reason the three are separate files. They are
+plain constants, applied once at construction: adjust the profile in Phoenix Tuner X with the
+mechanism in front of you, then write the result into the constants file. Nothing a match reads is a
+dashboard tunable — see `docs/tunables.md`.
 
 Gear ratio and `MAX_SPEED_RPM` stay static. They describe how the machine is built.
 ---
@@ -253,13 +229,10 @@ Command factories take setpoints as parameters and `RobotContainer` supplies the
 `Constants.Setpoints`. A finished `RobotContainer` contains no bare numbers at all — if a unit
 import is still needed in it, a setpoint got left behind. See `.claude/rules/03-commands.md`.
 
-There is no separate `Sim` gain block any more. `MotorIOTalonFXSim` applies the same
-`TalonFXConfiguration` to a simulated Talon, so one set of gains runs in both places. That makes
-sim a check on the gains you will deploy — but the model still has no backlash, no belt stretch
-and a guessed inertia, so gains that behave in sim are a starting point for the robot, not a
-result. What a scaffold's constants file does carry for sim is the *model* — a `SIM` field of type
-`RollerSimModel` / `RotarySimModel` / `LinearSimModel` holding the gearbox and the inertia or
-mass, which the per-kind `*MechanismSim` uses.
+The constants file is flat except for a nested `Sim` block, because sim needs its own gains —
+the model has no backlash, no belt stretch and a guessed inertia, so gains that behave against
+it are routinely wrong on hardware. Mode-aware `getKP()`-style accessors pick the right set so
+no caller has to know which mode it is in.
 
 The one rule that makes it work: **`MyMechanism.java` must behave identically whether the
 IO is real, sim, or replay.** That is the entire point of the abstraction. The moment a
@@ -272,6 +245,11 @@ ability to debug a match after the fact.
 io.updateInputs(inputs);
 Logger.processInputs("MyMechanism", inputs);   // NEVER remove this line
 ```
+
+Each scaffold checks the results of its required `PhoenixUtil.tryUntilOk` startup writes and logs
+the combined result as the `configured` input so replay applies the same closed-loop gate.
+Register `() -> !mechanism.isConfigured()` with `FaultMonitor` in `RobotContainer` to surface
+startup failures.
 
 ---
 
@@ -291,9 +269,9 @@ competition seasons. Don't rewrite them; extend them.
 | `BatteryLogger` | Per-subsystem current tracking; the only way to diagnose a brownout |
 | `LoggedTrigger` | Makes trigger state visible in AdvantageKit logs |
 | `ContinuousConditionalCommand` | Correct answer when a command's mode changes while running |
-| `PhoenixUtil.tryUntilOk` | CTRE silently ignores configs on a busy bus; this retries until they stick |
+| `PhoenixUtil.tryUntilOk` | Retries CTRE configuration up to the attempt limit and returns whether the write was confirmed |
 | `LoggedDashboardChooser` | Logs which auto was selected — essential for post-match review |
-| The test suite in `src/test/` | `RobotContainer` wiring, CAN ID validation and `MotorConfig` safety values. All three cover a new mechanism the moment it exists — see `docs/testing.md` |
+| The test suite in `src/test/` | `RobotContainer` wiring, Choreo event-marker bindings and CAN ID validation. The first and last cover a new mechanism the moment it exists — see `docs/testing.md` |
 
 ---
 
@@ -357,7 +335,20 @@ silently. The template is lighter simply because there is less code, and that wi
 true as mechanisms are added. Check the number the first day the robot drives, and again
 after each subsystem lands.
 
-### 3. Implicit readiness instead of a state machine
+### 3. No jam or stall detection pattern
+
+2026 ran open-loop rollers and belts with no feedback, so jams were silent.
+
+`exampleRoller` now carries the pattern — the conjunction of commanded-motion AND
+velocity-far-below-commanded AND high stator current, held for a dwell — but it is **commented
+out**, because none of its four thresholds can be guessed. They come from logging stator current
+during a real jam *and* during a normal pickup, since telling those two apart is the entire job.
+
+So the structure is solved and the numbers are not. Collect them on the 2027 intake early, then
+uncomment the block and register it with `FaultMonitor` so a mechanism jamming repeatedly reaches
+the pit rather than only the log.
+
+### 4. Implicit readiness instead of a state machine
 
 2026 determined "ready to score" by chaining `waitUntil(isSpunUp)` and
 `waitUntil(isAligned)` with timeouts. It worked, but you could not ask "what state is the
@@ -365,7 +356,7 @@ scoring mechanism in right now?" without reconstructing it from the command tree
 an explicit enum state machine in a coordinator class if the 2027 scoring flow is
 comparably complex.
 
-### 4. `RobotContainer` growth
+### 5. `RobotContainer` growth
 
 It is small and readable today. In 2026 it reached 1300 lines. Split bindings into
 per-subsystem `configureXxxBindings()` methods before it gets there. Triggers already live in
@@ -392,7 +383,7 @@ src/main/java/frc/robot/
 │   └── [new mechanisms]/     ← copy a scaffold from template/src/
 ├── commands/
 │   ├── DriveCommands.java    ← carried over; add game alignment commands here
-│   └── [new commands]/       ← only for verbs the mechanism library does not already have
+│   └── [new commands]/       ← static factories, one file per subsystem
 ├── autos/
 │   ├── ChoreoAutos.java      ← Choreo routines, event bindings, thenAlign PID finish
 │   └── PointToPointAutos.java ← waypoint autos; trajectories live in deploy/choreo
@@ -401,12 +392,9 @@ frc/lib/
 ├── util/                     ← ALL shared utilities: field/alliance, hardware helpers,
 │                                health monitors, tuning. Carried over; add to it,
 │                                don't rewrite it. There is no frc/robot/util.
-├── mechanism/                ← the motor abstraction and the three mechanism kinds.
-│                                In the build, and tested. Add a kind here, not a copy
-│                                of one in a subsystem package.
 ├── device/                   ← encoders, distance sensors, beam breaks, lights, and the
 │                                runtime CAN ID check. A subsystem owns these alongside
-│                                its mechanism — see docs/devices.md.
+│                                its motors — see docs/devices.md.
 ├── auto/                     ← Waypoint / WaypointAuto, point-to-point autos as data
 └── command/                  ← command infrastructure (SteppableCommandGroup)
 ```
@@ -420,44 +408,60 @@ nothing here is compiled or deployed. Spotless *does* format these files, so kee
 Java.
 
 **Each scaffold deliberately does not compile.** The values that cannot be guessed have their
-declarations commented out while the code still uses them, so copying a scaffold makes the compiler
-name exactly what you owe it — and no way to skip one by accident.
+declarations commented out while the code still assigns them, so copying a scaffold makes the
+compiler name exactly what you owe it — one error per thing, and no way to skip one by accident.
 
 | Scaffold | Owes | Symbols |
 |---|---|---|
 | `exampleRoller` | 2 | `EXAMPLE_ROLLER_MOTOR`, `GEAR_RATIO` |
-| `exampleArm` | 7 | `EXAMPLE_ARM_MOTOR`, `EXAMPLE_ARM_ENCODER`, `ROTOR_TO_SENSOR_RATIO`, `SENSOR_TO_MECHANISM_RATIO`, `MAGNET_OFFSET_ROTATIONS`, `FORWARD_SOFT_LIMIT`, `REVERSE_SOFT_LIMIT` |
-| `exampleLift` | 5 | `EXAMPLE_LIFT_MOTOR`, `GEAR_RATIO`, `DRUM_PITCH_DIAMETER`, `STAGE_COUNT`, `MAX_TRAVEL` |
+| `exampleArm` | 8 | `EXAMPLE_ARM_MOTOR`, `EXAMPLE_ARM_ENCODER`, `GEAR_RATIO`, `ROTOR_TO_SENSOR_RATIO`, `SENSOR_TO_MECHANISM_RATIO`, `MAGNET_OFFSET_ROTATIONS`, `FORWARD_SOFT_LIMIT_DEGREES`, `REVERSE_SOFT_LIMIT_DEGREES` |
+| `exampleLift` | 5 | `EXAMPLE_LIFT_MOTOR`, `GEAR_RATIO`, `DRUM_PITCH_DIAMETER`, `STAGE_COUNT`, `MAX_TRAVEL_INCHES` |
 
-The arm owed eight before the library landed. `GEAR_RATIO` came off the list because
-`MotorConfig.rotorToMechanismRatio()` derives it from the two ratios, so there is no longer a third
-number that has to agree with the other two — and no longer an invariant check needed to enforce
-that it does.
+The split is deliberate and it is the payoff for having three files. The old single scaffold owed
+nine values no matter what you were building, including a profile row and a ratio split that only
+one kind of mechanism actually has. A roller now owes **two**.
 
-Note what is *not* on these lists:
+Note what is *not* on these lists any more:
 
-- **Motion-profile values** are set per scaffold, not asked for. Splitting the file into three is
-  what let each have a right answer; the old single scaffold had to leave them blank because the
-  wrong one still compiles.
-- **`SENSOR_TO_MECHANISM_RATIO`** is just `GEAR_RATIO` in the roller and the lift, because the
-  sensor is the rotor and there is no split. Only the arm asks for both.
-- **`SENSOR_DISCONTINUITY_POINT`** defaults to `0.5`. `1.0` is the obvious-looking answer and is
-  rarely right — it puts the wrap at 0, which is almost always the stow position.
-- **`ENCODER_DIRECTION`** defaults to `CounterClockwise_Positive`, but there is no usual answer —
-  the 2026 intake pivot needed `Clockwise_Positive`. Pass `.encoderDirection(...)` to change it.
-- **Current limits** are set per scaffold: 40 A supply and an 80 A stator ceiling on
-  `exampleRoller`, 30 A supply and a 40 A ceiling on the two position scaffolds.
+- **`ACCELERATION_RPM_PER_SEC` and `CRUISE_VELOCITY_RPM`** are now set correctly per
+  scaffold. They were commented out before precisely because the wrong answer still compiles, and
+  splitting the file is what let them have a right answer.
+- **`SENSOR_TO_MECHANISM_RATIO`** is derived from `GEAR_RATIO` in the roller and the lift, because
+  the sensor is the rotor and there is no split. Only the arm asks.
+- **`SENSOR_DISCONTINUITY_POINT`** defaults to `0.5` in the arm. `1.0` is the obvious-looking answer
+  and is rarely right — it puts the wrap at 0, which is almost always the stow position.
+- **`ENCODER_DIRECTION`** defaults to `CounterClockwise_Positive` in the arm, but there is no usual
+  answer — the 2026 intake pivot needed `Clockwise_Positive`. It lives in the constants file rather
+  than the IO because it describes how the magnet is physically mounted, not how the code drives it.
 
-That last split is about what a wrong setpoint does. A position mechanism sent somewhere it cannot
-reach drives into its own hard stop with everything the limit allows and holds there, so the two
-position scaffolds start deliberately weak and are raised once a log shows what the mechanism
-actually draws. A roller sent to a speed it cannot reach just spins slower, so it starts at a
-working value.
+`exampleArm` additionally **enforces at class load** that
+`ROTOR_TO_SENSOR_RATIO * SENSOR_TO_MECHANISM_RATIO` equals `GEAR_RATIO`, within 1%. That invariant
+has been documented in this file for two seasons and was never checked, and it is the one place in
+a fused-CANcoder setup where a wrong answer applies cleanly, moves the mechanism, and is wrong by
+an entire gear reduction. The tolerance is 1% rather than something tighter because quoted ratios
+are hand-rounded — the 2026 hood's 5.33 x 10.17 comes to 54.206 against a quoted 54.2 — while a
+real mistake is off by a factor, not a percent.
 
-**The torque-current clamp now follows the stator limit automatically.** `MotorConfig` derives
-±clamp from the stator limit unless you override it, so the 2026 trap of raising one without the
-other — a clamp above the stator limit is not a clamp, and a stator limit raised without the clamp
-leaves the mechanism exactly as weak as before — cannot happen by omission.
+Commenting out the *assignments* instead would compile, and would be worse. Phoenix defaults
+`SensorToMechanismRatio` to 1.0, so a config that quietly skips it reports motor rotations while
+every setpoint and gain assumes mechanism rotations — a confidently wrong robot, which is far
+harder to notice than one that refuses to build. The same argument applies with more force to the
+soft limits: a missing travel bound does not fail, it drives an arm into a hard stop at full current.
+
+Everything else has a defensible default: 40 A supply everywhere, ±12 V everywhere, and a
+stator ceiling that depends on the scaffold — 80 A with a matching ±80 A torque clamp on
+`exampleRoller`, 40 A with a matching ±40 A clamp on `exampleArm` and `exampleLift`.
+
+The split is about what a wrong setpoint does. A position mechanism sent somewhere it cannot
+reach drives into its own hard stop with everything the limit allows and holds there, so the
+two position scaffolds start deliberately weak and carry a TODO to raise the limit once a log
+shows what the mechanism actually draws. A roller sent to a speed it cannot reach just spins
+slower, so it starts at a working value; a roller that *can* stall is covered by the jam
+detector rather than by a low limit.
+
+Raise the stator limit and the torque-current clamp together. A clamp above the stator limit
+is not a clamp — the loop asks for current the device refuses — and a stator limit raised
+without the clamp leaves the mechanism exactly as weak as before.
 
 **To check the scaffolds**, temporarily put them in the source set:
 
@@ -466,10 +470,12 @@ leaves the mechanism exactly as weak as before — cannot happen by omission.
 sourceSets { main { java { srcDir 'template/src/main/java' } } }
 ```
 
-Expect exactly the symbols in the table above and no others — every error is `cannot find symbol`.
-`REVERSE_SOFT_LIMIT` is named twice in the arm, because the simulation also starts the arm there;
-everything else is named once per scaffold. Anything else in the list is rot.
+Expect exactly the symbols in the table above and no others — every error is `cannot find symbol`,
+and `GEAR_RATIO` accounts for twelve of the sites because all three scaffolds want one and
+`exampleArm` checks it three times over (see below). Anything else is rot. Run this check after editing a scaffold; it is what caught the old one still using the
+`TalonFX(int, String)` constructor, which Phoenix 6 deprecated for removal. A scaffold is the worst
+place for a deprecated call, since being copied is its whole purpose.
 
-Run this check after editing a scaffold. It is what caught the old one still using the
-`TalonFX(int, String)` constructor, which Phoenix 6 deprecated for removal — a scaffold is the
-worst place for a deprecated call, since being copied is its whole purpose.
+The check also confirms the annotation processor still generates all three `*IOInputsAutoLogged`
+classes. If one of those turns up in the error list, an `@AutoLog` inputs class has a problem that
+would otherwise only surface when someone copied it.

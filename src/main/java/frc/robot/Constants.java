@@ -26,7 +26,7 @@ import edu.wpi.first.wpilibj.RobotBase;
  *   <li><b>Setpoints</b> — the voltages, velocities and positions a mechanism is commanded to
  *   <li><b>Waits</b> — every timeout used by a command
  *   <li><b>Thresholds</b> — alignment tolerances and readiness bands
- *   <li><b>Mode flags</b> — sim/replay selection, tuning mode
+ *   <li><b>Mode flags</b> — sim/replay selection
  * </ul>
  *
  * <h2>What stays in the subsystem's own constants file</h2>
@@ -78,20 +78,9 @@ public final class Constants {
    */
   public static boolean disableHAL = false;
 
-  /**
-   * Enables dashboard-adjustable constants ({@code LoggedTunableNumber} / {@code
-   * LoggedTunableBoolean}).
-   *
-   * <p><b>MUST BE FALSE FOR COMPETITION.</b> With it on, every tunable publishes to NetworkTables
-   * and reads back from it, which puts dashboard traffic in the 20 ms loop and leaves the robot one
-   * stray edit away from a different gain set. With it off, tunables return their compiled-in
-   * defaults and cost nothing.
-   *
-   * <p>Turning this on is a deliberate act at the start of a tuning session, and turning it off
-   * again is part of the pre-competition checklist. Values discovered while it is on live only in
-   * NetworkTables — write them into the constants and commit them, or they vanish on reboot.
-   */
-  public static final boolean tuningMode = false;
+  // There is deliberately no tuning-mode flag. Dashboard tunables are always published, and only
+  // a tuning command — one that runs in test mode and never on the field — may read one. Match
+  // code reads compiled values from Setpoints below. See docs/tunables.md.
 
   // ============================================================================================
   // CAN IDs
@@ -333,64 +322,5 @@ public final class Constants {
 
     /** Default "arrived" heading error for a point-to-point waypoint. */
     public static final double WAYPOINT_HEADING_TOLERANCE_DEGREES = 3.0;
-  }
-
-  // ============================================================================================
-  // CONSTANT GATES — run by Gradle, not by the robot
-  // ============================================================================================
-  //
-  // Both read only tuningMode, which is a compile-time constant and so is inlined: these classes
-  // never initialize Constants itself. Keep it that way. Reading simMode or currentMode here would
-  // run RobotBase.isReal(), which needs the WPILib natives that a plain Gradle JavaExec does not
-  // have on its path.
-
-  /**
-   * Runs before every deploy ({@code checkConstantsDeploy} in {@code build.gradle}). Refuses to
-   * deploy with {@link #tuningMode} on from an {@code event*} branch — the branches {@code
-   * eventDeploy} auto-commits to at competition — or from a detached checkout, whose branch cannot
-   * be known.
-   *
-   * <p>Deploying with tuning on from any other branch is allowed on purpose: that is how a tuning
-   * session gets tunables onto the robot.
-   */
-  public static final class CheckDeploy {
-    private CheckDeploy() {}
-
-    public static void main(String... args) {
-      String branch = args.length > 0 ? args[0] : "";
-      // A detached checkout has no branch name, so it cannot be ruled out as an event revision.
-      // Fail closed rather than let it through with tuning on.
-      if (tuningMode && branch.isEmpty()) {
-        System.err.println(
-            "Cannot deploy: Constants.tuningMode is true and the git branch could not be"
-                + " determined (detached HEAD?). Check out a named branch or turn tuning off.");
-        System.exit(1);
-      }
-      if (tuningMode && branch.startsWith("event")) {
-        System.err.println(
-            "Cannot deploy: Constants.tuningMode is true on event branch '"
-                + branch
-                + "'. Set it false before deploying at competition.");
-        System.exit(1);
-      }
-      if (tuningMode) {
-        System.out.println("WARNING: deploying with Constants.tuningMode = true.");
-      }
-    }
-  }
-
-  /**
-   * Runs in CI on every PR and push to main ({@code checkConstantsPullRequest}). Refuses a merge
-   * that would leave {@link #tuningMode} on, so the default branch is always competition-ready.
-   */
-  public static final class CheckPullRequest {
-    private CheckPullRequest() {}
-
-    public static void main(String... args) {
-      if (tuningMode) {
-        System.err.println("Do not merge: Constants.tuningMode is true. Set it false first.");
-        System.exit(1);
-      }
-    }
   }
 }

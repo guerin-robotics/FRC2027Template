@@ -17,16 +17,17 @@ new TalonFX(Constants.CanIds.MECHANISM_LEADER, "rio");
 new TalonFX(30, "rio");   ← magic number, invisible in review
 ```
 
-**There is one constants file.** `Constants` holds CAN IDs, setpoints, timeouts and
-tolerances — everything you would change in the pit between matches. A subsystem's own
-`*Constants.java` holds what describes how that mechanism is built or characterized: gains,
-current limits, gear ratio, sim parameters, interpolation maps. There is deliberately no
-separate `HardwareConstants`; 2026 had both and the split meant remembering which of two
-files a value lived in while a match clock was running.
+**There is one robot-wide constants file.** `Constants` holds CAN IDs, setpoints, command timeouts,
+and global alignment or readiness thresholds — values coordinated across the robot. A subsystem's
+own `*Constants.java` holds values that describe or characterize that mechanism: gains, current
+limits, travel limits, position and velocity tolerances, gear ratio, sim parameters, and
+interpolation maps. There is deliberately no separate `HardwareConstants`; 2026 had both and the
+split meant remembering which of two files a value lived in while a match clock was running.
 
 **Every IO that constructs a CAN device calls `CanIdRegistry.claim(id, bus, owner)` first.**
-`MotorIOTalonFX` and every IO under `frc/lib/device` already do; a new device class must too. A
-duplicate then stops boot with both owners named instead of half-working.
+Every IO under `frc/lib/device` and every scaffold `*IOReal` in `template/` already does — motor,
+follower and CANcoder alike. A new IO must too. A duplicate then stops boot with both owners named
+instead of half-working.
 
 Keep a `docs/hardware-layout.md` in this repo listing every device, its ID, and its bus.
 The 2026 repo had one and it was the fastest way to answer "what is on ID 14?".
@@ -51,12 +52,13 @@ When adding a CAN device:
 
 ## TalonFX Configuration Rules
 
-Always use `PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config))`.
-`MotorIOTalonFX` already does this for every mechanism built on `frc/lib/mechanism`; the rule
-applies to any device configured outside it.
+Always use `PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config))`, on every
+device, in every `*IOReal`. Check the returned boolean for each required write and report
+startup configuration as confirmed only when all of those writes succeed. The mechanism
+scaffolds log that result as `configured` and require it for closed-loop motion.
 
 **Why:** CTRE devices silently ignore configuration if the CAN bus is busy at startup.
-`tryUntilOk` retries until the config sticks. Without it, motors boot with default
+`tryUntilOk` retries up to the attempt limit. Without it, motors can boot with default
 configs (no current limits, no gains) and the first match move may brown out the robot.
 
 ### Apply the whole config once, never a sub-config you built by hand
@@ -76,7 +78,8 @@ feedback.withFeedbackSensorSource(FeedbackSensorSourceValue.FusedCANcoder);
 motor.getConfigurator().apply(feedback);       // ...and now they are on the device
 
 // CORRECT — build the complete config once, apply it once
-PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.toTalonFXConfiguration()));
+boolean configured =
+    PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config));
 ```
 
 **This shipped on the 2026 intake pivot** (`Rebuilt2026`, `IntakePivotIOReal.configurePivotMotor`)
@@ -87,8 +90,10 @@ how the rotor extends the absolute reading, so the fusion ends up wrong by the w
 while every config call reports success.
 
 Applying a sub-config is fine when the object came from a fully-built config — that is what
-`MotorIOTalonFX.setGains` and `setMotionProfile` do with `config.Slot0` and `config.MotionMagic`,
-mutating the numbers in the config they already hold rather than building a fresh block. The rule
+`ExampleLiftIOReal` does with its reverse soft-limit blocks: it takes `config.SoftwareLimitSwitch`
+from `getFXConfig()` once, in the constructor, rather than building one by hand. (There is no live gain
+push any more: gains are tuned in Phoenix Tuner X and committed, then applied once at
+construction. See `docs/tunables.md`.) The rule
 is not "never apply a sub-config", it is **never apply one you hand-built**.
 
 Always set:
@@ -188,8 +193,9 @@ Why each lands where it does:
   position to check the magnet offset and the fusion seed. Sampled slower, the two disagree by
   however far the mechanism moved in between, which reads as an offset error that is not there.
 
-`MotorIOTalonFX` does all of this from the `MotorConfig`, so there is no per-mechanism IO class to
-get it right in. The rule applies to any device configured outside that library.
+Every mechanism's `*IOReal` does all of this itself, so every copy is a place to get it wrong.
+The three scaffolds in `template/src/` get it right; copy from them, and check a new IO against
+them rather than against another mechanism.
 
 ### optimizeBusUtilization is mandatory, on every device
 
@@ -336,25 +342,19 @@ frame as `StatorCurrent`. If stator current is already registered at 50 Hz — a
 be — requesting torque current adds no periodic frame. Still worth confirming against bus
 utilization in Tuner X on the first real deploy.
 
-The swerve drive and steer motors already do this; see `ModuleIOTalonFX` for the pattern.
-Every other mechanism gets it from `frc/lib/mechanism/MotorIOTalonFX`, which registers torque
-current in the 50 Hz group for you — there is no per-mechanism IO class to get it right in.
+The swerve drive and steer motors already do this; see `ModuleIOTalonFX` for the pattern. The
+scaffold `*IOReal`s register it in the 50 Hz group too.
 
 **Do not populate torque current from a WPILib sim class.** `FlywheelSim`, `ElevatorSim` and
 `SingleJointedArmSim` model total current draw, not the torque-producing component, so a value
 taken from one of those and written to the torque-current field is fiction that looks real in a
 log. Leave the field at zero there — the schema is shared through the generated `*AutoLogged`
-class, so real and sim still match.
+class, so real and sim still match. The scaffold `*IOSim`s do exactly this.
 
-**`MotorIOTalonFXSim` is the exception, and it does populate it.** Phoenix's device simulation
-computes stator, supply and torque current from its own motor model given the rotor state it is
-handed, so torque current in simulation is the same quantity it is on the robot — modelled rather
-than measured, but not invented. The rule above is about where the number comes from, not about
-simulation as such.
-
-Treat the magnitudes as indicative. A simulated torque current says the loop is asking for roughly
-the right amount of effort; it does not tell you what the mechanism will actually draw with a game
-piece in it, and it is not a substitute for a real log.
+The rule is about where the number comes from, not about simulation as such. An IO that drives
+Phoenix's device simulation (`TalonFXSimState`) may populate it: Phoenix computes stator, supply
+and torque current from its own motor model, so the value is modelled rather than invented. Treat
+its magnitude as indicative — it is not what the mechanism will draw with a game piece in it.
 
 ---
 
@@ -425,28 +425,25 @@ rather than by choice, and the data looked present while being a quarter second 
 harder to spot than data that is missing. Either register them explicitly or write down that
 4 Hz is intended.
 
-`MotorConfig.Builder.follower(id, opposed)` is the whole pattern now: the follower is configured
-from the leader's config, given the `Follower` request with the right alignment, logged as its own
-group with its own `connected` and its own sticky faults, counted in the battery report, and counted
-in the simulation gearbox. `.followerSignalHz(hz)` is how you choose its rate deliberately; it
-defaults to 4 Hz, which is a fine rate arrived at on purpose rather than by omission.
+Each scaffold `*IOReal` ends with a commented FOLLOWER MOTORS block that is the whole pattern:
+claim the ID, apply the leader's config, give it the `Follower` request with the right alignment,
+log it, check it with `isConnected()`, and decide its rate. Count its supply current in the
+battery report.
 
-**Travel bounds are the one thing a follower does not inherit.**
-`MotorConfig.toFollowerTalonFXConfiguration()` switches the soft limits off, and
-`MotorIOTalonFX` applies that config to every follower.
+**Travel bounds are the one thing a follower does not inherit.** Build the follower's config from
+`getFXConfig()` and switch both soft limits off before applying it — the scaffold blocks do.
 
-A follower executes a `Follower` request, not a position loop, and nothing reads its position —
-`FollowerInputs` has no position field. Its soft limits would therefore gate output against a
-register no other part of the code looks at. On an `Opposed` follower that register also runs
-*backwards* relative to the leader's for the same mechanism motion, which is why the simulation
-flips its `ChassisReference`, so the leader's window lands on the wrong half of travel. The failure
+A follower executes a `Follower` request, not a position loop, and nothing reads its position. Its
+soft limits would therefore gate output against a register no other part of the code looks at. On
+an `Opposed` follower that register also runs *backwards* relative to the leader's for the same
+mechanism motion, so the leader's window lands on the wrong half of travel. The failure
 mode is a two-motor mechanism quietly dropping to one motor's torque partway through legal motion
 while both devices report obeying their configured limits.
 
 **The leader owns travel.** It is the one running the loop, against the one position the rest of
 the code reads.
 
-See the commented follower block at the bottom of `ExampleLiftConstants` for the worked case — a
+See the commented follower block at the bottom of `ExampleLiftIOReal` for the worked case — a
 two-motor lift is the common one, and that block covers how a follower interacts with the zeroing
 routine.
 

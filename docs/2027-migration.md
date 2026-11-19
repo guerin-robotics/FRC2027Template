@@ -48,8 +48,8 @@ Not a version bump. In rough order of blast radius:
 | **Java 17 → Java 25** | `build.gradle` toolchain, `.github/workflows/build.yml` (it has a `TODO(2027)` for exactly this), every developer's JDK |
 | **`edu.wpi.first` → `org.wpilib`** | Every source file. The VS Code importer attempts this automatically. Several classes also moved *within* the new namespace — geometry to a `shape` package, `Preferences` to `preferences`, the robot bases to `org.wpilib.framework` |
 | **Constants renamed to `ALL_CAPS`** (alpha-7) | Every WPILib constant and enum value we reference — `Rotation2d.kZero`, `Rotation2d.kPi`, `DebounceType.kFalling`, `Alliance.Red` and the like. Mechanical, but it touches the drive, vision and every `frc/lib` file |
-| **Commands V2 → V3** | 23 files import `wpilibj2.command` (15 in `src/main`, 8 in `src/test`); the scaffolds use it only through the library's `*Subsystem` and `*Commands`. See [the two-step plan](#commands-do-it-in-two-steps) below |
-| **SmartDashboard and `SendableChooser` removed** (alpha-7) | Replaced by the **Telemetry** and **Tunables** APIs; the chooser equivalent is `org.wpilib.tunable.Selectable`. Touches `Robot.java` (pre-match checklist string), `FaultMonitor` (`Robot OK`, `Active Faults`), `RotaryVisualizer` and `LinearVisualizer` (`putData`), and the auto chooser — see [Auto selection](#auto-selection-opmodes-or-a-selectable) |
+| **Commands V2 → V3** | 15 files import `wpilibj2.command` (14 in `src/main`, 1 in `src/test`), plus 6 in the `template/` scaffolds — each mechanism subsystem and its `*Commands` class. See [the two-step plan](#commands-do-it-in-two-steps) below |
+| **SmartDashboard and `SendableChooser` removed** (alpha-7) | Replaced by the **Telemetry** and **Tunables** APIs; the chooser equivalent is `org.wpilib.tunable.Selectable`. Touches `Robot.java` (pre-match checklist string), `FaultMonitor` (`Robot OK`, `Active Faults`), the scaffold visualizers `ExampleArmVisualizer` and `ExampleLiftVisualizer` (`putData`), and the auto chooser — see [Auto selection](#auto-selection-opmodes-or-a-selectable) |
 | **`Alert` moved to wpiutil** (alpha-7) | `org.wpilib.util.Alert`. Seven files import `edu.wpi.first.wpilibj.Alert`: `Drive`, `Module`, `Vision`, `BatteryLogger`, `CANBusMonitor`, `LoopTimeMonitor`, `PhoenixSignalLogger`. Import change only, as far as the alpha shows |
 | **Integer timestamps are nanoseconds** (alpha-7) | Anything reading a raw `long` timestamp — `RobotController.getFPGATime()` in tests, odometry timestamps in `PhoenixOdometryThread`. NetworkTables and `.wpilog` files stay in microseconds, so replay of 2026 logs is unaffected. Audit every raw-timestamp arithmetic site; a factor of 1000 here compiles and runs |
 | **Gamepad face buttons renamed, default deadband added** (alpha-7) | `Triggers.java` only — which is the point of `Triggers.java`. The new default deadband **stacks** with `DriveCommands`' radial deadband; see `Triggers`' comment on why per-axis deadbanding reshapes the response, and turn the default off rather than double-deadbanding |
@@ -88,10 +88,10 @@ construction**. The doctrine consequences — what happens to static factories, 
 timeout, `ContinuousConditionalCommand`, `LoggedTrigger`, `CommandLogger`, default commands,
 Ready → Align → Act and event triggers — are worked through in [commands-v3.md](commands-v3.md).
 
-**One name collision to settle before step 2:** `frc.lib.mechanism.Mechanism` (the motor-mechanism
-base class) and `org.wpilib.command3.Mechanism` (the V3 ownership interface) are both called
-`Mechanism`, and under V3 our `*Subsystem` classes will implement the WPILib one. Pick the rename
-once — the options are in commands-v3.md — rather than fully qualifying names everywhere.
+**Watch the word `Mechanism`.** Under V3 every mechanism subsystem implements
+`org.wpilib.command3.Mechanism`. The scaffolds use "mechanism" only in prose and in names like
+`ExampleArm`, so there is no class collision today — keep it that way rather than naming a 2027
+class `Mechanism`.
 
 ### Auto selection: OpModes or a `Selectable`
 
@@ -152,8 +152,7 @@ This codebase is already clean on that point — a deliberate earlier decision, 
 
 - `Constants.CanIds.RIO_BUS` is a `CANBus` object, not `"rio"`.
 - `ModuleIOTalonFX` and `GyroIOPigeon2` take `TunerConstants.kCANBus`.
-- `MotorIOTalonFX` builds every mechanism's devices from the `CANBus` carried in its `MotorConfig`,
-  and the three scaffolds pass `Constants.CanIds.RIO_BUS`.
+- The three scaffold `*IOReal`s construct and claim their devices on `Constants.CanIds.RIO_BUS`.
 
 **What does change: the bus model.** Systemcore has **five native CAN buses**, constructed with
 `CANBus.systemcore(int)` as of `26.50`. There is no `"rio"` bus. That makes the bus-assignment table
@@ -187,8 +186,8 @@ Do these in order. Steps 1–4 are gates; stop if one fails.
 - [ ] **9.** `edu.wpi.first` → `org.wpilib` across `src/` **and** `template/`, commands V2 to
       `org.wpilib.command2`, `ALL_CAPS` constants. Mechanical.
 - [ ] **10.** Audit every raw integer timestamp for the microsecond → nanosecond change.
-- [ ] **11.** Replace SmartDashboard in `FaultMonitor`, `Robot`, `RotaryVisualizer`,
-      `LinearVisualizer` with the Telemetry API; decide `Selectable` vs OpModes for autos. Decide
+- [ ] **11.** Replace SmartDashboard in `FaultMonitor`, `Robot` and every mechanism visualizer
+      (the scaffolds' `ExampleArmVisualizer`, `ExampleLiftVisualizer`) with the Telemetry API; decide `Selectable` vs OpModes for autos. Decide
       each replacement once and apply it everywhere.
 - [ ] **12.** `Triggers.java`: new gamepad button names; disable the new default deadband.
 - [ ] **13.** Re-express the CAN bus assignment rules for Systemcore; rename `RIO_BUS`.

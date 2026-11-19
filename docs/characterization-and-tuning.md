@@ -61,42 +61,19 @@ Two consequences that bite people:
 
 ---
 
-## Tuning Without Redeploying
+## Setpoint Tuning Without Redeploying
 
-Every loop below is "change a gain, run, look, change it again". Doing that through
-edit-build-deploy-enable is roughly two minutes per iteration, and a session is dozens of
-iterations — most of a tuning session is spent waiting rather than tuning.
+Use the mechanism's `tune*` command to find a velocity or position setpoint while the mechanism is
+in front of you. The command is available only in enabled Test mode; it reads a logged dashboard
+value and applies it to the mechanism. The lift command also requires the lift to be zeroed.
 
-`LoggedTunableNumber` removes that. Set `Constants.tuningMode = true`, deploy once, and the
-tunables appear on the dashboard under **Tuning/** where they can be adjusted while enabled.
+The dashboard value is a working value, not match configuration. Copy the selected setpoint into
+`Constants.Setpoints` and commit it. Match commands read the compiled constant, so changing a
+dashboard value during an event cannot change match behavior. See [tunables.md](tunables.md).
 
-```java
-private static final LoggedTunableNumber kP = new LoggedTunableNumber("Elevator/kP", 4.0);
-
-// Cheap reads: just call get()
-controller.setP(kP.get());
-
-// Expensive rebuilds: only when something actually changed
-LoggedTunableNumber.ifChanged(
-    hashCode(),
-    () -> controller.setPID(kP.get(), 0.0, kD.get()),
-    kP, kD);
-```
-
-The heading-hold gains in `DriveCommands` are wired this way as the worked example.
-
-Two rules, both learned the hard way by teams every year:
-
-1. **Write the values back into the code and commit them.** Dashboard values live in
-   NetworkTables, so the robot reverts to its compiled-in defaults at the next reboot. They are
-   recoverable from the log under `NetworkInputs/Tuning/...` if nobody wrote them down, but that
-   is a recovery path, not a workflow — see `docs/tunables.md`. A session that ends without a commit
-   accomplished nothing.
-2. **`tuningMode` must be false for competition.** With it on, every tunable does NT traffic inside
-   the 20 ms loop, and the robot is one stray dashboard edit away from a different gain set. Turning
-   it off is on the pre-competition checklist, and the build enforces it: CI refuses to merge it on,
-   and `checkConstantsDeploy` refuses to deploy it from an `event*` branch — see
-   [testing.md](testing.md#constant-gates--not-tests-but-run-by-gradle).
+Gains and motion profiles are not dashboard tunables. Use Phoenix Tuner X to explore Phoenix
+device gains, then copy the selected values into the mechanism constants. Tune roboRIO-side
+controllers in simulation with `/pid-tune` and commit the selected constants.
 
 ---
 
@@ -161,8 +138,8 @@ plausible and are wrong.
 | 11 | **Top speed** | `kSpeedAt12Volts` | Needs correct wheel radius *and* working feedforward |
 | 12 | Mass / MOI / wheel COF | Choreo GUI robot config (`deploy/choreo/*.chor`) | Trajectory generation inputs |
 | 13 | Trajectory follower PID | `Drive.java` (`trajectoryX/Y/HeadingController`) | Needs all of the above |
-| 13b | Drive-to-pose PID and FF radii | `DriveCommands` (`driveController`, `Drive/ToPose/FF*`) | Same — the PID-to-pose finish and point-to-point autos |
-| 14 | Heading-hold gains | `ANGLE_KP` / `ANGLE_KD` | Needs a drivetrain that tracks velocity |
+| 13b | Drive-to-pose PID and FF radii | `DriveCommands` (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS`) | Same — the PID-to-pose finish and point-to-point autos |
+| 14 | Heading-hold gains | `angleController` (heading kP/kD) | Needs a drivetrain that tracks velocity |
 
 The three easiest mistakes, all of which produce confident nonsense:
 
@@ -603,10 +580,10 @@ sequence from a log without it.
    `GravityType`:
    - `Elevator_Static` — constant force regardless of position
    - `Arm_Cosine` — force varies with `cos(angle)`, so **the cosine reference must be
-     horizontal**. When mechanism zero is the stow position instead, pass the angle at which
-     the arm is level to `MotorConfig.Builder.gravityOffset(...)` rather than redefining zero;
-     it negates it into Phoenix's `Slot0.GravityArmPositionOffset`, which is added to the
-     position before the cosine is taken. Get the
+     horizontal**. When mechanism zero is the stow position instead, set the scaffold's
+     `GRAVITY_HORIZONTAL_OFFSET_DEGREES` to the **negative** of the angle at which the arm is
+     level rather than redefining zero; it is written to Phoenix's
+     `Slot0.GravityArmPositionOffset`, which is added to the position before the cosine is taken. Get the
      sensor offset right or `kG` fights you through the range of motion
 2. **kS** — additional current to break static friction, beyond `kG`
 3. **kP** — amps per **mechanism rotation** of error. Remember the scale: if your mechanism

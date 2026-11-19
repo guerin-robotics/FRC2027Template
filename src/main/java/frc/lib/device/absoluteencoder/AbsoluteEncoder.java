@@ -8,9 +8,9 @@ import org.littletonrobotics.junction.Logger;
 /**
  * A standalone absolute encoder, owned by a subsystem.
  *
- * <p>Not a subsystem itself, for the same reason {@code RollerMechanism} is not: one subsystem may
- * own several devices. The owner calls {@link #periodic()} from its own {@code periodic()} — skip
- * it and {@code Logger.processInputs} stops running, which breaks replay.
+ * <p>Not a subsystem itself, because one subsystem may own several devices. The owner calls {@link
+ * #periodic()} from its own {@code periodic()} — skip it and {@code Logger.processInputs} stops
+ * running, which breaks replay.
  */
 public class AbsoluteEncoder {
 

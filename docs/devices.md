@@ -76,8 +76,9 @@ rule.
 ### Absolute encoder (CANcoder)
 
 For an encoder that is **not** a motor's feedback sensor: a passive hinge, a turret's second gear,
-anything without a motor of its own. If the encoder belongs to a motor, use
-`MotorConfig.Builder.encoder(...)` instead. Fused into the TalonFX, the motor closes its loop on it.
+anything without a motor of its own. If the encoder belongs to a motor, configure it in that
+mechanism's `*IOReal` instead, the way `ExampleArmIOReal` does. Fused into the TalonFX, the motor
+closes its loop on it.
 
 Pass a complete `CANcoderConfiguration` (magnet offset, direction, discontinuity point). It is
 applied once. A red magnet (`magnetHealth == 1`) raises a fault: the readings look plausible and

@@ -12,12 +12,14 @@ import static edu.wpi.first.units.Units.Radians;
 import static edu.wpi.first.units.Units.Seconds;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
@@ -27,8 +29,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.lib.auto.Waypoint;
 import frc.lib.util.AllianceFlipUtil;
-import frc.lib.util.LoggedTunableNumber;
-import frc.lib.util.LoggedTunableProfiledPID;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConstants;
 import java.text.DecimalFormat;
@@ -70,18 +70,14 @@ public class DriveCommands {
   // TODO(2027): re-tune via /pid-tune (or in sim) once the 2027 chassis exists. These numbers
   // describe the 2026 robot's mass and MOI; treat them as a starting point, not a given.
   //
-  // This is the worked example of LoggedTunableProfiledPID. With Constants.tuningMode on, kP,
-  // kI, kD, maxVelocity and maxAcceleration appear under "Tuning/Drive/Heading/..." and can be
-  // adjusted while the robot is enabled; with it off they are exactly these numbers and cost
-  // nothing. Whatever you land on during a session, write it back here and commit it —
-  // dashboard values live only in NetworkTables and are gone at the next reboot.
+  // Plain constants, not dashboard tunables. Gains are not tuned live on this robot (see
+  // docs/tunables.md): a roboRIO-side controller like this one is tuned in simulation with
+  // /pid-tune and the result committed here. A live-tunable gain would be live in every match.
   //
-  // Static, so every command built by this class shares one controller and one set of
-  // dashboard keys. Two instances would publish duplicate keys for the same gain. Sharing is
-  // safe because every command that uses it requires the drive subsystem, so only one can run
-  // at a time.
-  private static final LoggedTunableProfiledPID angleController =
-      new LoggedTunableProfiledPID("Drive/Heading", 8.5, 0.0, 0.3, 12.0, 20.0);
+  // Static, so every command built by this class shares one controller. Sharing is safe because
+  // every command that uses it requires the drive subsystem, so only one can run at a time.
+  private static final ProfiledPIDController angleController =
+      new ProfiledPIDController(8.5, 0.0, 0.3, new TrapezoidProfile.Constraints(12.0, 20.0));
 
   static {
     angleController.enableContinuousInput(-Math.PI, Math.PI);
@@ -91,13 +87,13 @@ public class DriveCommands {
   // no tuning data behind it yet, unlike angleController above. driveToPose reuses angleController
   // for heading rather than declaring a second one, for the same reason angleController is
   // shared and static: every command in this class requires the drive subsystem, so only one
-  // can run at a time, and sharing means one set of dashboard keys instead of two.
+  // can run at a time.
   //
   // TODO(2027): run a /pid-tune (or in-sim) session on the real chassis and commit the result
   // here before binding driveToPose to a button. A sim run only proves the command converges
   // against a generic sim model — it is not evidence these gains are good on hardware.
-  private static final LoggedTunableProfiledPID driveController =
-      new LoggedTunableProfiledPID("Drive/ToPose", 3.0, 0.0, 0.0, 3.0, 3.0);
+  private static final ProfiledPIDController driveController =
+      new ProfiledPIDController(3.0, 0.0, 0.0, new TrapezoidProfile.Constraints(3.0, 3.0));
 
   // How close counts as "there" for driveToPose. Tight enough that DistanceErrorMeters settles
   // near zero at rest; loose enough that direction-vector noise right at the goal (the atan2 of
@@ -108,11 +104,9 @@ public class DriveCommands {
   // returns feedback only, so on its own the robot trails its own profile; adding the profile's
   // setpoint velocity removes that lag. The scaler fades the feedforward to zero inside
   // FFMinRadius so it cannot push the robot through the target, and applies it in full beyond
-  // FFMaxRadius. Starting points, not tuned values — adjust with tuningMode on.
-  private static final LoggedTunableNumber driveToPoseFFMinRadius =
-      new LoggedTunableNumber("Drive/ToPose/FFMinRadius", 0.05);
-  private static final LoggedTunableNumber driveToPoseFFMaxRadius =
-      new LoggedTunableNumber("Drive/ToPose/FFMaxRadius", 0.2);
+  // FFMaxRadius. Starting points, not tuned values — adjust in sim and commit.
+  private static final double DRIVE_TO_POSE_FF_MIN_RADIUS_METERS = 0.05;
+  private static final double DRIVE_TO_POSE_FF_MAX_RADIUS_METERS = 0.2;
 
   private static final double FF_START_DELAY = 2.0; // Secs
 
@@ -244,10 +238,6 @@ public class DriveCommands {
             () -> {
               drive.areWheelsXed = false;
 
-              // Pick up live gain edits while tuning. No-op when tuningMode is off, and even
-              // when on this only rebuilds when a value actually changed rather than every loop.
-              angleController.updateGains();
-
               // Get linear velocity
               Translation2d linearVelocity =
                   getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble());
@@ -321,10 +311,6 @@ public class DriveCommands {
             () -> {
               drive.areWheelsXed = false;
 
-              // Pick up live gain edits while tuning, same as joystickDriveAtAngle.
-              angleController.updateGains();
-              driveController.updateGains();
-
               Pose2d current = drive.getPose();
               Pose2d target = targetPoseSupplier.get();
 
@@ -341,8 +327,8 @@ public class DriveCommands {
               // Feedforward from the profile's own setpoint, faded out near the target. Same
               // sign convention as the feedback above (negative = closing the distance), so the
               // two simply add.
-              double ffMin = driveToPoseFFMinRadius.get();
-              double ffMax = driveToPoseFFMaxRadius.get();
+              double ffMin = DRIVE_TO_POSE_FF_MIN_RADIUS_METERS;
+              double ffMax = DRIVE_TO_POSE_FF_MAX_RADIUS_METERS;
               double ffScaler =
                   MathUtil.clamp(
                       (distanceMeters - ffMin) / Math.max(ffMax - ffMin, 1e-6), 0.0, 1.0);

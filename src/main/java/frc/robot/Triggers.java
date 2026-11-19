@@ -1,8 +1,10 @@
 package frc.robot;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.lib.util.LoggedTrigger;
 
 /**
  * Every {@link Trigger} in the robot, in one file.
@@ -186,4 +188,28 @@ public class Triggers {
   //
   // Fields, not methods, so composition happens once at construction instead of allocating a new
   // Trigger on every call.
+
+  /**
+   * True while the robot is enabled in <b>test mode</b> AND the operator is holding <b>Start</b>.
+   * Bind each mechanism's {@code tune*} command to it with {@code whileTrue}.
+   *
+   * <p>This is the gate that replaced the old {@code tuningMode} flag, and it has two halves on
+   * purpose:
+   *
+   * <ul>
+   *   <li><b>Test mode</b> keeps tuning off the field, which never enables it. {@code
+   *       LoggedTunableNumber.get()} enforces the same thing on its own side.
+   *   <li><b>The held button</b> is a dead-man switch. Test mode alone is not consent to move: it
+   *       gets enabled in the pit to check one sensor, and without the button every bound mechanism
+   *       would jump to whatever setpoint was left on the dashboard. Let go and the tuning command
+   *       ends.
+   * </ul>
+   *
+   * <p>At the 2027 port each tuning command becomes a {@code @Utility} OpMode and this trigger goes
+   * away; keep the dead-man button inside the OpMode.
+   */
+  public final LoggedTrigger tuningEnabled =
+      new LoggedTrigger(
+          "Triggers/TuningEnabled",
+          () -> DriverStation.isTestEnabled() && xbox.getHID().getStartButton());
 }

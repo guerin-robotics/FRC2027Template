@@ -425,7 +425,7 @@ the leads prune anything that hasn't been used.
 
 | Skill | What it does | When |
 |---|---|---|
-| `/add-subsystem` | Scaffolds a mechanism end to end: the two files, CAN IDs, setpoints, three-mode wiring, triggers | Every new mechanism |
+| `/add-subsystem` | Scaffolds a mechanism end to end: the six files, CAN IDs, setpoints, three-mode wiring, triggers | Every new mechanism |
 | `/debug-match-log` | Analyzes an AdvantageKit log: correlates signals around an anomaly, proposes root cause, sets up replay | Anything went wrong on the field |
 | `/pid-tune` | Runs the tuning loop: change gains → run sim → read the logs → evaluate → iterate; proposes final values with evidence | Tuning any closed-loop mechanism |
 | `/code-review` | Automated bug-hunting review of the current diff | Before every PR |
@@ -468,25 +468,25 @@ generation all work.
 
 ```
 subsystems/myMechanism/
-├── MyMechanism.java           ← extends the library subsystem for its kind; no hardware
-└── MyMechanismConstants.java  ← the MotorConfig, the settings, the sim model
-
-frc/lib/mechanism/             ← the IO layer, shared by every mechanism
-├── MotorIO.java               ← one interface, one @AutoLog schema
-├── MotorIOTalonFX.java        ← TalonFX code lives HERE and only here
-├── MotorIOTalonFXSim.java     ← the same config against a simulated device
-└── roller/ rotary/ linear/    ← the three kinds, with their commands and simulations
+├── io/
+│   ├── MyMechanismIO.java     ← interface + @AutoLog inputs class
+│   ├── MyMechanismIOReal.java ← TalonFX code lives HERE and only here
+│   └── MyMechanismIOSim.java  ← physics sim (or stubs), same interface
+├── MyMechanism.java           ← logic only, zero hardware imports
+├── MyMechanismConstants.java  ← gains, ratios, limits, getFXConfig()
+└── MyMechanismVisualizer.java ← position mechanisms only
+commands/
+└── MyMechanismCommands.java   ← static command factories, all .withName()'d
 ```
 
-Three scaffolds of these two files live in `template/src/` — `exampleRoller` for anything
+Three scaffolds of these six files live in `template/src/` — `exampleRoller` for anything
 that spins, `exampleArm` for anything that pivots to an angle, `exampleLift` for anything
 that travels in a line. Copy the one that matches and rename it; see
 [template/GUIDE.md](../template/GUIDE.md) for how they differ.
-`subsystems/vision/` in `src/` shows the same IO pattern written by hand, for a subsystem
-whose hardware is not a motor.
+`subsystems/vision/` in `src/` is the same pattern in production form.
 
 **The one rule that matters:** hardware objects (`TalonFX`, `CANcoder`,
-`Pigeon2`…) exist ONLY inside IO classes. A motor import in a subsystem
+`Pigeon2`…) exist ONLY inside `IOReal` classes. A motor import in a subsystem
 file breaks log replay for the whole robot — and log replay is how we've
 caught real match bugs.
 
@@ -505,18 +505,20 @@ public void periodic() {
    follower (and opposition), encoder, and which of the three kinds it is —
    spins, pivots, or travels in a line.
 2. Run `/add-subsystem` (or fill in `.claude/prompts/add-subsystem.md` and
-   paste). Claude generates the two files from the matching scaffold in
+   paste). Claude generates the six files from the matching scaffold in
    `template/src/`, adds the CAN ID to `Constants.CanIds` and the setpoints to
-   `Constants.Setpoints`, wires real/sim/replay in `RobotContainer`, compiles,
-   and writes the sim convergence test.
-3. Review: CAN ID matches the wiring sheet; correct bus; current limits set
-   **low** (§6) — `MotorConfig` refuses to build without them; the mechanism
-   moves in sim; inputs appear in AdvantageScope.
+   `Constants.Setpoints`, wires real/sim/replay in `RobotContainer`, and
+   builds.
+3. Review: CAN ID matches the wiring sheet and is claimed with
+   `CanIdRegistry.claim(...)`; correct bus; config via
+   `PhoenixUtil.tryUntilOk(...)` with required startup writes checked; current limits set **low** (§6) and
+   enabled; the `IOReal` matches its scaffold line for line except where a
+   difference was chosen; `IOSim` works; inputs appear in AdvantageScope.
 4. First hardware test at low voltage before any closed-loop control.
 
 > [!IMPORTANT]
-> **Time cost: about 30 minutes including review.** Hand-writing the old
-> six-file version correctly used to take a day — and the sim implementation usually
+> **Time cost: about 30 minutes including review.** Hand-writing the same six
+> files correctly used to take a day — and the sim implementation usually
 > didn't get written at all. This is the single clearest payoff of the whole
 > approach: the AI makes the *right structure* cheaper than the shortcut.
 
