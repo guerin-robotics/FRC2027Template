@@ -79,7 +79,7 @@ motor.getConfigurator().apply(feedback);       // ...and now they are on the dev
 
 // CORRECT — build the complete config once, apply it once
 boolean configured =
-    PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.toTalonFXConfiguration()));
+    PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config));
 ```
 
 **This shipped on the 2026 intake pivot** (`Rebuilt2026`, `IntakePivotIOReal.configurePivotMotor`)
