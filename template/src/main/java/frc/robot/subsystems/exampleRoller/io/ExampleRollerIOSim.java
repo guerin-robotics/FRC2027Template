@@ -96,6 +96,7 @@ public class ExampleRollerIOSim implements ExampleRollerIO {
     positionRotations += measuredRotationsPerSec * LOOP_PERIOD_SECONDS;
 
     inputs.connected = true;
+    inputs.configured = true;
     inputs.motorVoltage = Volts.of(appliedVolts);
     inputs.motorVelocity = RotationsPerSecond.of(measuredRotationsPerSec);
     inputs.motorPosition = Rotations.of(positionRotations);

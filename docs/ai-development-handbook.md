@@ -511,7 +511,7 @@ public void periodic() {
    builds.
 3. Review: CAN ID matches the wiring sheet and is claimed with
    `CanIdRegistry.claim(...)`; correct bus; config via
-   `PhoenixUtil.tryUntilOk(...)`; current limits set **low** (§6) and
+   `PhoenixUtil.tryUntilOk(...)` with required startup writes checked; current limits set **low** (§6) and
    enabled; the `IOReal` matches its scaffold line for line except where a
    difference was chosen; `IOSim` works; inputs appear in AdvantageScope.
 4. First hardware test at low voltage before any closed-loop control.

@@ -246,6 +246,11 @@ io.updateInputs(inputs);
 Logger.processInputs("MyMechanism", inputs);   // NEVER remove this line
 ```
 
+Each scaffold checks the results of its required `PhoenixUtil.tryUntilOk` startup writes and logs
+the combined result as the `configured` input so replay applies the same closed-loop gate.
+Register `() -> !mechanism.isConfigured()` with `FaultMonitor` in `RobotContainer` to surface
+startup failures.
+
 ---
 
 ## A — What Already Carried Over
@@ -264,7 +269,7 @@ competition seasons. Don't rewrite them; extend them.
 | `BatteryLogger` | Per-subsystem current tracking; the only way to diagnose a brownout |
 | `LoggedTrigger` | Makes trigger state visible in AdvantageKit logs |
 | `ContinuousConditionalCommand` | Correct answer when a command's mode changes while running |
-| `PhoenixUtil.tryUntilOk` | CTRE silently ignores configs on a busy bus; this retries until they stick |
+| `PhoenixUtil.tryUntilOk` | Retries CTRE configuration up to the attempt limit and returns whether the write was confirmed |
 | `LoggedDashboardChooser` | Logs which auto was selected — essential for post-match review |
 | The test suite in `src/test/` | `RobotContainer` wiring, Choreo event-marker bindings and CAN ID validation. The first and last cover a new mechanism the moment it exists — see `docs/testing.md` |
 

@@ -47,11 +47,13 @@ public class ExampleRoller extends SubsystemBase {
    */
   private static final double STATOR_SATURATION_FRACTION = 0.95;
 
+  private static final AngularVelocity ZERO_VELOCITY = RotationsPerSecond.of(0);
+
   private final ExampleRollerIO io;
   private final ExampleRollerIOInputsAutoLogged inputs;
 
   /** Last commanded velocity, so {@link #isAtVelocity()} has something to compare against. */
-  private AngularVelocity goalVelocity = RotationsPerSecond.of(0);
+  private AngularVelocity goalVelocity = ZERO_VELOCITY;
 
   /**
    * True only while a closed-loop velocity is being commanded. Open-loop voltage and stop clear it,
@@ -93,19 +95,26 @@ public class ExampleRoller extends SubsystemBase {
 
   /** Open-loop. Bring-up and characterization only; match logic should use velocity control. */
   public void setVoltage(Voltage volts) {
-    goalVelocity = RotationsPerSecond.of(0);
+    goalVelocity = ZERO_VELOCITY;
     closedLoopActive = false;
+    // Open-loop voltage remains available for bring-up and characterization.
     io.setVoltage(volts);
   }
 
   public void setVelocity(AngularVelocity velocity) {
+    Logger.recordOutput(
+        ExampleRollerConstants.NAME + "/ClosedLoopBlockedByStartupConfig", !inputs.configured);
+    if (!inputs.configured) {
+      stop();
+      return;
+    }
     goalVelocity = velocity;
     closedLoopActive = true;
     io.setVelocity(velocity);
   }
 
   public void stop() {
-    goalVelocity = RotationsPerSecond.of(0);
+    goalVelocity = ZERO_VELOCITY;
     closedLoopActive = false;
     io.stop();
   }
@@ -138,6 +147,11 @@ public class ExampleRoller extends SubsystemBase {
   /** Is the motor answering on the bus? Register with {@code FaultMonitor} in RobotContainer. */
   public boolean isConnected() {
     return inputs.connected;
+  }
+
+  /** Were all startup writes confirmed? Register with {@code FaultMonitor} in RobotContainer. */
+  public boolean isConfigured() {
+    return inputs.configured;
   }
 
   /**

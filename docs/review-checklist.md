@@ -75,7 +75,7 @@ rather than assuming a green build means they hold.
 - [ ] Any new CAN device class calls `CanIdRegistry.claim(...)` before constructing the device *(the runtime duplicate check only covers devices that claim)*
 - [ ] No motor inversion flags changed
 - [ ] No swerve encoder offsets changed
-- [ ] All new TalonFX configurations use `PhoenixUtil.tryUntilOk(5, ...)`
+- [ ] All new TalonFX configurations use `PhoenixUtil.tryUntilOk(5, ...)` and closed-loop motion requires confirmed startup writes
 - [ ] All new signal frequencies are set with `BaseStatusSignal.setUpdateFrequencyForAll()`
 - [ ] `motor.optimizeBusUtilization()` called for new motors
 
@@ -135,7 +135,7 @@ violation is usually a breach of both.
 | 4 | Functions fit on one page (about 60 lines) | Applies as written. Long `periodic()` or factory methods split into named helpers | - [ ] No new method over about 60 lines without a reason in the PR |
 | 5 | At least two assertions per function, checking things that should never happen | Java `assert` is off on the robot, so check at **construction**: fail fast with a named exception when an invariant is broken (the arm's ratio-product check, `CanIdRegistry`). Runtime anomalies are logged and raised as `FaultMonitor` alerts rather than thrown | - [ ] New invariants are checked at startup, not assumed |
 | 6 | Declare data at the smallest possible scope | Applies as written. `private` by default, `final` wherever possible, no mutable `public static` state | - [ ] No wider visibility or mutability than needed |
-| 7 | Check every non-void return value, and validate parameters | Every Phoenix `StatusCode` goes through `tryUntilOk` or is checked; inputs that can be out of range are clamped or rejected, and the clamp is logged (`GoalWasClamped`) | - [ ] No ignored `StatusCode`; out-of-range inputs handled visibly |
+| 7 | Check every non-void return value, and validate parameters | Every Phoenix `StatusCode` goes through `tryUntilOk` or is checked. Callers that depend on the write check the retry result. Inputs that can be out of range are clamped or rejected, and the clamp is logged (`GoalWasClamped`) | - [ ] Required Phoenix writes confirmed and out-of-range inputs handled visibly |
 | 8 | Limit the preprocessor | No preprocessor in Java. The nearest equivalent is compile-time flags that change behavior, which this repo avoids (there is no tuning-mode flag) | - [ ] No new behavior-changing compile-time flag |
 | 9 | Restrict pointers; no function pointers | Not applicable as written: lambdas and suppliers are idiomatic WPILib. The spirit is traceable control flow, so keep a lambda short and give a command a `.withName()` | - [ ] Lambdas are short; commands are named |
 | 10 | Compile with all warnings on and zero warnings; run static analysis | Zero compiler warnings, never suppressed (a Hard Stop in `CLAUDE.md`), `spotlessCheck` clean, and `./gradlew build` green | - [ ] No new warnings, no `@SuppressWarnings` |

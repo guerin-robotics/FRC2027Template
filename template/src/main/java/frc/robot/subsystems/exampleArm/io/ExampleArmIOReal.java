@@ -33,6 +33,7 @@ public class ExampleArmIOReal implements ExampleArmIO {
 
   private final TalonFX motor;
   private final CANcoder encoder;
+  private final boolean configured;
 
   // ---- Status signals, cached once ----
   //
@@ -98,7 +99,7 @@ public class ExampleArmIOReal implements ExampleArmIO {
     // ORDER MATTERS: the encoder is configured FIRST, because the motor reads it while applying
     // its own config to set up rotor/CANcoder fusion. Configure the motor first and the fusion is
     // established against an unconfigured encoder — right magnet, wrong offset.
-    configureEncoder();
+    boolean encoderConfigured = configureEncoder();
 
     // The config is built in the constants file, not here. tryUntilOk because CTRE devices
     // silently ignore configuration if the CAN bus is busy at startup — without the retry, the
@@ -117,8 +118,10 @@ public class ExampleArmIOReal implements ExampleArmIO {
     // straight off the encoder and RotorToSensorRatio is not in the position path. Under
     // FusedCANcoder it would not: the ratio is how the rotor extends the absolute reading, so
     // losing it makes the fusion wrong by the whole reduction while every apply reports success.
-    PhoenixUtil.tryUntilOk(
-        5, () -> motor.getConfigurator().apply(ExampleArmConstants.getFXConfig()));
+    boolean motorConfigured =
+        PhoenixUtil.tryUntilOk(
+            5, () -> motor.getConfigurator().apply(ExampleArmConstants.getFXConfig()));
+    configured = encoderConfigured && motorConfigured;
 
     // ---- Acquire signal handles ----
     motorVoltage = motor.getMotorVoltage();
@@ -174,13 +177,13 @@ public class ExampleArmIOReal implements ExampleArmIO {
    * <p>Contains the one trap that is specific to a fused-CANcoder mechanism — see the comment on
    * {@code optimizeBusUtilization} below.
    */
-  private void configureEncoder() {
+  private boolean configureEncoder() {
     CANcoderConfiguration cfg = new CANcoderConfiguration();
     cfg.MagnetSensor.MagnetOffset = ExampleArmConstants.MAGNET_OFFSET_ROTATIONS;
     cfg.MagnetSensor.AbsoluteSensorDiscontinuityPoint =
         ExampleArmConstants.SENSOR_DISCONTINUITY_POINT;
     cfg.MagnetSensor.SensorDirection = ExampleArmConstants.ENCODER_DIRECTION;
-    PhoenixUtil.tryUntilOk(5, () -> encoder.getConfigurator().apply(cfg));
+    boolean confirmed = PhoenixUtil.tryUntilOk(5, () -> encoder.getConfigurator().apply(cfg));
 
     // THE TRAP. Register the encoder's Position and Velocity BEFORE optimizing, or optimization
     // drops them to the 4 Hz floor. The MOTOR reads those signals off the bus to do the
@@ -201,6 +204,7 @@ public class ExampleArmIOReal implements ExampleArmIO {
     // moves. Registered here, before optimizing, or it falls to the 4 Hz floor by omission.
     BaseStatusSignal.setUpdateFrequencyForAll(10.0, encoder.getMagnetHealth());
     encoder.optimizeBusUtilization();
+    return confirmed;
   }
 
   @Override
@@ -238,6 +242,7 @@ public class ExampleArmIOReal implements ExampleArmIO {
     // would hide the exact failure this separation exists to catch.
     var encoderStatus = BaseStatusSignal.refreshAll(encoderAbsolutePosition, encoderVelocity);
     inputs.encoderConnected = encoderConnectedDebounce.calculate(encoderStatus.isOK());
+    inputs.configured = configured;
 
     inputs.motorVoltage = motorVoltage.getValue();
     inputs.motorStatorAmps = motorStatorAmps.getValue();
@@ -296,6 +301,7 @@ public class ExampleArmIOReal implements ExampleArmIO {
   //   TalonFXConfiguration followerConfig = ExampleArmConstants.getFXConfig();
   //   followerConfig.SoftwareLimitSwitch.ForwardSoftLimitEnable = false;
   //   followerConfig.SoftwareLimitSwitch.ReverseSoftLimitEnable = false;
+  //   // Include the follower apply result in the AND that determines configured.
   //   PhoenixUtil.tryUntilOk(5, () -> follower.getConfigurator().apply(followerConfig));
   //
   //   // MotorAlignmentValue.Opposed when the follower is physically mounted facing the opposite

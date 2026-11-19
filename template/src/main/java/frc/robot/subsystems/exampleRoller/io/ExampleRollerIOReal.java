@@ -37,6 +37,7 @@ import frc.robot.subsystems.exampleRoller.ExampleRollerConstants;
 public class ExampleRollerIOReal implements ExampleRollerIO {
 
   private final TalonFX motor;
+  private final boolean configured;
 
   // ---- Status signals, one per logged field ----
   //
@@ -96,8 +97,9 @@ public class ExampleRollerIOReal implements ExampleRollerIO {
     // silently ignore configuration if the CAN bus is busy at startup — without the retry, the
     // motor boots with no current limits and no gains, and the first match move can brown out
     // the robot.
-    PhoenixUtil.tryUntilOk(
-        5, () -> motor.getConfigurator().apply(ExampleRollerConstants.getFXConfig()));
+    configured =
+        PhoenixUtil.tryUntilOk(
+            5, () -> motor.getConfigurator().apply(ExampleRollerConstants.getFXConfig()));
 
     // ---- Acquire signal handles ----
     motorVoltage = motor.getMotorVoltage();
@@ -184,6 +186,7 @@ public class ExampleRollerIOReal implements ExampleRollerIO {
             motorVoltage,
             closedLoopReference);
     inputs.connected = connectedDebounce.calculate(status.isOK());
+    inputs.configured = configured;
 
     inputs.motorVoltage = motorVoltage.getValue();
     inputs.motorStatorAmps = motorStatorAmps.getValue();
@@ -231,6 +234,7 @@ public class ExampleRollerIOReal implements ExampleRollerIO {
   //       Constants.CanIds.RIO_BUS,
   //       ExampleRollerConstants.NAME + " follower");
   //   follower = new TalonFX(Constants.CanIds.EXAMPLE_ROLLER_FOLLOWER, Constants.CanIds.RIO_BUS);
+  //   // Include the follower apply result in the AND that determines configured.
   //   PhoenixUtil.tryUntilOk(
   //       5, () -> follower.getConfigurator().apply(ExampleRollerConstants.getFXConfig()));
   //

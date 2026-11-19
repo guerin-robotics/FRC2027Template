@@ -114,6 +114,12 @@ public class ExampleArm extends SubsystemBase {
    * log saying why. The clamp flag is that missing line.
    */
   public void setPosition(Angle position) {
+    Logger.recordOutput(
+        ExampleArmConstants.NAME + "/ClosedLoopBlockedByStartupConfig", !inputs.configured);
+    if (!inputs.configured) {
+      stop();
+      return;
+    }
     double requested = position.in(Degrees);
     double clamped =
         Math.max(
@@ -133,6 +139,7 @@ public class ExampleArm extends SubsystemBase {
    */
   public void setVoltage(Voltage volts) {
     closedLoopActive = false;
+    // Open-loop voltage remains available for bring-up and characterization.
     io.setVoltage(volts);
   }
 
@@ -184,6 +191,11 @@ public class ExampleArm extends SubsystemBase {
    */
   public boolean isEncoderConnected() {
     return inputs.encoderConnected;
+  }
+
+  /** Were all startup writes confirmed? Register with {@code FaultMonitor} in RobotContainer. */
+  public boolean isConfigured() {
+    return inputs.configured;
   }
 
   /**

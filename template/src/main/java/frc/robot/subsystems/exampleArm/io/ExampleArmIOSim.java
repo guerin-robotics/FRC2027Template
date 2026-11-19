@@ -135,6 +135,7 @@ public class ExampleArmIOSim implements ExampleArmIO {
 
     inputs.motorConnected = true;
     inputs.encoderConnected = true;
+    inputs.configured = true;
     inputs.motorVoltage = Volts.of(appliedVolts);
     // Velocity needs no conversion: the two frames differ by a constant.
     inputs.motorPosition = Radians.of(mechanismRadians());

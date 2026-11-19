@@ -150,11 +150,17 @@ public class ExampleLift extends SubsystemBase {
    * read false forever, so every sequence waiting on it would burn its whole timeout with nothing
    * in the log saying why. The clamp flag is that missing line.
    *
-   * <p><b>Only meaningful once {@link #isZeroed()} is true.</b> Nothing here blocks the call — a
-   * subsystem that silently refuses commands is harder to debug than one that obeys — so the check
-   * belongs in the command factory, where refusing is visible in the command log.
+   * <p><b>Only meaningful once {@link #isZeroed()} is true.</b> Check zeroing in the command
+   * factory, where refusal is visible in the command log. This method also requires confirmed
+   * startup configuration.
    */
   public void setPositionInches(double inches) {
+    Logger.recordOutput(
+        ExampleLiftConstants.NAME + "/ClosedLoopBlockedByStartupConfig", !inputs.configured);
+    if (!inputs.configured) {
+      stop();
+      return;
+    }
     double clamped =
         Math.max(
             ExampleLiftConstants.MIN_TRAVEL_INCHES,
@@ -173,6 +179,7 @@ public class ExampleLift extends SubsystemBase {
    */
   public void setVoltage(Voltage volts) {
     closedLoopActive = false;
+    // Open-loop voltage remains available for zeroing and bring-up.
     io.setVoltage(volts);
   }
 
@@ -311,6 +318,11 @@ public class ExampleLift extends SubsystemBase {
   /** Is the motor answering on the bus? Register with {@code FaultMonitor} in RobotContainer. */
   public boolean isConnected() {
     return inputs.connected;
+  }
+
+  /** Were all startup writes confirmed? Register with {@code FaultMonitor} in RobotContainer. */
+  public boolean isConfigured() {
+    return inputs.configured;
   }
 
   /**

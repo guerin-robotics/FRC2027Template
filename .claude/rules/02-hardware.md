@@ -53,10 +53,12 @@ When adding a CAN device:
 ## TalonFX Configuration Rules
 
 Always use `PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config))`, on every
-device, in every `*IOReal`. The scaffolds show the pattern.
+device, in every `*IOReal`. Check the returned boolean for each required write and report
+startup configuration as confirmed only when all of those writes succeed. The mechanism
+scaffolds log that result as `configured` and require it for closed-loop motion.
 
 **Why:** CTRE devices silently ignore configuration if the CAN bus is busy at startup.
-`tryUntilOk` retries until the config sticks. Without it, motors boot with default
+`tryUntilOk` retries up to the attempt limit. Without it, motors can boot with default
 configs (no current limits, no gains) and the first match move may brown out the robot.
 
 ### Apply the whole config once, never a sub-config you built by hand
@@ -76,7 +78,8 @@ feedback.withFeedbackSensorSource(FeedbackSensorSourceValue.FusedCANcoder);
 motor.getConfigurator().apply(feedback);       // ...and now they are on the device
 
 // CORRECT — build the complete config once, apply it once
-PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.toTalonFXConfiguration()));
+boolean configured =
+    PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(config.toTalonFXConfiguration()));
 ```
 
 **This shipped on the 2026 intake pivot** (`Rebuilt2026`, `IntakePivotIOReal.configurePivotMotor`)

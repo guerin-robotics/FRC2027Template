@@ -357,7 +357,7 @@ No game logic here. Ever.
 | `ContinuousConditionalCommand` | Conditional that re-evaluates while running |
 | `FieldConstants` | Field dimensions + AprilTag layout; gains game geometry each season |
 | `BatteryLogger` | Per-subsystem current accounting for brownout analysis |
-| `PhoenixUtil` | `tryUntilOk` — retries CTRE config until it sticks |
+| `PhoenixUtil` | `tryUntilOk` retries CTRE configuration up to the attempt limit and returns whether the write was confirmed |
 | `LoggedTrigger` | Trigger wrapper that logs its own state |
 | `Elastic` | Dashboard notifications and tab switching |
 | `ThrowingRunnable` | Functional interface for throwing config calls |

@@ -138,6 +138,7 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
     sim.update(LOOP_PERIOD_SECONDS);
 
     inputs.connected = true;
+    inputs.configured = true;
     inputs.reverseSoftLimitEnabled = reverseSoftLimitEnabled;
     inputs.motorVoltage = Volts.of(appliedVolts);
     inputs.motorPosition = Rotations.of(metersToRotations(reportedMeters()));

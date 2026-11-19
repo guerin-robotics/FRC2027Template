@@ -42,6 +42,14 @@ public interface ExampleLiftIO {
      */
     public boolean connected = false;
 
+    /**
+     * True only if every required startup configuration write was confirmed.
+     *
+     * <p>This records the result at construction, independent of live bus health. Logging it as an
+     * input lets replay apply the same closed-loop gate.
+     */
+    public boolean configured = false;
+
     // ---- Power and motion ----
 
     public Voltage motorVoltage = Volts.of(0);
