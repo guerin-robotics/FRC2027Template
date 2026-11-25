@@ -355,7 +355,7 @@ mode of this skill.
 Do not, without being asked:
 
 - Change existing subsystem code
-- Add the mechanism to an auto routine or bind it to a Choreo event marker
+- Add the mechanism to an auto routine or bind it to a BLine event trigger
 - Change CAN IDs of existing devices
 - Invent setpoints for game actions nobody described
 

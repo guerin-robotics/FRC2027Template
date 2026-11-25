@@ -23,7 +23,7 @@ they're listed so you know they're handled, not so you redo them.
       the gated checklist in [docs/2027-migration.md](../docs/2027-migration.md); do not start
       until its gates pass. The V3 target for every command rule is in
       [docs/commands-v3.md](../docs/commands-v3.md)
-- [ ] Update AdvantageKit, CTRE Phoenix 6, ChoreoLib, Grapple (LaserCAN), PhotonVision and Studica
+- [ ] Update AdvantageKit, CTRE Phoenix 6, BLine-Lib, Grapple (LaserCAN), PhotonVision and Studica
       vendordeps to
       the 2027 versions named in the migration doc
 - [ ] Confirm `./gradlew build` still passes after the port
@@ -118,13 +118,14 @@ and are wrong. If you only remember one thing: **measure top speed and slip curr
       plateau, not the peak sample → `kSpeedAt12Volts`
       *(measure what the robot actually does — 2026 was configured 4.0 m/s and did ~3.8)*
 
-### Stage 6 — Trajectory following
+### Stage 6 — Path following
 
-- [ ] **15.** Weigh the robot, estimate MOI, measure wheel COF and bumpers → the Choreo GUI
-      robot config in `src/main/deploy/choreo/` (2026 values are in that folder's README)
-- [ ] **16.** Tune the Choreo follower (`trajectoryX/Y/HeadingController` in `Drive.java`) and
+- [ ] **15.** Measure the robot's real top speed and acceleration → BLine Web Path Defaults and
+      `src/main/deploy/autos/config.json` (the shipped values are BLine Web defaults, not measured)
+- [ ] **16.** Tune the BLine follower (`TRANSLATION_KP`, `ROTATION_KP`, `CROSS_TRACK_KP` in
+      `BLineAutos.java`; cross-track starts at 2.0) and
       the drive-to-pose controller and FF radii (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS` in
-      `DriveCommands`) — the PID-to-pose finish and point-to-point autos depend on the latter
+      `DriveCommands`) — teleop alignment depends on the latter
 - [ ] **17.** Re-tune `angleController` (heading kP/kD) in `DriveCommands` for the new chassis
 
 - [ ] Record every measured value, the date, the battery voltage and the surface in
@@ -196,12 +197,10 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
 
 ## Auto
 
-- [ ] Create the Choreo project and trajectories in `src/main/deploy/choreo/` (GUI only — never
-      hand-edit `.traj` / `.chor`)
-- [ ] Bind every event marker with `ChoreoAutos.bind` **before** any routine is built, and never
+- [ ] Draw the paths in BLine Web and export them to `src/main/deploy/autos/` (never hand-edit
+      the JSON)
+- [ ] Bind every event trigger with `BLineAutos.bind` **before** any routine is built, and never
       to a command that requires the drive
-- [ ] Decide per auto: pure trajectory, trajectory + `thenAlign` PID finish, or point-to-point
-      (see `docs/autos.md`)
 - [ ] **Time every auto against the auto period** — 2026 overran and truncated the last path
       in every single match
 - [ ] Consider rebuilding the auto preview / start-pose check (see `.claude/prompts/new-auto.md`)

@@ -14,7 +14,7 @@ changes until you plug in real field geometry, which is the other half of this d
 | Driver input | Still drives X/Y | None — fully autonomous |
 | Use it for | "Keep facing the target while I drive" | "Go park at this exact spot" |
 | Underlying control | One compiled `ProfiledPIDController` (`angleController`) | Two — `angleController` (shared) + `driveController` |
-| Obstacle avoidance | N/A | None — draw a Choreo trajectory for the route, then finish with `driveToPoseWithin` |
+| Obstacle avoidance | N/A | None — draw a BLine path for the route instead |
 
 Both live in `src/main/java/frc/robot/commands/DriveCommands.java`, next to `joystickDrive`. Read
 that file's class javadoc first — it has the worked example for building a game-specific command
@@ -56,10 +56,9 @@ into the method itself.
 
 Straight-line PID to a fixed field pose — translation and heading both, no driver input, no
 pathfinding. Reach for this when the destination is a specific spot and the path there is always
-clear: a pick/place station, a fixed scoring position. If it might not be clear, drive a Choreo
-trajectory around the obstacle first and finish with a PID-to-pose — `ChoreoAutos.thenAlign` does
-exactly that (see [autos.md](autos.md)). There is no on-the-fly pathfinding since the switch from
-PathPlanner to Choreo.
+clear: a pick/place station, a fixed scoring position. If it might not be clear, drive a BLine
+path instead (see [autos.md](autos.md)). There is no on-the-fly pathfinding since the switch from
+PathPlanner (BLine has none either).
 
 Both profiles are **seeded with the robot's current velocity** and the profile's setpoint velocity
 is **fed forward**, faded to zero inside `DRIVE_TO_POSE_FF_MIN_RADIUS_METERS` (0.05 m) and full beyond
@@ -67,9 +66,8 @@ is **fed forward**, faded to zero inside `DRIVE_TO_POSE_FF_MIN_RADIUS_METERS` (0
 instead of braking at the start of every segment, and it tracks the profile rather than trailing
 it. `AutoAim/DriveToPose/FFScaler` logs the scaler every loop.
 
-`driveToPose` never finishes on its own. In an auto, use **`driveToPoseWithin`** (ends on position
-and heading tolerance, or a mandatory timeout) or **`driveToWaypoint`** (the same, for a
-blue-origin `Waypoint` it flips for red).
+`driveToPose` never finishes on its own, so it is not used in autos. The finishing variants
+(`driveToPoseWithin`, `driveToWaypoint`) were removed with point-to-point autos.
 
 ```java
 // In Triggers.java — add an accessor named for the action. It does not exist yet.

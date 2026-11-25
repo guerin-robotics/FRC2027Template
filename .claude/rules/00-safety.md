@@ -57,7 +57,7 @@ The behavioral consequence is [Y]. The failure mode if wrong is [Z]."
 - Any change to alignment tolerances or the state that feeds them
 - Any change to composite state triggers
 - Any change to a scoring or handoff command sequence
-- Any change to the Choreo trajectory follower (`Drive.followTrajectory`) or `ChoreoAutos.createFactory`
+- Any change to the BLine path follower (`BLineAutos.createBuilder`, its gains, or the `Drive` methods it reads and drives)
 - Any change to odometry or vision fusion (`addVisionMeasurement()`)
 - Any change to `PhoenixOdometryThread`
 

@@ -12,12 +12,19 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import edu.wpi.first.hal.HAL;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.simulation.DriverStationSim;
 import edu.wpi.first.wpilibj.simulation.RoboRioSim;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Subsystem;
-import frc.robot.autos.ChoreoAutos;
+import frc.robot.autos.AutoPreview;
+import frc.robot.autos.BLineAutos;
+import frc.robot.lib.BLine.FollowPath;
+import frc.robot.lib.BLine.Path;
 import frc.robot.subsystems.drive.Drive;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -34,10 +41,10 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
  * Builds a real {@link RobotContainer} and asserts the wiring came out intact.
  *
  * <p>Everything {@code RobotContainer} does happens in a constructor: subsystems are built, the
- * Choreo {@code AutoFactory} is created, fault conditions are registered, the auto chooser is
+ * BLine {@code FollowPath.Builder} is created, fault conditions are registered, the auto chooser is
  * assembled, and every button binding is made. None of that is exercised by a unit test of any
  * individual class, and all of it runs exactly once — at robot boot, on the field. A null supplier,
- * a subsystem constructed in the wrong order, or an event marker nothing was bound to throws or
+ * a subsystem constructed in the wrong order, or an event key nothing was bound to throws or
  * silently misbehaves there and nowhere else.
  *
  * <p>This is the guardrail on {@code /add-subsystem} in particular. That skill scaffolds wiring
@@ -122,6 +129,37 @@ class RobotContainerSmokeTest {
   }
 
   @Test
+  void autoPreviewSurvivesNoAutoAndAMissingPathFile() {
+    autoChooser().periodic();
+    // Runs every disabled loop on the robot: neither "None" nor a path file that is not deployed
+    // may throw, or disabledPeriodic dies and the drive team loses the start-pose check.
+    container.updateAutoPreview();
+    new AutoPreview().update(List.of("no-such-path"), false, true, new Pose2d());
+  }
+
+  @Test
+  void blineLoggingReachesThePreviewWidget() {
+    // createBuilder is the one place BLine's logging consumers are installed. Running a path for
+    // one cycle makes FollowPath publish FollowPath/pathTranslations, which must reach the widget;
+    // if a consumer were never set, the active path would stay empty and nothing would log.
+    Drive drive = findSubsystem(Drive.class);
+    AutoPreview preview = new AutoPreview();
+    FollowPath.Builder builder = BLineAutos.createBuilder(drive, () -> false, preview);
+    Command follow =
+        builder.build(new Path(new Path.Waypoint(new Pose2d(2.0, 2.0, Rotation2d.kZero))));
+
+    follow.initialize();
+    follow.execute();
+    follow.end(true);
+
+    Field2d widget = (Field2d) SmartDashboard.getData("Auto Preview");
+    assertTrue(
+        !widget.getObject("activePath").getPoses().isEmpty(),
+        "FollowPath's pathTranslations never reached the Auto Preview widget — a BLine logging"
+            + " consumer is not installed in BLineAutos.createBuilder.");
+  }
+
+  @Test
   void driveHasItsDefaultCommand() {
     Drive drive = findSubsystem(Drive.class);
     Command defaultCommand = drive.getDefaultCommand();
@@ -158,22 +196,21 @@ class RobotContainerSmokeTest {
   }
 
   @Test
-  void everyChoreoEventMarkerIsBound() {
-    Set<String> referenced = ChoreoAssets.eventMarkersReferencedByTrajectories();
+  void everyBLineEventKeyIsBound() {
+    Set<String> referenced = BLineAssets.eventKeysReferencedByPaths();
     List<String> unbound =
-        referenced.stream().filter(name -> !ChoreoAutos.boundEvents().contains(name)).toList();
+        referenced.stream().filter(name -> !BLineAutos.boundEvents().contains(name)).toList();
 
     assertTrue(
         unbound.isEmpty(),
         () ->
-            "Choreo trajectories use event markers nothing is bound to: "
+            "BLine paths use event keys nothing is bound to: "
                 + unbound
-                + "\n\nThis does not throw on the robot. ChoreoLib fires the marker, finds no"
-                + " command, and does nothing — the auto drives its trajectory on schedule while"
+                + "\n\nThis does not throw on the robot. BLine-Lib reaches the trigger, finds no"
+                + " registration, and only warns — the auto follows its path on schedule while"
                 + " the mechanism sits still, which looks like a broken mechanism, not a wiring"
                 + " mistake."
-                + "\n\nBind it with ChoreoAutos.bind(...) in RobotContainer BEFORE any routine is"
-                + " built: a routine only sees bindings that existed when it was created"
+                + "\n\nBind it with BLineAutos.bind(...) in RobotContainer"
                 + " (.claude/rules/01-architecture.md).");
   }
 

@@ -86,25 +86,50 @@ conventions — a camera tilted *upward* takes a *negative* pitch.
 | Back Left | −11 in | +11 in |
 | Back Right | −11 in | −11 in |
 
+Default module (assumed): Swerve Drive Specialties MK5n, R1 ratio
 Drive gear ratio: 7.03125:1
 Steer gear ratio: 26.09:1
 Wheel radius: 2 in (0.0508 m)
 Coupling ratio: 4.5 (drive motor rotations per steer rotation)
 
+Theoretical free speed for this module: a Kraken X60 turns about 5800 RPM under FOC (6000 without),
+so wheel speed is `5800 / 7.03125 = 825 RPM`, and with a 2 in wheel (circumference 0.319 m) that is
+about **4.4 m/s** (4.5 without FOC). Real top speed is lower; 2026 logs on this drivetrain
+plateaued near 3.8 m/s. BLine's `config.json` max velocity is 4.0 m/s, the PathPlanner default and
+`TunerConstants.kSpeedAt12Volts`, which is above that plateau: paths should be authored with
+headroom. Computed from the numbers above, not a published SDS figure.
+
 ---
 
-## Robot Physical Specs (Choreo)
+## Robot Physical Specs (path limits)
 
-These go into the Choreo GUI's robot config (`src/main/deploy/choreo/*.chor`), which every
-trajectory is optimised against. Wrong values produce trajectories the robot cannot follow, which
-is hard to distinguish from bad follower gains.
+BLine paths carry no robot model, so mass, MOI and wheel COF no longer feed the autos. What does is
+the tested speed and acceleration ceiling, which goes in BLine Web's Path Defaults and
+`src/main/deploy/autos/config.json`. Ceilings above what the robot achieves make paths it cannot
+follow, which is hard to distinguish from bad follower gains. The mass, MOI and COF rows are kept
+for reference and for any later sim or planning use.
 
 | Property | 2026 value | 2027 value |
 |---|---|---|
 | Mass | 63.503 kg | TODO — weigh the robot |
 | Moment of inertia | 5.162 kg·m² | TODO |
 | Wheel COF | 2.225 | TODO |
-| Max drive speed at 12 V | 4.0 m/s configured | TODO |
+| Max drive speed at 12 V | 4.0 m/s configured; ~3.8 m/s measured | TODO |
+
+### What BLine uses from the 2026 PathPlanner settings
+
+PathPlanner's `settings.json` held more than BLine can use. Mapped:
+
+| 2026 PathPlanner value | BLine |
+|---|---|
+| `defaultMaxVel` 4.0, `defaultMaxAccel` 5.75 | `config.json` max velocity 4.0 / acceleration 8.0 (raised from PathPlanner's 5.75 as an experiment) |
+| `defaultMaxAngVel` 450, `defaultMaxAngAccel` 1020 | `config.json` max rotation velocity / acceleration |
+
+Not used by BLine, kept above for reference: mass, MOI, wheel COF, track width, wheel radius,
+gearing, drive current limit, nominal voltage, module positions. They fed PathPlanner's
+feedforward model; BLine has none. PathPlanner's follower gains are not used either: BLine runs its
+own defaults (see `docs/autos.md`). BLine Web's robot size and protrusion are set per robot in the
+editor and are not recorded here, to keep the template robot-agnostic.
 
 Note from 2026 logs: the robot topped out near 3.8 m/s and was **voltage-saturated, not
 current-limited**. Measure the real number rather than trusting the configured one.
@@ -155,7 +180,7 @@ the file is right and this table is stale.
 | CTRE Phoenix 6 | 26.3.0 | `vendordeps/Phoenix6-26.3.0.json` |
 | PhotonVision | v2026.3.4 | `vendordeps/photonlib.json` |
 | AdvantageKit | see vendordep | `vendordeps/AdvantageKit.json` |
-| ChoreoLib | 2026.0.3 | `vendordeps/ChoreoLib2026.json` |
+| BLine-Lib | v0.9.3 | `vendordeps/BLine-Lib.json` |
 | Studica (NavX) | see vendordep | `vendordeps/Studica.json` |
 | Grapple (LaserCAN) | 2026.0.0 | `vendordeps/libgrapplefrc2026.json` |
 

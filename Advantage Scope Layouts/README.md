@@ -7,14 +7,15 @@ AdvantageScope.
 
 Swerve and odometry only — module drive position, turn position, drive velocity and
 current, measured vs optimized setpoint states, chassis speeds, and the odometry pose and
-trajectory. Every key it references exists in this template unchanged, so it works on day
-one without editing.
+the active BLine path. Every key it references exists in this template, so it works on day
+one without editing — except the two `FollowPath/` keys, which only appear while a BLine path
+runs.
 
 Use it for:
 
 - Swerve calibration and steer/drive gain tuning
 - Checking measured module states against setpoints
-- Watching path-following error (`Odometry/Trajectory` vs `Odometry/Robot`)
+- Watching path-following error (`FollowPath/pathTranslations` vs `Odometry/Robot`)
 - Per-module current draw during brownout investigation
 
 ## Not carried over

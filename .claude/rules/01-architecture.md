@@ -137,36 +137,53 @@ every call. At 50 Hz this creates GC pressure and unpredictable `periodic()` tim
 
 ---
 
-## Choreo Wiring
+## BLine Wiring
 
-Autos come in three layers: Choreo trajectories (followed by `Drive.followTrajectory`), a Choreo
-trajectory with a PID-to-pose finish (`ChoreoAutos.thenAlign`), and code-only point-to-point
-waypoints (`PointToPointAutos`). The last two share `DriveCommands.driveToPose`. See [docs/autos.md](../../docs/autos.md).
+Autos are BLine paths, followed by BLine-Lib's `FollowPath`. Point-to-point autos and the
+PID-to-pose finish were removed for now. See [docs/autos.md](../../docs/autos.md).
 
-**Rule:** The trajectory follower lives in `Drive.java` — `Drive.followTrajectory(SwerveSample)`
-— not in `RobotContainer` or `ChoreoAutos`. The follower gains and the output path belong with
-the drivetrain.
+**Rule:** The path follower is BLine-Lib's `FollowPath`, configured in `BLineAutos.createBuilder`
+and fed by exactly three `Drive` methods: `getPose`, `getChassisSpeeds` (robot-relative, measured)
+and `runVelocity` (robot-relative, commanded). `Drive` holds no path-following code and no BLine
+import. The follower gains are named constants at the top of `BLineAutos`.
 
-**Rule:** There is exactly one Choreo `AutoFactory`, created by `ChoreoAutos.createFactory(drive)`
-in `RobotContainer`. Routines are static factories in `robot/autos/ChoreoAutos.java` that take it.
+**Rule:** There is exactly one `FollowPath.Builder`, created by `BLineAutos.createBuilder(drive, mirror, preview)` in
+`RobotContainer`. `mirror` is the Left/Right chooser's supplier, and `preview` is the one
+`AutoPreview`; `createBuilder` is also the only place BLine's four logging consumers are set. Routines are static factories in `robot/autos/BLineAutos.java` that take it. The
+builder reuses its PID objects, so two path commands from it must never run at once.
 
-**Rule:** Event markers are bound with `ChoreoAutos.bind(factory, name, command)` in
-`RobotContainer`, **before any routine is built**. A routine only sees bindings that existed when
-it was created, and an unbound marker does nothing on the field — silently.
-`RobotContainerSmokeTest` fails if a `.traj` uses a marker name nothing is bound to.
+**Rule:** Event triggers are bound with `BLineAutos.bind(key, command)` in `RobotContainer`, before
+any routine is built. An unregistered `lib_key` only logs a warning on the field, and the auto
+follows its path without the action. `RobotContainerSmokeTest` fails if a path in
+`deploy/autos/paths` uses a `lib_key` nothing is bound to.
 
-**Rule:** A command bound to an event marker or a trajectory trigger (`atTime`, `done`) must not
-require the drive. It is scheduled alongside the trajectory command, which requires the drive, so
-sharing that requirement interrupts the trajectory mid-path.
+**Rule:** A command bound to an event trigger must not require the drive. It is scheduled alongside
+the path command, which requires the drive, so sharing that requirement interrupts the path
+mid-run. When an event command shares a requirement with a later step of the same routine, compose
+the routine with `BLineCommands` (`sequence`, `deadline`, ...) instead of `Commands`, or scheduling
+the event cancels the whole group.
 
-**Rule:** The auto chooser is AdvantageKit's `LoggedDashboardChooser<Supplier<Command>>`, never
-Choreo's `AutoChooser`. The selection is then a logged input and replays; the supplier builds the
-routine at auto start, so only the selected auto's trajectories load.
+**Rule:** Autos are authored blue-left only. The Driver Station alliance flips them
+(`withDefaultShouldFlip`) and the `Auto Side` chooser mirrors them (`withShouldMirror`); neither is
+reimplemented in code. Never also call `Path.flip()` or `mirror()` on a path you hand to the
+builder, or it transforms twice.
 
-**Why the robot config is not in code any more:** Choreo optimises trajectories against the mass,
-MOI, wheel COF and bumpers set in the GUI project (`src/main/deploy/choreo/*.chor`). The robot only
-follows what the GUI produced. A wrong mass there makes trajectories the robot cannot follow, and no
-code change fixes it — re-export from the GUI.
+**Rule:** Every path command in an auto has a timeout from `Constants.Waits`. BLine follows
+physical progress, not a clock, so a blocked robot never finishes a path on its own.
+
+**Rule:** Reset odometry from the first path of a routine only, with
+`builder.withPoseReset(drive::setPose)`, then clear it with `builder.withPoseReset(ignored -> {})`.
+Resetting from a later path teleports the pose estimate mid-auto. Do not call
+`drive.setPose(path.getStartPose())` yourself: it skips the alliance flip the builder applies.
+
+**Rule:** The auto chooser is AdvantageKit's `LoggedDashboardChooser<Supplier<Command>>`. The
+selection is then a logged input and replays; the supplier builds the routine at auto start, so only
+the selected auto's paths load.
+
+**Why the robot config is not in code:** BLine paths carry no robot model. Speed and acceleration
+ceilings come from `src/main/deploy/autos/config.json` and the per-path constraints exported by
+BLine Web, and a wrong ceiling there makes paths the robot cannot follow. No code change fixes it:
+measure the limits and re-export from BLine Web.
 
 ---
 

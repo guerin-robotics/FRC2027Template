@@ -43,7 +43,7 @@ generated/TunerConstants.java
 
 - `Drive` calls `RobotState.getInstance().setPoseSupplier()` at construction — the designed wiring point
 - `Vision` calls `drive.addVisionMeasurement()` via a consumer passed at construction
-- `Drive.followTrajectory()` is the Choreo follower; `ChoreoAutos.createFactory(drive)` wraps it in the one `AutoFactory`, created by `RobotContainer`
+- `BLineAutos.createBuilder(drive, mirror, preview)` wraps `Drive.getPose`, `getChassisSpeeds` and `runVelocity` in the one `FollowPath.Builder`, created by `RobotContainer`; `Drive` has no path-following code
 - `Drive.periodic()` calls `Robot.batteryLogger.reportCurrentUsage()` per module
 
 **High-risk files:** all of them. Drive changes are Level 3+ (see
@@ -134,7 +134,7 @@ not your code reads it. Delete the annotation when a method loses its last calle
 ## Utility (shared, no owner)
 
 All shared utilities live in `frc/lib/` — the general-purpose helpers under
-`frc/lib/util/`, devices under `frc/lib/device/`, and point-to-point auto data under `frc/lib/auto/` (see
+`frc/lib/util/`, devices under `frc/lib/device/`, and (see
 [library.md](library.md)). There is no
 `frc/robot/util/` — utilities either belong to every robot, in which case they go here, or
 they belong to a subsystem, in which case they go in that subsystem's package.

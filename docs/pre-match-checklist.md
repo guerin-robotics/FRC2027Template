@@ -49,9 +49,12 @@ two in sync — edit both or neither.
 - [ ] `GitDirty` reads "All changes committed". Uncommitted code at an event means the log
       cannot be matched to source later
 - [ ] Demo mode OFF
-- [ ] Correct auto selected on the dashboard (Choreo, Choreo + PID finish, or point-to-point —
+- [ ] Correct auto selected on the dashboard (a BLine routine, or a characterization
+      routine —
       the name says which)
-- [ ] Robot placed to match the selected auto's starting pose
+- [ ] Robot placed to match the selected auto's starting pose — `Auto/StartCheck/PositionOK` and
+      `RotationOK` both true, and the Auto Preview widget shows the path on the right side of the
+      field for the alliance and Left/Right you selected
 
 ## Function Check (on the cart or in the pit, before queueing)
 

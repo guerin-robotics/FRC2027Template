@@ -9,12 +9,10 @@ package frc.robot.subsystems.drive;
 
 import static edu.wpi.first.units.Units.*;
 
-import choreo.trajectory.SwerveSample;
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.Matrix;
-import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -97,15 +95,6 @@ public class Drive extends SubsystemBase {
               Math.hypot(TunerConstants.BackLeft.LocationX, TunerConstants.BackLeft.LocationY),
               Math.hypot(TunerConstants.BackRight.LocationX, TunerConstants.BackRight.LocationY)));
 
-  // Choreo trajectory follower. Gains carried over unchanged from the PathPlanner controller this
-  // replaced: translation kP 10.0, heading kP 7.1 / kD 0.1 — same units (m/s per m of error,
-  // rad/s per rad), so it is the same controller, not a retune. History: kP 50 saturated the
-  // modules and amplified vision pose corrections into velocity steps; the last real-robot values
-  // from 2026 drive practice were 40.0 / 35.0. Re-tune with /pid-tune once a .traj exists.
-  private final PIDController trajectoryXController = new PIDController(10.0, 0.0, 0.0);
-  private final PIDController trajectoryYController = new PIDController(10.0, 0.0, 0.0);
-  private final PIDController trajectoryHeadingController = new PIDController(7.1, 0.0, 0.1);
-
   static final Lock odometryLock = new ReentrantLock();
   private final GyroIO gyroIO;
   private final GyroIOInputsAutoLogged gyroInputs = new GyroIOInputsAutoLogged();
@@ -132,8 +121,6 @@ public class Drive extends SubsystemBase {
       ModuleIO frModuleIO,
       ModuleIO blModuleIO,
       ModuleIO brModuleIO) {
-    trajectoryHeadingController.enableContinuousInput(-Math.PI, Math.PI);
-
     this.gyroIO = gyroIO;
     modules[0] = new Module(flModuleIO, 0, TunerConstants.FrontLeft);
     modules[1] = new Module(frModuleIO, 1, TunerConstants.FrontRight);
@@ -169,42 +156,6 @@ public class Drive extends SubsystemBase {
     // This ensures there is only ONE SwerveDrivePoseEstimator — eliminating the dual-estimator
     // divergence bug where two independent estimators would drift apart.
     RobotState.getInstance().setPoseSupplier(this::getPose);
-  }
-
-  /**
-   * Follows one sample of a Choreo trajectory: the sample's field-relative velocity as feedforward,
-   * plus PID on x, y and heading to pull the robot back onto the sample's pose. Choreo's {@code
-   * AutoFactory} calls this every loop while a trajectory runs; see {@code
-   * frc.robot.autos.ChoreoAutos}.
-   *
-   * <p>The follower lives here rather than in {@code ChoreoAutos} for the same reason the
-   * PathPlanner controller did: the gains and the output path belong with the drivetrain ({@code
-   * .claude/rules/01-architecture.md}).
-   *
-   * @param sample Field-relative, already alliance-flipped by {@code AutoFactory}
-   */
-  public void followTrajectory(SwerveSample sample) {
-    Pose2d pose = getPose();
-    ChassisSpeeds fieldSpeeds =
-        new ChassisSpeeds(
-            sample.vx + trajectoryXController.calculate(pose.getX(), sample.x),
-            sample.vy + trajectoryYController.calculate(pose.getY(), sample.y),
-            sample.omega
-                + trajectoryHeadingController.calculate(
-                    pose.getRotation().getRadians(), sample.heading));
-    Logger.recordOutput("Odometry/TrajectorySetpoint", sample.getPose());
-    runVelocity(ChassisSpeeds.fromFieldRelativeSpeeds(fieldSpeeds, pose.getRotation()));
-  }
-
-  /**
-   * Clears the follower PIDs' accumulated state. Called by {@code ChoreoAutos.createFactory} as
-   * each trajectory starts, so the heading kD does not differentiate against the previous
-   * trajectory's last error and kick on the first sample.
-   */
-  public void resetTrajectoryControllers() {
-    trajectoryXController.reset();
-    trajectoryYController.reset();
-    trajectoryHeadingController.reset();
   }
 
   @Override

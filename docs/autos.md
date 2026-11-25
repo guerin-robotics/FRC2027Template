@@ -1,17 +1,23 @@
 # Autos
 
-Autos come in **three layers**, all in one chooser. Layer 1 runs on the Choreo follower
-(`Drive.followTrajectory`); layers 2 and 3 share one `DriveCommands.driveToPose`:
+Autos are **BLine paths**, in one chooser. The follower is BLine's `FollowPath`, configured in
+`BLineAutos.createBuilder`.
 
-| Layer | Authored in | How the robot moves | Use it when |
-|---|---|---|---|
-| **1. Choreo trajectory** | Choreo GUI → `src/main/deploy/choreo/*.traj`; routine in `robot/autos/ChoreoAutos.java` | `Drive.followTrajectory`: the sample's velocity as feedforward + PID on x, y, heading | The route itself matters — curves, speed through a gap, mechanism actions mid-path |
-| **2. Choreo + PID finish** | Same, plus `ChoreoAutos.thenAlign` on `traj.done()` | Trajectory for the route, then `driveToPoseWithin` to the trajectory's end pose | The end pose must be exact — scoring, a pickup — and the follower's last few cm are not good enough |
-| **3. Point-to-point** | Java: `robot/autos/PointToPointAutos.java` (`WaypointAuto`) | `driveToWaypoint` from stop to stop, straight lines | A few fixed stops with nothing in between to avoid; fast to write, no GUI |
+| Authored in | How the robot moves | Use it when |
+|---|---|---|
+| BLine Web → `src/main/deploy/autos/paths/*.json`; routine in `robot/autos/BLineAutos.java` | `FollowPath`: PID on remaining polyline distance, plus cross-track and heading PIDs, capped by the path's velocity and acceleration constraints | Always — passing waypoints, speed through a gap, mechanism actions mid-path |
 
-The team has decided on Choreo for 2027 and has not decided how much PID-to-pose to use. This
-layout keeps that open: a routine can use any mix of the layers, and leaning harder on one later
-means writing routines differently, not re-plumbing anything.
+**Removed for now:** point-to-point autos (`PointToPointAutos`, `WaypointAuto`, the pit stepper)
+and the PID-to-pose finish after a path (`thenAlign`, `driveToPoseWithin`, `driveToWaypoint`).
+`DriveCommands.driveToPose` stays for teleop alignment. They are in git history and can come back as
+layers; nothing else depended on them.
+
+**BLine is not a trajectory.** A BLine path is a polyline of waypoints and targets, followed by
+physical progress rather than by a clock: the robot hands off to the next point when it is close
+enough (or has projected past it), and the path ends when it is within tolerance of the final pose.
+Nothing times it, so a blocked robot never finishes — every path command needs a timeout
+(`Constants.Waits.PATH_TIMEOUT_SECONDS`). Speed comes from the velocity ceilings in
+`deploy/autos/config.json` and from per-path constraints set in BLine Web.
 
 ---
 
@@ -26,115 +32,122 @@ Researched from public repos, October 2026:
 | **254** (2025) | Code | `AutoAlignToPoseCommand` | Profiled PID + **setpoint feedforward × ffScaler** | 4 cm / 2° |
 | **1678** (2025) | Choreo | Choreo trajectory, then `PIDToPoseCommand` | Profiled PID | Tolerance |
 | **3467** W8-Library | Code | Chain of `DriveToPose` per waypoint | Profiled PID on distance, angular PID, output clamps | Optional distance/angle tolerance |
-| **Us** | Choreo GUI + code | Layers 1–3 above | **Velocity-seeded** profiles + **setpoint feedforward** faded inside `DRIVE_TO_POSE_FF_MIN_RADIUS_METERS`–`DRIVE_TO_POSE_FF_MAX_RADIUS_METERS` | `driveToPoseWithin`: tolerance **or mandatory timeout** |
+| **Us** | BLine Web + code | BLine paths only, for now | **Velocity-seeded** profiles + **setpoint feedforward** faded inside `DRIVE_TO_POSE_FF_MIN_RADIUS_METERS`–`DRIVE_TO_POSE_FF_MAX_RADIUS_METERS` | `driveToPose` (teleop only; never finishes) |
 
 **What 1114 actually does.** "PID with the PathPlanner GUI" means PathPlanner's path follower,
-which is PID on the path — the same thing layer 1 does with Choreo's follower. Their PID-to-pose is
-a separate tool. Layer 2 is the 6328/1678 hybrid: draw the route, PID the finish.
+which is PID on the path — the same thing BLine's follower does. Their PID-to-pose is
+a separate tool. The 6328/1678 hybrid — draw the route, PID the finish — is the removed
+PID-to-pose finish.
 
 ---
 
-## Layer 1 — Choreo
+## BLine paths
 
-Draw trajectories in the Choreo GUI with the project saved to `src/main/deploy/choreo/` (set the
-robot config first — see that folder's README). Then, in `ChoreoAutos`:
+Draw paths in BLine Web and export the autos folder to `src/main/deploy/autos/` (`config.json` and
+`paths/`). Set the robot's tested limits in BLine Web's Path Defaults, not just in code. Then, in
+`BLineAutos`:
 
 ```java
-public static AutoRoutine twoPieceLeft(AutoFactory factory, Drive drive) {
-  AutoRoutine routine = factory.newRoutine("Two Piece Left");
-  AutoTrajectory toFirst = routine.trajectory("LeftToFirst");
-  AutoTrajectory toScore = routine.trajectory("FirstToScore");
+public static Command twoPieceLeft(FollowPath.Builder builder, Drive drive) {
+  Path toFirst = new Path("left-to-first");   // deploy/autos/paths/left-to-first.json
+  Path toScore = new Path("first-to-score");
 
-  routine.active().onTrue(Commands.sequence(toFirst.resetOdometry(), toFirst.cmd()));
-  toFirst.done().onTrue(toScore.cmd());
-  return routine;
+  // Reset odometry from the first path only, then clear it for the rest.
+  Command first = builder.withPoseReset(drive::setPose).build(toFirst);
+  builder.withPoseReset(ignored -> {});
+  Command second = builder.build(toScore);
+
+  return Commands.sequence(
+          first.withTimeout(Constants.Waits.PATH_TIMEOUT_SECONDS),
+          second.withTimeout(Constants.Waits.PATH_TIMEOUT_SECONDS))
+      .withName("Auto_TwoPieceLeft");
 }
 ```
 
-and list it in `ChoreoAutos.all(...)`:
+and list it in `BLineAutos.all(...)`:
 
 ```java
-routines.put("Two Piece Left", () -> twoPieceLeft(factory, drive).cmd());
+routines.put("Two Piece Left", () -> twoPieceLeft(builder, drive));
 ```
 
-Trajectories are flipped for red by ChoreoLib. `Autos/Trajectory` logs the running trajectory and
-`Odometry/TrajectorySetpoint` the sample the follower is chasing.
+Paths are flipped for red by BLine-Lib (`withDefaultShouldFlip`); author them blue-origin. The
+follower logs its internals under `FollowPath/` (remaining distance, controller outputs,
+cross-track error, `pathTranslations` for the active path).
 
-### Event markers
+### Left and right from one blue-left path
 
-A marker placed in the GUI fires whatever is bound to its name:
+Draw every auto **blue-left only**. Two things happen when the auto starts:
+
+- **Alliance** — `withDefaultShouldFlip()` reads the Driver Station alliance, which is the FMS
+  station on the field, and flips the path rotationally for red. Nothing to select.
+- **Side** — the `Auto Side` chooser (Left / Right) feeds `withShouldMirror`, which reflects the
+  path across the field centerline for Right. Flip is applied first, then mirror; they commute, so
+  all four combinations (blue/red x left/right) come from the one path.
+
+The pose reset uses the same transform, so the robot's start pose follows both choices.
+
+Before trusting a mirrored path, check: a side-mounted intake or shooter faces the wrong way when
+mirrored (use separate authored paths if the mechanism is not symmetric); the field is symmetric
+the way BLine assumes (`FlippingUtil` defaults to 16.54 x 8.07 m, the 2026 field — update
+`fieldSizeX/Y` when the 2027 field is published); and the selected side and alliance on blocks, in
+the planned and live pose.
+
+### Logging
+
+BLine publishes through four process-wide consumers (double, boolean, pose, translation list), all
+no-ops until set. `BLineAutos.createBuilder` sets all four, once, to `Logger.recordOutput` — so
+everything lands under `RealOutputs/FollowPath/` in AdvantageKit. The two geometry keys also feed the
+Auto Preview widget. Plot `remainingPathDistanceMeters`, the `*TranslationControllerOutput` keys,
+`crossTrackError` and `pathTranslations` / `robotTranslations` when tuning. Nothing is logged until a
+path runs. About 45 keys publish per loop while one does, so watch `LoopTiming/` on the first run.
+
+### Auto preview and start-pose check
+
+`autos/AutoPreview` draws the selected routine's paths on the "Auto Preview" widget while disabled,
+flipped and mirrored the way they will run, and logs `Auto/StartCheck/DistanceInches`,
+`RotationDiffDegrees`, `PositionOK` and `RotationOK` (tolerances `Constants.Thresholds.START_POSE_*`,
+6 in and 5°). During auto it shows the active leg and the closest point on it. It reloads when the
+auto, the alliance or the side changes — the alliance often arrives from the FMS after the auto is
+picked. Register a routine's path files with `BLineAutos.add(...)` or it has no preview.
+
+### Event triggers
+
+An event placed in BLine Web carries a `lib_key`. It fires whatever is registered under that key:
 
 ```java
 // RobotContainer, BEFORE any routine is built
-ChoreoAutos.bind(choreo, "Intake", IntakeCommands.deploy(intake));
+BLineAutos.bind("Intake", IntakeCommands.deploy(intake));
 ```
 
-- A routine only sees bindings that existed when it was created.
-- A bound command must **not** require the drive — it runs beside the trajectory, which does.
-- `RobotContainerSmokeTest` fails if a `.traj` uses a marker nothing is bound to.
+- A bound command must **not** require the drive — it runs beside the path, which does.
+- It is scheduled through the `CommandScheduler` and is not cancelled with the routine. Give it an
+  end condition.
+- If an event command shares a requirement with a later step of the same routine, compose the
+  routine with `BLineCommands.sequence` / `deadline` (they proxy their children) instead of
+  `Commands`, or scheduling the event cancels the whole group.
+- `RobotContainerSmokeTest` fails if a path uses a `lib_key` nothing is bound to.
 
-`traj.atTime("Intake")` / `traj.atTime(1.2)` / `traj.done()` triggers work too, under the same
-rule.
+## Tuning
 
-## Layer 2 — Choreo + PID finish
-
-```java
-toScore.done().onTrue(ChoreoAutos.thenAlign(drive, toScore));
-```
-
-`thenAlign` runs `driveToPoseWithin` to the trajectory's (alliance-flipped) final pose with the
-default waypoint tolerances and timeout. It may take the drive because the trajectory has already
-ended. Chain the scoring action after it, or on another trigger.
-
-## Layer 3 — Point-to-point
-
-An auto is data: a `WaypointAuto` (name + `Waypoint`s). Each waypoint has a blue-origin pose,
-position and heading tolerances, and a **timeout** — if it is not reached in time the auto moves on,
-which is what guarantees it ends.
-
-```java
-public static WaypointAuto leftTwoPiece() {
-  return new WaypointAuto(
-      "Left Two Piece",
-      List.of(
-          waypoint(1.5, 6.5, 0.0),   // starting pose — the robot is placed here
-          waypoint(4.0, 6.5, 0.0),
-          waypoint(2.0, 5.5, 180.0)));
-}
-```
-
-List it in `PointToPointAutos.all()`. Defaults come from
-`Constants.Thresholds.WAYPOINT_*_TOLERANCE_*` and `Constants.Waits.WAYPOINT_TIMEOUT_SECONDS`.
-`Autos/<name>/Waypoints` logs the route for an AdvantageScope preview.
-
-**In the pit:** `PointToPointAutos.stepThrough(drive, auto, forward, back)` runs one waypoint per
-press. Bind it to two trigger accessors in `Triggers.java` (a commented example is there). Robot on
-the carpet, someone on disable.
-
----
-
-## The PID-to-pose underneath layers 2 and 3
-
-`driveToPose` seeds its profiles with the robot's current velocity and feeds the profile's setpoint
-velocity forward — so a robot already moving keeps moving instead of braking at each waypoint, and
-tracks its profile rather than trailing it. Details in [target-alignment.md](target-alignment.md).
-
-**Before trusting it on carpet:** `driveController` is an **untuned placeholder**
-(`TODO(2027)` in `DriveCommands`), and the Choreo follower gains in `Drive` are carried over from
-the 2026 PathPlanner controller. Tune both with `/pid-tune` on the real chassis.
+**Before trusting it on carpet:** the BLine follower gains in `BLineAutos` are carried over from
+BLine's documented defaults (translation 2.0, rotation 1.0, cross-track 0.2), deliberately left at
+the library values; none are tuned on a robot. They are not the old PathPlanner gains (10 / 7.1): PathPlanner's translation gain corrected position error on top of
+feedforward, while BLine's translation
+output is the whole speed command, `kP x remaining distance`, so kP must stay at or below
+`2 x max acceleration / max velocity` (4.0 for the shipped 4.0 m/s and 8.0 m/s²), or the stop
+overshoots. Tune all of them with `/bline-auto` on the real chassis.
 
 ---
 
 ## The chooser
 
-`RobotContainer` keeps AdvantageKit's `LoggedDashboardChooser<Supplier<Command>>`, not Choreo's
-`AutoChooser`. The selection is a logged input, so replay knows which auto ran; each option is a
-supplier, so a routine — and its trajectories — is built only when it is selected and auto starts.
+`RobotContainer` keeps AdvantageKit's `LoggedDashboardChooser<Supplier<Command>>`, (the same one the drive already uses). The selection is a logged input, so replay knows which auto ran; each option is a
+supplier, so a routine — and its paths — is built only when it is selected and auto starts.
 
 ---
 
-## Time budget — every layer
+## Time budget
 
 In 2026 every auto overran the auto period and its last path was truncated. Time each auto in sim
-before an event. For layers 2 and 3 the worst case adds every PID step's timeout; keep the total
-inside the auto period, or accept on purpose that the last steps may be skipped.
+before an event. The worst case adds every path's timeout (`Constants.Waits.PATH_TIMEOUT_SECONDS`); keep the total
+inside the auto period, or accept on purpose that the last paths may be skipped.

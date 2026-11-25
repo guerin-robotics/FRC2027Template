@@ -38,19 +38,21 @@ built from one constant. Swerve devices do not claim; the test covers them.
 
 **`frc/robot/RobotContainerSmokeTest`** builds a real `RobotContainer` in SIM and asserts the
 constructor completes, the auto chooser yields a command, `Drive` keeps its `Drive_Joystick`
-default, every default command is named, and every Choreo event marker a trajectory uses has a
-command bound to it.
+default, every default command is named, every BLine `lib_key` a path uses has a
+command bound to it, the auto preview survives "None" and a missing path file, and BLine's
+logging reaches the Auto Preview widget when a path runs (proof that `BLineAutos.createBuilder`
+installed its logging consumers).
 
-That last one matters more than it looks. An unbound event marker **does not throw** — ChoreoLib
-fires the marker, finds nothing, and the auto drives its trajectory on schedule while the mechanism
-does nothing. It reads as a broken mechanism, not a wiring mistake.
+That last one matters more than it looks. An unbound event key **does not throw** — BLine-Lib
+reaches the trigger, finds no registration, only warns, and the auto follows its path on schedule
+while the mechanism does nothing. It reads as a broken mechanism, not a wiring mistake.
 
 Subsystems are found by reflecting `RobotContainer`'s own fields, so a new mechanism is
 covered automatically — nothing in that file names `Drive` or `Vision`.
 
-`ChoreoAssets.java` beside it is test support, not a test: it scans `src/main/deploy/choreo/*.traj`
-for event-marker names. There are no trajectories in the template, so that assertion passes
-vacuously until the first 2027 trajectory exists.
+`BLineAssets.java` beside it is test support, not a test: it scans `src/main/deploy/autos/paths/*.json`
+for `event_trigger` `lib_key`s. There are no paths in the template, so that assertion passes
+vacuously until the first 2027 path exists.
 
 ---
 
@@ -147,8 +149,8 @@ test. Every sim test needs teardown that cancels and unregisters — `RobotConta
 ### Global state and the scheduler
 
 `CommandScheduler` is a JVM-wide singleton that will bite a new test if you let it — see above.
-`ChoreoAutos.boundEvents()` is static too: it records every `ChoreoAutos.bind` call so the smoke
-test can check markers, and it is never cleared. A test that builds a second `RobotContainer` sees
-the first one's bindings as well; that only ever makes the marker check more lenient, never
-stricter. (PathPlanner's global `AutoBuilder`, which caused the old version of this warning, is
+`BLineAutos.boundEvents()` is static too: it records every `BLineAutos.bind` call so the smoke
+test can check keys, and it is never cleared. A test that builds a second `RobotContainer` sees
+the first one's bindings as well; that only ever makes the key check more lenient, never
+stricter. `FollowPath`'s registered event triggers are static for the same reason. (PathPlanner's global `AutoBuilder`, which caused the old version of this warning, is
 gone with PathPlanner.)
