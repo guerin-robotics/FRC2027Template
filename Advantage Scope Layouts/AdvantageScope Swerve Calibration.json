@@ -103,8 +103,8 @@
                   },
                   {
                     "type": "trajectory",
-                    "logKey": "/RealOutputs/Odometry/Trajectory",
-                    "logType": "Pose2d[]",
+                    "logKey": "/RealOutputs/FollowPath/pathTranslations",
+                    "logType": "Translation2d[]",
                     "visible": true,
                     "options": {
                       "color": "#ff8c00",
@@ -113,7 +113,7 @@
                   },
                   {
                     "type": "ghost",
-                    "logKey": "/RealOutputs/Odometry/TrajectorySetpoint",
+                    "logKey": "/RealOutputs/FollowPath/closestPoint",
                     "logType": "Pose2d",
                     "visible": true,
                     "options": {

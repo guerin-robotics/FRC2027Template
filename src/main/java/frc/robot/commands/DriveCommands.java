@@ -7,10 +7,6 @@
 
 package frc.robot.commands;
 
-import static edu.wpi.first.units.Units.Meters;
-import static edu.wpi.first.units.Units.Radians;
-import static edu.wpi.first.units.Units.Seconds;
-
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
@@ -21,13 +17,9 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.Distance;
-import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import frc.lib.auto.Waypoint;
 import frc.lib.util.AllianceFlipUtil;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConstants;
@@ -58,8 +50,8 @@ import org.littletonrobotics.junction.Logger;
  * driver steers, it drives translation AND heading to a fixed field pose via PID, with no
  * pathfinding. Reach for it for pick/place-style games where the destination is a specific spot (a
  * station, a fixed scoring position) and the path there never has anything to avoid. There is no
- * pathfinding alternative since the switch to Choreo: when the route matters, draw it as a Choreo
- * trajectory and finish with {@link #driveToPoseWithin} (see {@code docs/autos.md}).
+ * pathfinding alternative: when the route matters, draw it as a BLine path (see {@code
+ * docs/autos.md}).
  */
 public class DriveCommands {
   private static final double DEADBAND = 0.1;
@@ -287,8 +279,8 @@ public class DriveCommands {
 
   /**
    * Drives straight to a fixed field pose using PID control on both translation and heading — no
-   * pathfinding, no obstacle avoidance. When the route there is not always clear, drive a Choreo
-   * trajectory first and finish with {@link #driveToPoseWithin}.
+   * pathfinding, no obstacle avoidance. When the route there is not always clear, drive a BLine
+   * path instead.
    *
    * <p>Both profiles are seeded with the robot's current velocity, and the profile's setpoint
    * velocity is fed forward (faded out near the target), so a robot already moving keeps moving and
@@ -364,8 +356,7 @@ public class DriveCommands {
             () -> {
               // Seed both profiles with the robot's current motion, the 1114/6328 pattern.
               // Resetting at zero velocity made a robot already moving toward the target brake
-              // and re-accelerate at the start of every segment — every waypoint of a
-              // point-to-point auto, and the hand-off from a trajectory to a PID finish.
+              // and re-accelerate at the start of every drive-to-pose.
               Pose2d current = drive.getPose();
               Pose2d target = targetPoseSupplier.get();
               ChassisSpeeds fieldSpeeds =
@@ -394,56 +385,6 @@ public class DriveCommands {
               Logger.recordOutput("AutoAim/DriveToPose/FFScaler", 0.0);
             })
         .withName("Drive_ToPose");
-  }
-
-  /**
-   * {@link #driveToPose} that finishes: ends once the robot is within the given tolerances of the
-   * target, or when the timeout runs out — whichever comes first. The building block of every
-   * PID-to-pose step in an auto: point-to-point waypoints and the PID finish after a Choreo
-   * trajectory both go through here.
-   *
-   * @param drive Drive subsystem
-   * @param target Field pose to reach, <b>already alliance-flipped</b>. Read every loop.
-   * @param positionTolerance Translation error that counts as arrived
-   * @param headingTolerance Heading error that counts as arrived
-   * @param timeout Give up after this long; mandatory, per {@code .claude/rules/03-commands.md}
-   */
-  public static Command driveToPoseWithin(
-      Drive drive,
-      Supplier<Pose2d> target,
-      Distance positionTolerance,
-      Angle headingTolerance,
-      Time timeout) {
-    double positionToleranceMeters = positionTolerance.in(Meters);
-    double headingToleranceRadians = headingTolerance.in(Radians);
-    return driveToPose(drive, target)
-        .until(
-            () -> {
-              Pose2d current = drive.getPose();
-              Pose2d goal = target.get();
-              return current.getTranslation().getDistance(goal.getTranslation())
-                      <= positionToleranceMeters
-                  && Math.abs(goal.getRotation().minus(current.getRotation()).getRadians())
-                      <= headingToleranceRadians;
-            })
-        .withTimeout(timeout.in(Seconds))
-        .withName("Drive_ToPoseWithin");
-  }
-
-  /**
-   * {@link #driveToPoseWithin} for a point-to-point {@link Waypoint}. The waypoint is blue-origin
-   * and flipped here for red, every loop, so the alliance can be known late. Uses the same untuned
-   * {@code driveController} as {@link #driveToPose}; tune that before trusting any point-to-point
-   * auto.
-   */
-  public static Command driveToWaypoint(Drive drive, Waypoint waypoint) {
-    return driveToPoseWithin(
-            drive,
-            () -> AllianceFlipUtil.apply(waypoint.pose()),
-            waypoint.positionTolerance(),
-            waypoint.headingTolerance(),
-            waypoint.timeout())
-        .withName("Drive_ToWaypoint");
   }
 
   /**

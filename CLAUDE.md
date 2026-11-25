@@ -34,7 +34,8 @@ drives anything, these must be revisited:
 | Swerve CAN IDs, encoder offsets, geometry, gains | `generated/TunerConstants.java` | Regenerate with CTRE Tuner X against the real robot |
 | Camera names and `robotToCameraN` transforms | `subsystems/vision/VisionConstants.java` | Identity placeholders — measure on the real robot |
 | AprilTag layout | `frc/lib/util/FieldConstants.java` | Points at the 2026 field; update when WPILib ships 2027 |
-| Choreo robot config (mass, MOI, wheel COF, bumpers) | `src/main/deploy/choreo/*.chor` (Choreo GUI) | No project yet — create it; 2026 values are in `deploy/choreo/README.md` |
+| BLine path limits (max velocity/accel, end tolerances, handoff radius) | `src/main/deploy/autos/config.json` | 2026 robot's PathPlanner constraints (4.0 m/s, 450 deg/s, 1020 deg/s²), with acceleration raised from 5.75 to 8.0 m/s² as an experiment; tolerances and handoff are BLine defaults — re-measure on the 2027 robot, then create paths in BLine Web |
+| BLine follower gains (translation 2.0, rotation 1.0, cross-track 0.2) | `autos/BLineAutos.java` | BLine's documented defaults, untuned on any robot — tune with `/bline-auto` |
 | Heading-hold gains | `commands/DriveCommands.java` | `angleController` (heading kP/kD) tuned on the 2026 chassis |
 | Team number | `.wpilib/wpilib_preferences.json` | Verify |
 
@@ -53,7 +54,7 @@ NEVER change swerve encoder offsets (magnet calibration)
 NEVER change PID / feedforward gains outside a tuning session
 NEVER remove Logger.processInputs() from any periodic() method
 NEVER add hardware calls (TalonFX, CANcoder, etc.) inside a subsystem class
-NEVER modify Choreo .traj / .chor files by hand
+NEVER modify BLine path JSON (deploy/autos/paths) by hand — export from BLine Web
 NEVER change motor inversion flags
 NEVER disable or remove a safety timeout
 NEVER change an AdvantageKit IO interface (@AutoLog fields) without updating real + sim
@@ -72,7 +73,7 @@ Classify every proposed change before making it:
 | Level | Description | Behavior |
 |---|---|---|
 | **Safe** | Comment, rename, log addition, new command factory | Proceed |
-| **Low risk** | New subsystem (no existing wiring), new Choreo event-marker binding or auto routine | Proceed, note what was added |
+| **Low risk** | New subsystem (no existing wiring), new BLine event-trigger binding or auto routine | Proceed, note what was added |
 | **Medium risk** | Modifying existing command logic, changing wait timeouts, tuning thresholds | Proceed with explicit summary of behavioral change |
 | **High risk** | Changing PID gains, swerve constants, vision filter thresholds, button bindings | Ask for confirmation, describe the failure mode |
 | **Blocked** | Any Hard Stop above | Stop. Ask explicitly. |
@@ -153,7 +154,7 @@ or in `RobotState`.
 - Adding a `.withName()` call to a command
 - Fixing a compile error
 - Writing a new subsystem from scratch following the vision/drive IO pattern
-- Binding a new Choreo event marker in `RobotContainer`
+- Binding a new BLine event trigger in `RobotContainer`
 
 **Ask before acting:**
 
@@ -195,6 +196,7 @@ Team skills (slash commands) are in `.claude/skills/`:
 - `/add-subsystem` — scaffold a new mechanism: six files, constants, wiring, triggers
 - `/debug-match-log` — root-cause a field problem from an AdvantageKit log
 - `/pid-tune` — sim-based PID/FF tuning loop; proposes gains, user confirms
+- `/bline-auto` — create a BLine auto (author blue-left, wire, preview) or tune the path follower
 
 ---
 

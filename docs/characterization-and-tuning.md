@@ -136,9 +136,9 @@ plausible and are wrong.
 | 9 | Steer tuning (manual) | steer `kP`/`kD`/`kS` | Independent of drive, but do it before driving hard |
 | 10 | **Slip current** | `kSlipCurrent` | Needs the drivetrain running properly to push against a wall |
 | 11 | **Top speed** | `kSpeedAt12Volts` | Needs correct wheel radius *and* working feedforward |
-| 12 | Mass / MOI / wheel COF | Choreo GUI robot config (`deploy/choreo/*.chor`) | Trajectory generation inputs |
-| 13 | Trajectory follower PID | `Drive.java` (`trajectoryX/Y/HeadingController`) | Needs all of the above |
-| 13b | Drive-to-pose PID and FF radii | `DriveCommands` (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS`) | Same — the PID-to-pose finish and point-to-point autos |
+| 12 | Path speed and acceleration ceilings | BLine Web Path Defaults / `deploy/autos/config.json` | Needs measured top speed and acceleration, not the configured ones |
+| 13 | Path follower PID | `BLineAutos.java` (`TRANSLATION_KP`, `ROTATION_KP`, `CROSS_TRACK_KP`) | Needs all of the above. Translation kP is m/s per metre of remaining path (keep it at or below 2 x max accel / max velocity); cross-track kP is m/s per metre off the line |
+| 13b | Drive-to-pose PID and FF radii | `DriveCommands` (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS`) | Same — teleop alignment (`driveToPose`) |
 | 14 | Heading-hold gains | `angleController` (heading kP/kD) | Needs a drivetrain that tracks velocity |
 
 The three easiest mistakes, all of which produce confident nonsense:

@@ -7,18 +7,18 @@
 
 package frc.robot;
 
-import choreo.auto.AutoFactory;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
-import frc.lib.auto.WaypointAuto;
+import frc.lib.util.AllianceFlipUtil;
 import frc.lib.util.FaultMonitor;
-import frc.robot.autos.ChoreoAutos;
-import frc.robot.autos.PointToPointAutos;
+import frc.robot.autos.AutoPreview;
+import frc.robot.autos.BLineAutos;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
+import frc.robot.lib.BLine.FollowPath;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.GyroIO;
 import frc.robot.subsystems.drive.GyroIOPigeon2;
@@ -55,6 +55,11 @@ public class RobotContainer {
 
   // Dashboard inputs
   private final LoggedDashboardChooser<Supplier<Command>> autoChooser;
+  private final LoggedDashboardChooser<Boolean> autoSide;
+  private final AutoPreview autoPreview;
+
+  /** Auto Side captured when the auto starts, so every leg of one routine mirrors the same way. */
+  private boolean mirrorAtAutoStart = false;
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -126,24 +131,28 @@ public class RobotContainer {
 
     // ---- Autos ----
     //
-    // Choreo trajectories, Choreo + PID finish, and point-to-point waypoints all share one chooser.
-    // Each option is a SUPPLIER, built when auto starts: the selected Choreo routine loads only
-    // its own trajectories, and nothing is constructed for autos that never run. The chooser is
+    // BLine paths share one chooser with the characterization routines.
+    // Each option is a SUPPLIER, built when auto starts: the selected BLine routine loads only
+    // its own paths, and nothing is constructed for autos that never run. The chooser is
     // AdvantageKit's, so the selection is logged and replays correctly. See docs/autos.md.
-    AutoFactory choreo = ChoreoAutos.createFactory(drive);
+    // Autos are drawn blue-left only. Alliance comes from the Driver Station (FMS station) and
+    // flips the path; this chooser mirrors it to the right side. Read when the auto starts.
+    autoSide = new LoggedDashboardChooser<>("Auto Side");
+    autoSide.addDefaultOption("Left", false);
+    autoSide.addOption("Right", true);
+    autoPreview = new AutoPreview();
+    FollowPath.Builder bline =
+        BLineAutos.createBuilder(drive, () -> mirrorAtAutoStart, autoPreview);
 
-    // Bind Choreo event markers BEFORE building any routine — a routine only sees bindings that
-    // existed when it was created. Bound commands run alongside the trajectory, so they must NOT
-    // require the drive (.claude/rules/03-commands.md).
+    // Bind BLine event triggers BEFORE building any routine, so the smoke test sees every key.
+    // Bound commands run alongside the path, so they must NOT require the drive
+    // (.claude/rules/03-commands.md).
     //
-    //   ChoreoAutos.bind(choreo, "Intake", IntakeCommands.deploy(intake));
+    //   BLineAutos.bind("Intake", IntakeCommands.deploy(intake));
 
     autoChooser = new LoggedDashboardChooser<>("Auto Choices");
     autoChooser.addDefaultOption("None", Commands::none);
-    ChoreoAutos.all(choreo, drive).forEach(autoChooser::addOption);
-    for (WaypointAuto auto : PointToPointAutos.all()) {
-      autoChooser.addOption(auto.name(), () -> PointToPointAutos.build(drive, auto));
-    }
+    BLineAutos.all(bline, drive).forEach(autoChooser::addOption);
 
     // Characterization and SysId routines
     autoChooser.addOption(
@@ -229,12 +238,34 @@ public class RobotContainer {
                 .ignoringDisable(true));
   }
 
+  /** True when the Auto Side chooser is on Right: paths are authored left and mirrored. */
+  private boolean mirrorToRight() {
+    return Boolean.TRUE.equals(autoSide.get());
+  }
+
+  /** Disabled loop: redraw the auto preview if the selection changed, check the start pose. */
+  public void updateAutoPreview() {
+    autoPreview.update(
+        BLineAutos.pathsOf(autoChooser.get()),
+        AllianceFlipUtil.shouldFlip(),
+        mirrorToRight(),
+        RobotState.getInstance().getEstimatedPose());
+  }
+
+  /** Auto loop: keep the robot moving on the preview widget. */
+  public void showAutoRobot() {
+    autoPreview.showRobot(RobotState.getInstance().getEstimatedPose());
+  }
+
   /**
    * Use this to pass the autonomous command to the main {@link Robot} class.
    *
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
+    // Latch the side here. The builder reads it at each path command's start, and the chooser can
+    // change once the match is running; a later leg must not mirror differently from the first.
+    mirrorAtAutoStart = mirrorToRight();
     Supplier<Command> selected = autoChooser.get();
     return selected == null ? Commands.none() : selected.get();
   }

@@ -28,9 +28,9 @@ copy-paste.
 | `frc/lib/util/Elastic.java` | Gold87 / Elastic dashboard | MIT | Vendor-published helper |
 | `frc/lib/util/PointInPolygon.java` | Ours | — | Ray-casting crossing-number. 3467 has a GPL file of the same name using `java.awt.geom.Path2D`; unrelated implementation |
 | `frc/lib/util/MotorSpecs.java` | Ours | — | Reads free speeds from WPILib `DCMotor` |
-| `frc/lib/device/**`, `frc/lib/auto/**`, `frc/lib/command/SteppableCommandGroup.java`, `frc/robot/autos/PointToPointAutos.java` | Ours | — | Design modelled on FRC 3467's W8-Library (GPLv3). **No code copied** — written fresh against our rules; `SteppableCommandGroup` shares their class name and idea only |
+| `frc/lib/device/**` | Ours | — | Design modelled on FRC 3467's W8-Library (GPLv3). **No code copied** — written fresh against our rules |
 | `vendordeps/libgrapplefrc2026.json` | Grapple Robotics | Vendor metadata | Fetched from Grapple's published `jsonUrl` |
-| `vendordeps/ChoreoLib2026.json` | SleipnirGroup (Choreo) | Vendor metadata (ChoreoLib is BSD-3) | Taken from the `v2026.0.3` release tag |
+| `vendordeps/BLine-Lib.json` | BLine contributors (FRC 2638) | Vendor metadata (BLine-Lib is BSD-3) | Taken from the `main` branch of `edanliahovetsky/BLine-Lib`, v0.9.3 |
 | `subsystems/drive/`, `Robot`, `RobotContainer` | AdvantageKit swerve template | BSD | Littleton Robotics |
 
 ---

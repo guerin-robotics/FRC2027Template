@@ -17,8 +17,8 @@ deployed. Never present sim-validated gains as field-validated.
 
 Get from the user (ask if missing):
 
-1. **Mechanism** — which subsystem / controller (e.g., the Choreo trajectory
-   follower's x/y/heading PID in `Drive`, the `driveToPose` translation controller, the heading-hold controller in `DriveCommands`, a mechanism
+1. **Mechanism** — which subsystem / controller (e.g., the BLine path
+   follower's translation/heading/cross-track PIDs in `BLineAutos`, the `driveToPose` translation controller, the heading-hold controller in `DriveCommands`, a mechanism
    velocity or position loop)
 2. **Success criteria, with numbers** — e.g., "settle within ±50 RPM in
    ≤ 1.0 s, overshoot < 5%", or "path cross-track error < 5 cm"
@@ -26,7 +26,7 @@ Get from the user (ask if missing):
    trajectory, a sweep of setpoints
 4. **Current gains and where they live** — find them yourself if not given
    (`[Subsystem]Constants`, the IO implementation, `DriveCommands` for the
-   heading-hold controller, `Drive` (`trajectoryX/Y/HeadingController`) for Choreo trajectory following,
+   heading-hold controller, `BLineAutos` (`TRANSLATION_KP`, `ROTATION_KP`, `CROSS_TRACK_KP`) for BLine path following,
    or `generated/TunerConstants` for swerve — the last is Tuner X output and
    must not be hand-edited outside a deliberate tuning session)
 
@@ -37,8 +37,8 @@ before tuning — "looks smooth" is not a criterion.
 
 Prefer a **JUnit simulation sweep test** over interactive sim — it's
 repeatable, automatic, and becomes a permanent asset. The 2026 season had a
-`PathFollowingGainSweepTest` that swept path-following gains (PathPlanner then; the same
-follower structure now lives in `Drive.followTrajectory` for Choreo) and found the retune
+`PathFollowingGainSweepTest` that swept path-following gains (PathPlanner then; BLine's follower is
+configured in `BLineAutos.createBuilder` now) and found the retune
 values without touching the robot.
 
 **The template no longer ships the harness in the build** — the test suite was cut to a

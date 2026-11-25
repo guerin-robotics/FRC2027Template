@@ -28,8 +28,8 @@ Process and workflow docs. Nothing in them depends on a particular robot or game
 | [commands-v3.md](commands-v3.md) | What every command rule in this repo becomes under Commands V3 — factory table, timeouts, Ready → Align → Act, default commands, triggers, and a verdict on each `frc/lib` command class. Doctrine only; the code is still V2 |
 | [library.md](library.md) | The map of `frc/lib`: devices, autos, commands, utilities, the one IO pattern they all follow, why mechanisms are not in it, and how it relates to 3467's W8-Library. Start here before adding anything shared |
 | [devices.md](devices.md) | Absolute encoder, distance sensor, beam break and lights: wiring each into a subsystem in all three modes, and what `connected` vs `valid` means per sensor |
-| [autos.md](autos.md) | The three auto layers — Choreo trajectories, Choreo + PID-to-pose finish, point-to-point — how top teams (1114, 6328, 254, 1678, 3467) do it, adding each kind, event markers, stepping an auto in the pit, and the time budget |
-| [testing.md](testing.md) | The deliberately minimal suite — `RobotContainer` wiring, CAN ID validation, Choreo event-marker bindings, removed tests, and architecture rules that nothing checks automatically. Read before adding a mechanism |
+| [autos.md](autos.md) | BLine autos — how top teams (1114, 6328, 254, 1678, 3467) do PID-to-pose, left/right from one blue-left path, the auto preview, event triggers, and the time budget (point-to-point and the PID finish are removed for now) |
+| [testing.md](testing.md) | The deliberately minimal suite — `RobotContainer` wiring, CAN ID validation, BLine event-key bindings, removed tests, and architecture rules that nothing checks automatically. Read before adding a mechanism |
 
 ## Procedure kept, data needs filling in
 

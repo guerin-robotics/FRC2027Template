@@ -38,7 +38,7 @@ NEVER stage:
   Any file with credentials, IPs, or passwords
 ```
 
-Stage only `.java`, `build.gradle`, `.json` vendordep files, Choreo `.chor`/`.traj` files,
+Stage only `.java`, `build.gradle`, `.json` vendordep files, BLine `deploy/autos` files (`config.json`, `paths/*.json`),
 and configuration files that belong in version control.
 
 ---

@@ -285,12 +285,13 @@ public final class Constants {
     public static final double TOTAL_TIMEOUT_SECONDS = 1.5;
 
     /**
-     * Default per-waypoint timeout for a point-to-point auto. A waypoint that has not been reached
-     * by then is abandoned and the auto continues from wherever the robot is — so the auto as a
-     * whole always ends, but a short value cuts long segments off. Size it from the slowest segment
-     * timed in sim, with margin.
+     * Longest a single BLine path command may run. BLine follows physical progress, not a clock, so
+     * a blocked robot never finishes a path on its own; this is the escape. Placeholder: size it
+     * from the slowest path timed in sim, with margin, and keep the sum of a routine's paths inside
+     * the auto period. 3 s covers roughly a 5 m leg (about 2 s ideal) at the shipped 4.0 m/s and
+     * 8.0 m/s²; a longer leg needs its own value.
      */
-    public static final double WAYPOINT_TIMEOUT_SECONDS = 3.0;
+    public static final double PATH_TIMEOUT_SECONDS = 3.0;
   }
 
   // ============================================================================================
@@ -315,12 +316,12 @@ public final class Constants {
     // public static final double VELOCITY_TOLERANCE_RPM = 100.0;
 
     /**
-     * Default "arrived" translation error for a point-to-point waypoint. Tighter means more time
-     * spent settling at each stop; looser means the next segment starts from further off.
+     * How far the robot may stand from the selected auto's start pose before the pre-match check
+     * (Auto/StartCheck/PositionOK) goes false. 6 in is the value from the Rebuilt2026-bline trial.
      */
-    public static final double WAYPOINT_POSITION_TOLERANCE_METERS = 0.05;
+    public static final double START_POSE_POSITION_TOLERANCE_INCHES = 6.0;
 
-    /** Default "arrived" heading error for a point-to-point waypoint. */
-    public static final double WAYPOINT_HEADING_TOLERANCE_DEGREES = 3.0;
+    /** Heading error allowed at the start pose for Auto/StartCheck/RotationOK. */
+    public static final double START_POSE_HEADING_TOLERANCE_DEGREES = 5.0;
   }
 }

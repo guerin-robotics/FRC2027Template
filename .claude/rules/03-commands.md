@@ -157,38 +157,33 @@ Names appear in AdvantageKit's command log. Bad names make debugging impossible.
 
 ---
 
-## Choreo Event Markers
+## BLine Event Triggers
 
 Bind in `RobotContainer`, before any routine is built:
 
 ```java
-ChoreoAutos.bind(choreo, "Intake", IntakeCommands.deploy(intake));
+BLineAutos.bind("Intake", IntakeCommands.deploy(intake));
 ```
 
 A bound command must NOT require the drive:
 
 ```java
-ChoreoAutos.bind(choreo, "Intake", IntakeCommands.deploy(intake));   // requires intake — fine
-ChoreoAutos.bind(choreo, "Stop", DriveCommands.stopWithX(drive));    // requires drive — WRONG
+BLineAutos.bind("Intake", IntakeCommands.deploy(intake));   // requires intake — fine
+BLineAutos.bind("Stop", DriveCommands.stopWithX(drive));    // requires drive — WRONG
 ```
 
-**Why:** ChoreoLib schedules a bound command on its own, alongside the trajectory command, which
-requires the drive. A bound command that also requires the drive makes the scheduler interrupt the
-trajectory to run it. Requiring a mechanism is fine — the trajectory does not use it.
+**Why:** BLine-Lib schedules a bound command through the `CommandScheduler`, alongside the path
+command, which requires the drive. A bound command that also requires the drive makes the scheduler
+interrupt the path to run it. Requiring a mechanism is fine — the path does not use it.
 
-The same applies to commands started from trajectory triggers (`traj.atTime(...)`,
-`traj.done()`), with one deliberate exception: `ChoreoAutos.thenAlign` runs on `traj.done()`, when
-the trajectory has already finished, and so may take the drive.
+A bound command also outlives the path unless it ends itself, and it is not cancelled with the
+routine. Give it a termination condition, and leave the mechanism safe if the path is interrupted.
 
-## Waypoints and Steppable Autos
+## No Open-Ended PID-to-Pose in Autos
 
-A PID-to-pose step in an auto is always `DriveCommands.driveToPoseWithin(...)` (or
-`driveToWaypoint` for a `Waypoint`). Both finish on tolerance **or timeout** — never call the
-non-finishing `driveToPose` in an auto sequence, or the sequence stops there forever.
-
-`frc/lib/command/SteppableCommandGroup` is library infrastructure, like
-`ContinuousConditionalCommand`, and so is a class. Build it through a factory
-(`PointToPointAutos.stepThrough`) and name it there.
+Never put the non-finishing `DriveCommands.driveToPose` in an auto sequence, or the sequence stops
+there forever. Point-to-point autos and the PID-to-pose finish were removed for now; if they come
+back, they need a tolerance or timeout.
 
 ---
 

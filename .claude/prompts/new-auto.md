@@ -5,69 +5,55 @@ Use this prompt when adding or changing an auto. There are three kinds (see
 
 ---
 
-## Adding a Choreo Auto (trajectory exists)
+## Adding a BLine Auto (path exists)
 
 ```
-Add a Choreo auto routine called "[AUTO NAME]" in robot/autos/ChoreoAutos.java.
+Add a BLine auto routine called "[AUTO NAME]" in robot/autos/BLineAutos.java.
 
-Trajectories, in order (already drawn in the Choreo GUI and saved to src/main/deploy/choreo/):
-- "[TrajectoryName]" — [what happens on it]
+Paths, in order (already drawn in BLine Web and exported to src/main/deploy/autos/paths/):
+- "[path-name]" — [what happens on it]
 - [repeat]
 
-PID-to-pose finish after: [none / "[TrajectoryName]" — use ChoreoAutos.thenAlign]
-
-Event markers used in these trajectories:
-- "[MarkerName]" — [what it should do, e.g.: "Deploy intake and run rollers"]
+Event triggers (lib_key) used in these paths:
+- "[lib_key]" — [what it should do, e.g.: "Deploy intake and run rollers"]
 - [repeat]
 
-Bind any new markers with ChoreoAutos.bind(...) in RobotContainer BEFORE any routine is
+Bind any new keys with BLineAutos.bind(...) in RobotContainer BEFORE any routine is
 built. A bound command must not require the drive.
-List the routine in ChoreoAutos.all(...).
-Do not edit any .traj or .chor file.
+Author blue-left only (alliance flip and the Auto Side mirror are applied by the builder).
+Reset odometry on the first path only (builder.withPoseReset(drive::setPose), then clear it).
+Give every path command a timeout from Constants.Waits.
+List the routine in BLineAutos.all(...).
+Do not edit any file under deploy/autos by hand.
 ```
 
 ---
 
-## Adding a Point-to-Point Auto (no trajectory)
+## Binding a New Event Trigger
 
 ```
-Add a point-to-point auto called "[AUTO NAME]" in robot/autos/PointToPointAutos.java.
-
-Waypoints (blue-origin meters, degrees), in order — the first is the starting pose:
-- ([x], [y], [heading])
-- [repeat]
-
-Use the default tolerances and timeout from Constants unless stated: [overrides].
-List it in PointToPointAutos.all().
-```
-
----
-
-## Binding a New Event Marker
-
-```
-Bind a command to the Choreo event marker "[MARKER NAME]".
+Bind a command to the BLine event trigger "[LIB KEY]".
 
 What it should do: [description]
 Subsystems involved: [list — must not include the drive]
 The command should be: [e.g. "parallel: deploy intake + run rollers, ends when intake is up"]
 
-Bind it in RobotContainer with ChoreoAutos.bind(...), before any routine is built.
+Bind it in RobotContainer with BLineAutos.bind(...), before any routine is built.
 Run ./gradlew compileJava after.
 ```
 
 ---
 
-## Modifying Auto Behavior (not the trajectory, just the command logic)
+## Modifying Auto Behavior (not the path, just the command logic)
 
 ```
-Modify the behavior of the command bound to "[MARKER NAME]" (or step "[N]" of "[AUTO NAME]").
+Modify the behavior of the command bound to "[LIB KEY]" (or step "[N]" of "[AUTO NAME]").
 
 Current behavior: [describe what it does now]
 Desired behavior: [describe what it should do]
 Reason: [why the change is needed]
 
-Only change the command factory method. Do not change any trajectory file.
+Only change the command factory method. Do not change any file under deploy/autos.
 Do not change any other bindings.
 ```
 
@@ -75,18 +61,18 @@ Do not change any other bindings.
 
 ## Safety Rules for Auto Changes
 
-**Never edit `.traj` or `.chor` files in code.** Trajectories come out of the Choreo GUI's
-optimiser; editing the JSON produces a path the robot was never shown to be able to follow.
-Re-draw and re-export instead.
+**Never edit files under `deploy/autos` by hand.** Paths come out of BLine Web with generated
+radii and velocity caps the editor tracks; hand-edited JSON drifts from what the editor and the
+preview show. Re-draw and re-export instead.
 
-**Bind before building.** A routine only sees event-marker bindings that existed when it was
-created. `RobotContainerSmokeTest` fails the build if a `.traj` uses a marker nothing is bound to.
+**Bind before building.** `RobotContainerSmokeTest` fails the build if a path uses a `lib_key` nothing is bound to.
 
-**Bound commands never require the drive.** They run alongside the trajectory, which does. See
+**Bound commands never require the drive.** They run alongside the path, which does. See
 `.claude/rules/03-commands.md`.
 
-**Every PID-to-pose step finishes.** Use `driveToPoseWithin` / `driveToWaypoint` (tolerance or
-timeout), never the open-ended `driveToPose`, inside an auto.
+**Never use the open-ended `driveToPose` inside an auto.** It never finishes. Point-to-point autos
+and the PID-to-pose finish were removed for now; if they come back, they need a tolerance or
+timeout.
 
 **Time the auto.** In 2026 the routines overran the auto period and the last path was
 truncated in every match. Run the auto in simulation and check the elapsed time against
@@ -94,17 +80,12 @@ the auto period before calling it done.
 
 ---
 
-## Auto Preview & Start Pose Check (not in the template — worth rebuilding)
+## Auto Preview & Start Pose Check (in the template for BLine routines)
 
-The 2026 robot published the selected auto's path to a `Field2d` widget during
-`disabledPeriodic()` and reported how far the robot was from the path's starting pose in
-inches and degrees. It caught mis-placed robots on the field before the match started.
+`autos/AutoPreview` draws the selected routine's paths on the "Auto Preview" `Field2d` while
+disabled, transformed exactly as they will run (alliance flip, then Left/Right mirror), and logs
+`Auto/StartCheck/*` — distance and heading error from the start pose, with OK flags against
+`Constants.Thresholds.START_POSE_*`. It redraws when the auto, the alliance or the side changes.
 
-This was deliberately left out of the template because it is straightforward to rewrite
-and the 2026 version was entangled with that season's dashboard. If you rebuild it for Choreo:
-
-1. Load the selected routine's first trajectory with `Choreo.loadTrajectory(name)`
-2. Use `getInitialPose(flip)` for the start pose, flipping when on red
-3. Only reload when the chooser selection changes — not every loop
-4. Compare `RobotState.getInstance().getEstimatedPose()` against that pose and publish the
-   deltas; for a point-to-point auto, compare against `WaypointAuto.startingPose()` instead
+A routine only gets a preview if it is registered inside `BLineAutos.all` with `add(routines, name, supplier,
+"path-1", "path-2", ...)`.

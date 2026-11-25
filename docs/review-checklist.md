@@ -22,7 +22,7 @@ For changes to `@AutoLog` inputs classes:
 ```
 
 **The build covers very little of what follows.** The suite checks CAN ID collisions,
-`RobotContainer` wiring and Choreo event-marker bindings — see [testing.md](testing.md). A
+`RobotContainer` wiring and BLine event-key bindings — see [testing.md](testing.md). A
 mechanism's config — current limits, soft limits, signal rates — is checked by nobody but you;
 compare each new `*IOReal` and `getFXConfig()` against the scaffold it was copied from. Vision
 filtering and sim convergence are no longer tested, so a change to either is reviewed by hand.
@@ -92,12 +92,12 @@ rather than assuming a green build means they hold.
 
 ## 7. Auto Check (only for auto changes)
 
-- [ ] Choreo event markers bound with `ChoreoAutos.bind` before any routine is built
-- [ ] No bound command or trajectory-trigger command requires the drive (`thenAlign` on `done()`
-      is the one exception)
-- [ ] Every PID-to-pose step in an auto finishes — `driveToPoseWithin` / `driveToWaypoint`, never
-      bare `driveToPose`
-- [ ] No `.traj` / `.chor` files edited in code (use the Choreo GUI)
+- [ ] BLine event keys bound with `BLineAutos.bind` before any routine is built
+- [ ] No bound event command requires the drive
+- [ ] Every path command has a timeout from `Constants.Waits` (BLine never times out on its own)
+- [ ] Odometry is reset from the first path of a routine only
+- [ ] No bare `driveToPose` in an auto sequence (it never finishes)
+- [ ] No `deploy/autos` files edited by hand (use BLine Web)
 - [ ] Auto still fits inside the auto period (time it — 2026 overran every match)
 
 ---
@@ -154,7 +154,7 @@ check is the requirement; the original rule is context.
 | Robot-wide setpoints / timeouts / alignment thresholds | `Constants.Setpoints` / `.Waits` / `.Thresholds` — never inline |
 | Mechanism position / velocity tolerances | `[Subsystem]Constants.java` |
 | PID gains (mechanisms) | `[Subsystem]Constants.java` or IO implementation |
-| Trajectory-following gains | `Drive.java` (`trajectoryX/Y/HeadingController`) |
+| Path-following gains | `BLineAutos.java` (`TRANSLATION_KP`, `ROTATION_KP`, `CROSS_TRACK_KP`) |
 | Drive-to-pose gains / FF radii | `DriveCommands.java` (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS`) |
 | Heading-hold gains | `DriveCommands.java` (`angleController` (heading kP/kD)) |
 | Vision thresholds | `subsystems/vision/VisionConstants.java` |
@@ -163,5 +163,5 @@ check is the requirement; the original rule is context.
 | Button objects | `Triggers.java` — never in `RobotContainer` |
 | Subsystem wiring | `RobotContainer.java` |
 | Multi-subsystem sequences | a dedicated sequences file |
-| Choreo event-marker bindings | `RobotContainer.java` (`ChoreoAutos.bind`, before any routine is built) |
-| Auto routines | `robot/autos/ChoreoAutos.java`, `robot/autos/PointToPointAutos.java` |
+| BLine event-trigger bindings | `RobotContainer.java` (`BLineAutos.bind`, before any routine is built) |
+| Auto routines | `robot/autos/BLineAutos.java` |

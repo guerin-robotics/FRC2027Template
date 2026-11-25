@@ -165,7 +165,7 @@ constants at the port. Keep the rule: no bare numbers at the binding site.
 `"Subsystem_ActionVerb_OptionalParam"` stays. The compiler now guarantees a name exists; review
 still has to check it is a *useful* one. `withAutomaticName()` on groups produces
 `"A -> B -> C"` / `"A | B"`, which is acceptable for a throwaway composition and poor for anything
-bound to a button or to a Choreo event marker. Name those.
+bound to a button or to a BLine event trigger. Name those.
 
 ### Default commands — keep, add a priority
 
@@ -245,16 +245,15 @@ resetting a pose does not need to own the drivetrain. Do **not** mark `Drive`
 `controllableDuringDisabled` to get the same effect — that would let any drive command be scheduled
 while disabled.
 
-### Choreo event markers and trajectory triggers — open
+### BLine event triggers — open
 
-The V2 rule — a command bound to an event marker or started from `traj.atTime`/`traj.done` must not
-require the drive, or it interrupts the trajectory — exists because the bound command and the
-trajectory command are scheduled side by side and conflict on the drive requirement. V3's
-mechanism ownership and priorities may change its form.
+The V2 rule — a command bound to an event trigger must not require the drive, or it interrupts the
+path — exists because the bound command and the path command are scheduled side by side and
+conflict on the drive requirement. V3's mechanism ownership and priorities may change its form.
 
-**This depends on ChoreoLib's 2027 command story.** Its 2027 alpha targets `org.wpilib.command2`
-(V2), not V3. Keep the V2 rule until ChoreoLib ships V3 support; then re-derive it from what its V3
-trajectory command actually owns.
+**This depends on BLine-Lib's 2027 command story.** Its current release (v0.9.3) targets the 2026
+`CommandScheduler` (V2) and has not been checked against V3. Keep the V2 rule until BLine-Lib ships
+V3 support; then re-derive it from what its V3 path command actually owns.
 
 ---
 
@@ -266,8 +265,7 @@ trajectory command actually owns.
 | `LoggedTrigger` | **Port.** V3 `Trigger` is still a subclassable `BooleanSupplier` with a `(BooleanSupplier)` constructor, so the wrapping-supplier approach carries over. The `debounce` overrides change to take `Time`. Scoped bindings do not affect it — logging is in the supplier |
 | `CommandLogger` | **Rewrite on `Scheduler.addEventListener`.** V3 emits typed `SchedulerEvent`s — `Scheduled`, `Mounted`, `Completed`, `CompletedWithError`, `Canceled`, `Interrupted(command, interrupter)`, `ForkFailure`. `Interrupted` carries **who** interrupted, which is exactly the "scheduled and interrupted — by what?" question this class was written to answer. `recordCurrentCommand` becomes `mechanism.getRunningCommands()`. V3's `Scheduler` is also protobuf-serializable (the command tree, with per-command runtimes); decide whether to log that instead of, or beside, ours |
 | Mechanism subsystems and their `*Commands` (the `template/` scaffolds and everything copied from them) | **Implement `org.wpilib.command3.Mechanism`** instead of extending `SubsystemBase`; wire `periodic()` per the processInputs section; `setName` goes away — override `getName()`. Port each `*Commands` class verb by verb with the factory table above — a spin-up wait becomes `coroutine.waitUntil(roller::isAtVelocity, timeout)` and can now log whether it timed out. Port the scaffolds first so every later mechanism is copied from V3 code |
-| `SteppableCommandGroup` | **Rewrite as a body.** V3 makes it a loop: run step *i* as a child, `co.waitUntil` a rising edge on forward/back, cancel and move. No custom `Command` subclass is needed, and the edge detection stays in the body |
-| `DriveCommands.driveToPoseWithin` / `driveToWaypoint` | **Port** with the factory table: `driveToPose` becomes a body that runs until the arrival check passes, under a `withTimeout(Time)`. The seeding and setpoint feedforward are plain math and carry over unchanged |
+| `DriveCommands.driveToPose` | **Port** with the factory table: a body that runs until interrupted. The seeding and setpoint feedforward are plain math and carry over unchanged. Its finishing variants (`driveToPoseWithin`, `driveToWaypoint`) were removed with point-to-point autos; give a ported one a `withTimeout(Time)` if it returns |
 
 ---
 

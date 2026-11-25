@@ -40,7 +40,7 @@ existed, not just what it did. It is worth the half hour.
 | Logging / replay | AdvantageKit (`LoggedRobot`, IO layer, `@AutoLog`) |
 | Motor control | CTRE Phoenix 6 (TalonFX, TalonFXS, CANcoder, Pigeon2) |
 | Vision | PhotonVision over NetworkTables |
-| Trajectories | ChoreoLib (`AutoFactory`, trajectories from the Choreo GUI in `deploy/choreo`), plus PID-to-pose finishes and point-to-point autos (`frc/lib/auto`) |
+| Paths | BLine-Lib (`FollowPath`, paths from BLine Web in `deploy/autos`), BLine autos only for now |
 | Distance sensing | CTRE CANrange (Phoenix 6), Grapple LaserCAN (`libgrapplefrc`) |
 | Dashboard | Elastic + AdvantageScope |
 | Formatting | Spotless / Google Java Format (runs on `compileJava`) |
@@ -60,15 +60,13 @@ Versions live in `vendordeps/` — see `docs/hardware-layout.md` for the table.
 ```
 frc/lib/util/                ALL shared utilities — see docs/subsystem-ownership.md
 frc/lib/device/              non-motor devices (encoder, distance, beam break, lights) + CanIdRegistry
-frc/lib/auto/                Waypoint, WaypointAuto — point-to-point autos as data
-frc/lib/command/             command infrastructure (SteppableCommandGroup)
 frc/robot/                   Main, Robot, RobotContainer, RobotState, Constants, BuildConstants
 frc/robot/generated/         TunerConstants (Tuner X generated — never hand-edit)
 frc/robot/subsystems/drive/  Drive, Module, Gyro/Module IO, PhoenixOdometryThread
 frc/robot/subsystems/vision/ Vision, VisionConstants, io/
 frc/robot/commands/          DriveCommands (+ one file per mechanism)
-frc/robot/autos/             ChoreoAutos (AutoFactory, event bindings, thenAlign),
-                             PointToPointAutos (static factories over WaypointAuto)
+frc/robot/autos/             BLineAutos (FollowPath.Builder, gains, event bindings),
+                             AutoPreview (preview widget + start-pose check)
 ```
 
 Tests mirror this structure under `src/test/java`. See [testing.md](testing.md) for what each
@@ -183,15 +181,22 @@ drains those queues under `odometryLock` and feeds `poseEstimator.updateWithTime
 constructor. If the gyro disconnects, heading falls back to integrating module deltas via
 `kinematics.toTwist2d()` and an `Alert` is raised.
 
-**Choreo.** `Drive.followTrajectory(SwerveSample)` follows a trajectory sample: its velocity as
-feedforward plus PID on x, y and heading (`trajectoryX/Y/HeadingController`, gains carried over
-from the 2026 PathPlanner controller — re-tune once a `.traj` exists). `ChoreoAutos.createFactory`
-builds the one `AutoFactory` around it. Mass, MOI and wheel COF now live in the Choreo GUI project
-(`deploy/choreo/*.chor`), not in code. There is no pathfinding: Choreo has none, and
-`driveToPose` is straight-line only.
+**BLine.** `BLineAutos.createBuilder` builds the one `FollowPath.Builder` around `Drive.getPose`,
+`Drive.getChassisSpeeds` and `Drive.runVelocity` (both robot-relative). Gains are constants in
+`BLineAutos`: translation kP 2.0, rotation kP 1.0, cross-track kP 0.2, BLine's documented defaults
+(untuned on a robot). Speed and acceleration ceilings come
+from `deploy/autos/config.json`: the 2026 PathPlanner constraints (4.0 m/s, 450 deg/s,
+1020 deg/s²) except acceleration, raised from PathPlanner's 5.75 to 8.0 m/s² as an experiment,
+with BLine's default 0.03 m / 2° end tolerance and 0.45 m handoff; re-measure for
+2027) and per-path constraints. Paths are authored blue-left; the Driver
+Station alliance flips them and the `Auto Side` chooser mirrors them for Right. `AutoPreview`
+draws the selected routine and checks the start pose in `disabledPeriodic`. BLine
+follows physical progress, so every path command carries `Constants.Waits.PATH_TIMEOUT_SECONDS`
+(3.0 s placeholder). There is no pathfinding: BLine has none, and `driveToPose` is straight-line
+only.
 
 **Commands.** `joystickDrive`, `joystickDriveLimited`, `joystickDriveAtAngle`, `driveToPose`,
-`driveToPoseWithin`, `driveToWaypoint`, `alignForScore`, `stopWithX`, `feedforwardCharacterization`, `wheelRadiusCharacterization`.
+`alignForScore`, `stopWithX`, `feedforwardCharacterization`, `wheelRadiusCharacterization`.
 A heading-only align passes a heading supplier to `joystickDriveAtAngle`; a full-pose align
 uses `driveToPose`. See [target-alignment.md](target-alignment.md).
 
@@ -336,14 +341,14 @@ Patterns that must survive the season:
 ## 15. RobotContainer — Binding Logic
 
 Wiring layer. Constructs subsystems per `Constants.currentMode` (REAL / SIM / REPLAY),
-creates the Choreo `AutoFactory`, binds event markers with `ChoreoAutos.bind` **before** any
+creates the BLine `FollowPath.Builder`, binds event triggers with `BLineAutos.bind` **before** any
 routine is built, builds the auto chooser, then configures bindings.
 
 Current bindings: default `joystickDrive`, plus the three flight-stick accessors in §13. The
-auto chooser is a `LoggedDashboardChooser<Supplier<Command>>`: "None", Choreo routines
-(`ChoreoAutos.all`), point-to-point autos (`PointToPointAutos.all`), and the SysId and
+auto chooser is a `LoggedDashboardChooser<Supplier<Command>>`: "None", BLine routines
+(`BLineAutos.all`; a separate `Auto Side` Left/Right chooser mirrors them), and the SysId and
 characterization routines. Each option is built when auto starts, so only the selected auto's
-trajectories load, and the selection is logged for replay.
+paths load, and the selection is logged for replay.
 
 No game logic here. Ever.
 

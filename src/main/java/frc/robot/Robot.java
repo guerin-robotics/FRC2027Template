@@ -205,6 +205,10 @@ public class Robot extends LoggedRobot {
       robotContainer.setDriveBrakeMode(false);
       hasCoasted = true;
     }
+
+    // Last, so a fault in the preview cannot skip the coast above. Draws the selected auto as it
+    // will run (alliance + side) and does the start-pose check.
+    robotContainer.updateAutoPreview();
   }
 
   /** Brake on every enable, whichever mode we are entering. */
@@ -246,6 +250,9 @@ public class Robot extends LoggedRobot {
     if (!autoDurationLogged && autonomousCommand != null && !autonomousCommand.isScheduled()) {
       logAutoDuration(false);
     }
+
+    // Last, so a fault in the preview cannot skip the duration log above.
+    robotContainer.showAutoRobot();
   }
 
   /** Called when leaving autonomous, whether the routine finished or the period expired. */

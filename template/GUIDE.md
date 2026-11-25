@@ -271,7 +271,7 @@ competition seasons. Don't rewrite them; extend them.
 | `ContinuousConditionalCommand` | Correct answer when a command's mode changes while running |
 | `PhoenixUtil.tryUntilOk` | Retries CTRE configuration up to the attempt limit and returns whether the write was confirmed |
 | `LoggedDashboardChooser` | Logs which auto was selected — essential for post-match review |
-| The test suite in `src/test/` | `RobotContainer` wiring, Choreo event-marker bindings and CAN ID validation. The first and last cover a new mechanism the moment it exists — see `docs/testing.md` |
+| The test suite in `src/test/` | `RobotContainer` wiring, BLine event-key bindings and CAN ID validation. The first and last cover a new mechanism the moment it exists — see `docs/testing.md` |
 
 ---
 
@@ -285,7 +285,7 @@ competition seasons. Don't rewrite them; extend them.
 | Game geometry in `FieldConstants` | Field elements change completely — see `frc/lib/util/ExampleFieldConstants.java` in this directory for the tag-pose-derived pattern to copy, and `docs/target-alignment.md` for how it plugs into `driveToPose` |
 | Scoring targets and zone logic in `RobotState` | Field coordinates change |
 | A sequences file (2026 had `ShootSequences` / `SpitSequences`) | The scoring pipeline is the game |
-| PathPlanner `.auto` files and paths (PathPlanner itself has since been replaced by Choreo) | Field-specific |
+| BLine paths in `deploy/autos/paths` (PathPlanner and Choreo files were replaced by BLine) | Field-specific |
 | Named commands in `RobotContainer` | Follow the game |
 | Interpolation tables (distance → setpoint) | Measured against this year's field element |
 | Swerve encoder offsets and gains in `TunerConstants` | Re-run Tuner X on the new robot |
@@ -302,7 +302,7 @@ already resolved in this template:
 |---|---|
 | `DriveConstants` duplicated the module layout from `TunerConstants` | Deleted; `TunerConstants` is the sole source of truth |
 | `COMP_`/`ALPHA_TunerConstants` selected by editing `Constants.java` | Collapsed to one `TunerConstants`; `RobotType` enum removed |
-| `Drive.alignForDefenseShot()` — game-specific name on a generic helper | Renamed `pathfindToPose()`; later removed with the switch to Choreo, which has no pathfinder |
+| `Drive.alignForDefenseShot()` — game-specific name on a generic helper | Renamed `pathfindToPose()`; later removed with the switch to Choreo (then BLine), which has no pathfinder |
 | `Drive.aligningDefensively` flag with no remaining reader | Deleted |
 | `RobotState.getAngleToTarget()` silently added 180° for the rear-facing shooter | Returns the true bearing; mechanism offset is now a call-site concern |
 | Dead `@AutoLogOutput` methods running every loop with no consumer | Removed during the port; watch for this reappearing |
@@ -385,8 +385,8 @@ src/main/java/frc/robot/
 │   ├── DriveCommands.java    ← carried over; add game alignment commands here
 │   └── [new commands]/       ← static factories, one file per subsystem
 ├── autos/
-│   ├── ChoreoAutos.java      ← Choreo routines, event bindings, thenAlign PID finish
-│   └── PointToPointAutos.java ← waypoint autos; trajectories live in deploy/choreo
+│   ├── BLineAutos.java       ← BLine routines, follower gains, event bindings, event bindings
+│   └── AutoPreview.java      ← preview widget and start-pose check; BLine paths live in deploy/autos
 
 frc/lib/
 ├── util/                     ← ALL shared utilities: field/alliance, hardware helpers,
@@ -395,8 +395,6 @@ frc/lib/
 ├── device/                   ← encoders, distance sensors, beam breaks, lights, and the
 │                                runtime CAN ID check. A subsystem owns these alongside
 │                                its motors — see docs/devices.md.
-├── auto/                     ← Waypoint / WaypointAuto, point-to-point autos as data
-└── command/                  ← command infrastructure (SteppableCommandGroup)
 ```
 
 ---
