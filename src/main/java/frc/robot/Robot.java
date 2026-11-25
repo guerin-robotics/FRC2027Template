@@ -134,7 +134,7 @@ public class Robot extends LoggedRobot {
         Phoenix Tuner: ___ devices
         USB drive in (no USB = no log)
         Correct code deployed, GitDirty clean
-        Tuning/demo mode OFF
+        Not in Test mode; no tuning OpMode selected
         Drive: all 4 modules
         Vision: tags detected
         Correct auto selected

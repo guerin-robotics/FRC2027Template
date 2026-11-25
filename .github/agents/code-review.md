@@ -130,8 +130,8 @@ Two or three sentences on overall health, leading with the most serious finding.
 
 ### Hard Stop Violations
 Anything from `00-safety.md` the change touches: CAN IDs, bus assignment, inversion flags,
-encoder offsets, gains, MotionMagic limits, current limits, a removed timeout or interlock, a
-demo flag left `true`, a removed `Logger.processInputs()`, a changed `@AutoLog` schema.
+encoder offsets, gains, MotionMagic limits, current limits, a removed timeout or interlock,
+a tuning or demo command reachable outside Test mode, a removed `Logger.processInputs()`, a changed `@AutoLog` schema.
 
 Report these **first**, even when they are the only finding and even when they look
 intentional — they need human confirmation regardless. Name the specific failure from the

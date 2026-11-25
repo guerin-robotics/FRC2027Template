@@ -197,6 +197,14 @@ Team skills (slash commands) are in `.claude/skills/`:
 - `/debug-match-log` — root-cause a field problem from an AdvantageKit log
 - `/pid-tune` — sim-based PID/FF tuning loop; proposes gains, user confirms
 - `/bline-auto` — create a BLine auto (author blue-left, wire, preview) or tune the path follower
+- `/add-command` — add a command or binding to an existing mechanism, following the factory, timeout and Triggers rules
+- `/characterize` — characterization to gains, in **amps** (TorqueCurrentFOC); proposes, user confirms
+- `/camera-calibrate` — measure and verify `robotToCameraN` from logged tag observations
+- `/loop-timing` — find what is pushing the loop past 50 Hz
+- `/brownout-analysis` — attribute battery sags to mechanisms from a log; never raises a limit
+- `/port-commands-v3` — the Commands V3 port, gated on `processInputs()` still running
+
+How humans run each one in sim and on the robot: [docs/skills.md](docs/skills.md).
 
 ---
 

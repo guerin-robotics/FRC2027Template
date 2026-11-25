@@ -92,7 +92,7 @@ Before declaring a change ready to deploy:
 1. Compile locally: `./gradlew compileJava`
 2. Check `Constants.currentMode` resolves to `REAL` on the robot — in particular that
    `simMode` was not left on `REPLAY` after a debugging session
-3. Check any demo mode flags are `false` (unless intentional). Setpoint tuning commands are gated on enabled Test mode.
+3. Check that no tuning or demo behavior is reachable outside enabled Test mode (there are no flags; `tune*` commands sit behind `Triggers.tuningEnabled`, and in 2027 are `@Utility` OpModes)
 4. Verify the USB drive is present for log writing
 
 ### First deploy of the season — extra gate
@@ -106,7 +106,7 @@ The first time this code drives a real robot, before enabling:
       as a mechanism that silently does nothing
 - [ ] CANivore bus utilization is sane; no CAN error frames
 - [ ] `Constants.currentMode` resolves to `REAL`
-- [ ] Tuning and demo flags `false`
+- [ ] No tuning or demo command reachable outside Test mode (there are no flags to check)
 - [ ] USB drive present — no USB means no match log, and the first drive session is exactly
       when you want one
 - [ ] Working tree is clean and committed. `BuildConstants.GIT_DIRTY` should read

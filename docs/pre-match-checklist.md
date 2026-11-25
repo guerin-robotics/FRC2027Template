@@ -48,7 +48,7 @@ two in sync — edit both or neither.
 - [ ] Correct code deployed — check `GitSHA` / `GitDirty` metadata in the log or dashboard
 - [ ] `GitDirty` reads "All changes committed". Uncommitted code at an event means the log
       cannot be matched to source later
-- [ ] Demo mode OFF
+- [ ] Driver Station is not in Test mode, and no tuning OpMode is selected (there are no demo or tuning flags)
 - [ ] Correct auto selected on the dashboard (a BLine routine, or a characterization
       routine —
       the name says which)

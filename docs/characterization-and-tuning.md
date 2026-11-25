@@ -29,9 +29,9 @@ driveTalon.setControl(
 
 Two consequences that bite people:
 
-1. **`FF_RAMP_RATE = 0.1` is 0.1 A/s, not 0.1 V/s.** The trailing comment in
-   `DriveCommands.java` says `Volts/Sec` because it came from the upstream AdvantageKit
-   template, which defaults to voltage output. It is wrong for this configuration.
+1. **`FF_RAMP_RATE = 0.1` is 0.1 A/s, not 0.1 V/s.** The comment in `DriveCommands.java` now says
+   `Amps/Sec`; the upstream AdvantageKit template said `Volts/Sec` because it defaults to voltage
+   output. It would be volts only if the drive output type were switched to `Voltage`.
 2. **SysId's "voltage" is amps too.** `Drive.sysId` wires
    `(voltage) -> runCharacterization(voltage.in(Volts))`, so a 7 "volt" step is a 7 **amp**
    request. WPILib's default SysId config (1 V/s ramp, 7 V step) is far gentler than
@@ -670,6 +670,7 @@ shows up as sluggish response and overshoot on direction changes.
 ## Related
 
 - `.claude/skills/pid-tune` — sim-first tuning loop; proposes gains, you confirm
+- `.claude/skills/characterize` — characterization to gains, in amps; proposes, you confirm
 - `.claude/prompts/tune-constants.md` — template for handing measured values to an agent
 - `.claude/rules/00-safety.md` — why gains are a Hard Stop
 - `.claude/rules/02-hardware.md` — what every motor must log, including torque current
