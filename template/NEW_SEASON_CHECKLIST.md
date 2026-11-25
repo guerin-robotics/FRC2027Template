@@ -18,15 +18,9 @@ they're listed so you know they're handled, not so you redo them.
 - [ ] Verify team number in `.wpilib/wpilib_preferences.json`
 - [ ] Configure `tools/log-sync` with the 2027 team-number IP and **verify one upload
       actually works** — do this at season start, not the night before an event
-- [ ] **Port to WPILib 2027** — not a version bump. Systemcore replaces the roboRIO, Java 17 → 25,
-      `edu.wpi.first` → `org.wpilib`, Commands V2 → V3, SmartDashboard → Telemetry/Tunables. Work
-      the gated checklist in [docs/2027-migration.md](../docs/2027-migration.md); do not start
-      until its gates pass. The V3 target for every command rule is in
-      [docs/commands-v3.md](../docs/commands-v3.md)
-- [ ] Update AdvantageKit, CTRE Phoenix 6, BLine-Lib, Grapple (LaserCAN), PhotonVision and Studica
-      vendordeps to
-      the 2027 versions named in the migration doc
-- [ ] Confirm `./gradlew build` still passes after the port
+- [x] Port to WPILib 2027 alpha and Commands V3. See the [migration notes](../docs/2027-migration.md)
+      for pinned vendor dependencies and the [command guide](../docs/commands-v3.md) for V3 patterns.
+- [ ] Re-run the desktop build after changing dependencies and complete Systemcore bring-up
 - [ ] Update `FieldConstants.aprilTagLayout` to the 2027 field as soon as WPILib ships it
 
 ## Kickoff Week — Game Modeling
@@ -43,7 +37,7 @@ they're listed so you know they're handled, not so you redo them.
 
 ## Robot Build — Hardware Setup
 
-- [ ] Assign CAN IDs for all new mechanism motors; comment the bus (`// CANivore` / `// RIO CAN`)
+- [ ] Assign CAN IDs for all new mechanism motors; comment the bus (`// CANivore` or the assigned Systemcore CAN port)
 - [ ] Zero all CANcoder magnet offsets for pivoting mechanisms
 - [ ] Physically measure every camera position → update `VisionConstants.robotToCameraN`
       (they are identity placeholders right now — vision is meaningless until this is done)
@@ -84,7 +78,7 @@ and are wrong. If you only remember one thing: **measure top speed and slip curr
 
 ### Stage 3 — Geometry
 
-- [ ] **8. Run wheel radius characterization** (auto chooser → enable auto → let it spin at
+- [ ] **8. Run wheel radius characterization** (Driver Station → Utility → Drive Wheel Radius Characterization → enable → let it spin at
       least two full rotations → **disable to print results**) → `kWheelRadius`
       *(must come after Pigeon calibration — it divides by gyro rotation)*
 

@@ -1,10 +1,10 @@
 package frc.robot.subsystems.drive;
 
-import static edu.wpi.first.units.Units.RadiansPerSecond;
+import static org.wpilib.units.Units.RadiansPerSecond;
 
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.wpilibj.Timer;
 import org.ironmaple.simulation.drivesims.GyroSimulation;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.system.Timer;
 
 /** Gyro read from the maple-sim chassis, so heading follows collisions and wheel slip. */
 public class GyroIOMapleSim implements GyroIO {
@@ -21,7 +21,7 @@ public class GyroIOMapleSim implements GyroIO {
     inputs.yawVelocityRadPerSec = gyro.getMeasuredAngularVelocity().in(RadiansPerSecond);
 
     // One sample per loop, matching ModuleIOSim: high-rate odometry buys nothing in simulation.
-    inputs.odometryYawTimestamps = new double[] {Timer.getFPGATimestamp()};
+    inputs.odometryYawTimestamps = new double[] {Timer.getTimestamp()};
     inputs.odometryYawPositions = new Rotation2d[] {inputs.yawPosition};
   }
 }

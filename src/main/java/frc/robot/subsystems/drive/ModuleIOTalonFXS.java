@@ -25,16 +25,16 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorArrangementValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
-import edu.wpi.first.math.filter.Debouncer;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.AngularVelocity;
-import edu.wpi.first.units.measure.Current;
-import edu.wpi.first.units.measure.Temperature;
-import edu.wpi.first.units.measure.Voltage;
 import frc.robot.generated.TunerConstants;
 import java.util.Queue;
+import org.wpilib.math.filter.Debouncer;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.util.Units;
+import org.wpilib.units.measure.Angle;
+import org.wpilib.units.measure.AngularVelocity;
+import org.wpilib.units.measure.Current;
+import org.wpilib.units.measure.Temperature;
+import org.wpilib.units.measure.Voltage;
 
 /**
  * Module IO implementation for Talon FXS drive motor controller, Talon FXS turn motor controller,
@@ -87,11 +87,11 @@ public class ModuleIOTalonFXS implements ModuleIO {
 
   // Connection debouncers
   private final Debouncer driveConnectedDebounce =
-      new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+      new Debouncer(0.5, Debouncer.DebounceType.FALLING);
   private final Debouncer turnConnectedDebounce =
-      new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+      new Debouncer(0.5, Debouncer.DebounceType.FALLING);
   private final Debouncer turnEncoderConnectedDebounce =
-      new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+      new Debouncer(0.5, Debouncer.DebounceType.FALLING);
 
   public ModuleIOTalonFXS(
       SwerveModuleConstants<TalonFXSConfiguration, TalonFXSConfiguration, CANdiConfiguration>
@@ -131,9 +131,8 @@ public class ModuleIOTalonFXS implements ModuleIO {
           case TalonFXS_NEO_JST -> MotorArrangementValue.NEO_JST;
           case TalonFXS_VORTEX_JST -> MotorArrangementValue.VORTEX_JST;
           case TalonFXS_NEO550_JST -> MotorArrangementValue.NEO550_JST;
-          case TalonFXS_Brushed_AB,
-              TalonFXS_Brushed_AC,
-              TalonFXS_Brushed_BC -> MotorArrangementValue.Brushed_DC;
+          case TalonFXS_Brushed_AB, TalonFXS_Brushed_AC, TalonFXS_Brushed_BC ->
+              MotorArrangementValue.Brushed_DC;
           default -> MotorArrangementValue.Disabled;
         };
     turnConfig.Commutation.BrushedMotorWiring =
@@ -150,8 +149,9 @@ public class ModuleIOTalonFXS implements ModuleIO {
           case RemoteCANdiPWM1 -> ExternalFeedbackSensorSourceValue.RemoteCANdiPWM1;
           case FusedCANdiPWM1 -> ExternalFeedbackSensorSourceValue.FusedCANdiPWM1;
           case SyncCANdiPWM1 -> ExternalFeedbackSensorSourceValue.SyncCANdiPWM1;
-          default -> throw new RuntimeException(
-              "You have selected a turn feedback source that is not supported by the default implementation of ModuleIOTalonFXS (CANdi PWM 1). Please check the AdvantageKit documentation for more information on alternative configurations: https://docs.advantagekit.org/getting-started/template-projects/talonfx-swerve-template#custom-module-implementations");
+          default ->
+              throw new RuntimeException(
+                  "You have selected a turn feedback source that is not supported by the default implementation of ModuleIOTalonFXS (CANdi PWM 1). Please check the AdvantageKit documentation for more information on alternative configurations: https://docs.advantagekit.org/getting-started/template-projects/talonfx-swerve-template#custom-module-implementations");
         };
     turnConfig.ExternalFeedback.RotorToSensorRatio = constants.SteerMotorGearRatio;
     turnConfig.MotionMagic.MotionMagicCruiseVelocity = 100.0 / constants.SteerMotorGearRatio;
@@ -335,9 +335,10 @@ public class ModuleIOTalonFXS implements ModuleIO {
 
   @Override
   public void setDriveBrakeMode(boolean brake) {
-    // setNeutralMode() is the fast path — it does not re-apply the whole configuration, so it
-    // is safe to call on a mode transition without risking a slow CAN operation mid-match.
-    driveTalon.setNeutralMode(brake ? NeutralModeValue.Brake : NeutralModeValue.Coast);
+    // configNeutralMode() writes only the neutral mode, not the whole configuration (Phoenix
+    // 26.70 renamed setNeutralMode()). It is a config write, so it may block on CAN for up to its
+    // timeout — called only on enable and the post-disable coast transition, never per loop.
+    driveTalon.configNeutralMode(brake ? NeutralModeValue.Brake : NeutralModeValue.Coast);
   }
 
   @Override

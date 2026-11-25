@@ -15,10 +15,11 @@
 
 package frc.lib.util;
 
-import edu.wpi.first.math.filter.Debouncer;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
 import java.util.function.BooleanSupplier;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.command3.Trigger;
+import org.wpilib.math.filter.Debouncer;
+import org.wpilib.units.measure.Time;
 
 /**
  * A Trigger that automatically logs state changes to AdvantageKit.
@@ -34,7 +35,7 @@ import org.littletonrobotics.junction.Logger;
  *
  * // The state will be automatically logged to "BeamBreak/Broken" whenever it changes
  * // Use it just like a normal Trigger
- * broken.onTrue(Commands.print("Beam is broken!"));
+ * broken.onTrue(Command.noRequirements(co -> {}).named("Broken"));
  * }</pre>
  */
 public class LoggedTrigger extends Trigger {
@@ -97,24 +98,24 @@ public class LoggedTrigger extends Trigger {
    * Creates a new debounced trigger from this trigger - it will become active when this trigger has
    * been active for longer than the specified period.
    *
-   * @param seconds The debounce period.
+   * @param duration The debounce period.
    * @return The debounced trigger (rising edges debounced only)
    */
   @Override
-  public LoggedTrigger debounce(double seconds) {
-    return debounce(seconds, Debouncer.DebounceType.kRising);
+  public LoggedTrigger debounce(Time duration) {
+    return debounce(duration, Debouncer.DebounceType.RISING);
   }
 
   /**
    * Creates a new debounced trigger from this trigger - it will become active when this trigger has
    * been active for longer than the specified period.
    *
-   * @param seconds The debounce period.
+   * @param duration The debounce period.
    * @param type The debounce type.
    * @return The debounced trigger.
    */
   @Override
-  public LoggedTrigger debounce(double seconds, Debouncer.DebounceType type) {
-    return new LoggedTrigger(name, super.debounce(seconds, type));
+  public LoggedTrigger debounce(Time duration, Debouncer.DebounceType type) {
+    return new LoggedTrigger(name, super.debounce(duration, type));
   }
 }

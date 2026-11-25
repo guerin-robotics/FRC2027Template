@@ -1,22 +1,22 @@
 package frc.robot.subsystems.exampleRoller.io;
 
-import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static org.wpilib.units.Units.RotationsPerSecond;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.controls.MotionMagicVelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
-import edu.wpi.first.math.filter.Debouncer;
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.AngularVelocity;
-import edu.wpi.first.units.measure.Current;
-import edu.wpi.first.units.measure.Temperature;
-import edu.wpi.first.units.measure.Voltage;
 import frc.lib.device.CanIdRegistry;
 import frc.lib.util.PhoenixUtil;
 import frc.robot.Constants;
 import frc.robot.subsystems.exampleRoller.ExampleRollerConstants;
+import org.wpilib.math.filter.Debouncer;
+import org.wpilib.units.measure.Angle;
+import org.wpilib.units.measure.AngularVelocity;
+import org.wpilib.units.measure.Current;
+import org.wpilib.units.measure.Temperature;
+import org.wpilib.units.measure.Voltage;
 
 /**
  * Real hardware implementation for a velocity-controlled mechanism.
@@ -68,7 +68,7 @@ public class ExampleRollerIOReal implements ExampleRollerIO {
    * for half a second, so a single dropped frame does not raise an alert mid-match. Same shape
    * {@code ModuleIOTalonFX} uses for the swerve modules — copy it rather than inventing something.
    */
-  private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+  private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.FALLING);
 
   // ---- Control requests ----
   //
@@ -82,16 +82,17 @@ public class ExampleRollerIOReal implements ExampleRollerIO {
       new MotionMagicVelocityTorqueCurrentFOC(0);
 
   public ExampleRollerIOReal() {
-    // TODO: add the real ID to Constants.CanIds, and pick the bus deliberately — RIO_BUS here, or
+    // TODO: add the real ID to Constants.CanIds, and pick the bus deliberately — MECHANISM_BUS_A
+    // here, or
     // TunerConstants.kCANBus for the CANivore. The (int, String) constructor is deprecated for
     // removal in Phoenix 6; pass a CANBus object.
     // Claim the ID before constructing the device. A duplicate then stops boot with both owners
     // named, instead of two devices half-working on one ID.
     CanIdRegistry.claim(
         Constants.CanIds.EXAMPLE_ROLLER_MOTOR,
-        Constants.CanIds.RIO_BUS,
+        Constants.CanIds.MECHANISM_BUS_A,
         ExampleRollerConstants.NAME + " motor");
-    motor = new TalonFX(Constants.CanIds.EXAMPLE_ROLLER_MOTOR, Constants.CanIds.RIO_BUS);
+    motor = new TalonFX(Constants.CanIds.EXAMPLE_ROLLER_MOTOR, Constants.CanIds.MECHANISM_BUS_A);
 
     // The config is built in the constants file, not here. tryUntilOk because CTRE devices
     // silently ignore configuration if the CAN bus is busy at startup — without the retry, the
@@ -231,9 +232,10 @@ public class ExampleRollerIOReal implements ExampleRollerIO {
   //   // ...in the constructor, AFTER configuring the leader:
   //   CanIdRegistry.claim(
   //       Constants.CanIds.EXAMPLE_ROLLER_FOLLOWER,
-  //       Constants.CanIds.RIO_BUS,
+  //       Constants.CanIds.MECHANISM_BUS_A,
   //       ExampleRollerConstants.NAME + " follower");
-  //   follower = new TalonFX(Constants.CanIds.EXAMPLE_ROLLER_FOLLOWER, Constants.CanIds.RIO_BUS);
+  //   follower = new TalonFX(Constants.CanIds.EXAMPLE_ROLLER_FOLLOWER,
+  // Constants.CanIds.MECHANISM_BUS_A);
   //   // Include the follower apply result in the AND that determines configured.
   //   PhoenixUtil.tryUntilOk(
   //       5, () -> follower.getConfigurator().apply(ExampleRollerConstants.getFXConfig()));

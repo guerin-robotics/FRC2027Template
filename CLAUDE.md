@@ -9,7 +9,9 @@
 You are assisting an FRC robotics team that competed at Worlds.
 
 This repository is the **2027 season template**, carried over from the 2026 competition
-robot (`Rebuilt2026`). It contains the drivetrain, vision, and supporting infrastructure —
+robot (`Rebuilt2026`) and **ported to the 2027 platform: WPILib 2027 alpha-8, Commands V3, Java 25,
+Systemcore** (branch `feature/2027-v3` until merged). It is alpha software that has been built and
+unit-tested on a desktop only — nothing has run on Systemcore hardware. It contains the drivetrain, vision, and supporting infrastructure —
 the parts that are not game-specific — with every 2026 mechanism and every piece of 2026
 game logic removed.
 
@@ -33,8 +35,13 @@ drives anything, these must be revisited:
 |---|---|---|
 | Swerve CAN IDs, encoder offsets, geometry, gains | `generated/TunerConstants.java` | Regenerate with CTRE Tuner X against the real robot |
 | Camera names and `robotToCameraN` transforms | `subsystems/vision/VisionConstants.java` | Identity placeholders — measure on the real robot |
-| AprilTag layout | `frc/lib/util/FieldConstants.java` | Points at the 2026 field; update when WPILib ships 2027 |
-| BLine path limits (max velocity/accel, end tolerances, handoff radius) | `src/main/deploy/autos/config.json` | 2026 robot's PathPlanner constraints (4.0 m/s, 450 deg/s, 1020 deg/s²), with acceleration raised from 5.75 to 8.0 m/s² as an experiment; tolerances and handoff are BLine defaults — re-measure on the 2027 robot, then create paths in BLine Web |
+| AprilTag layout | `frc/lib/util/FieldConstants.java` | Points at the 2026 field (`Fields.FRC_2026_REBUILT_WELDED`); update when WPILib ships the 2027 field |
+| Systemcore CAN buses | `Constants.CanIds` | `MECHANISM_BUS_A` / `MECHANISM_BUS_B` are placeholders on `CAN_S0` / `CAN_S1`; decide which devices sit on which bus and record it in `docs/hardware-layout.md` |
+| `TunerConstants` must be a 2027 regeneration | `generated/TunerConstants.java` | Only the imports, `new CANBus("Canivore")` and `withNetwork(kCANBus)` were hand-edited to compile against Phoenix 26.70; the values are still the 2026 robot's. Regenerate with Tuner X 2027 — never hand-edit a value |
+| JVM heap / GC flags | `build.gradle` | The RIO 2 flags were dropped for Systemcore, not carried over — measure loop timing on hardware, then set them (`.claude/rules/04-build.md`) |
+| Controller input current | `Robot.java` | Systemcore exposes no input-current reading, so `Controls/roboRIO` logs 0 A; brownout current budgets are incomplete until it is measured |
+| Auto selection | `opmodes/OpModes.java` | Autos and characterization are OpModes; no auto routines exist until paths are drawn |
+| BLine path limits (max velocity/accel, end tolerances, handoff radius and mode) | `src/main/deploy/autos/config.json` | 2026 robot's PathPlanner constraints (4.0 m/s, 450 deg/s, 1020 deg/s²), with acceleration raised from 5.75 to 8.0 m/s² as an experiment; tolerances and handoff are BLine defaults, and `default_handoff_mode` is `PROGRESS` to match 2026's builder flag — re-measure on the 2027 robot, then create paths in BLine Web |
 | BLine follower gains (translation 2.0, rotation 1.0, cross-track 0.2) | `autos/BLineAutos.java` | BLine's documented defaults, untuned on any robot — tune with `/bline-auto` |
 | Heading-hold gains | `commands/DriveCommands.java` | `angleController` (heading kP/kD) tuned on the 2026 chassis |
 | Team number | `.wpilib/wpilib_preferences.json` | Verify |
@@ -151,7 +158,7 @@ or in `RobotState`.
 **Act without asking:**
 
 - Adding a log line
-- Adding a `.withName()` call to a command
+- Naming a command (`.named(...)`, which V3 requires)
 - Fixing a compile error
 - Writing a new subsystem from scratch following the vision/drive IO pattern
 - Binding a new BLine event trigger in `RobotContainer`
@@ -202,7 +209,7 @@ Team skills (slash commands) are in `.claude/skills/`:
 - `/camera-calibrate` — measure and verify `robotToCameraN` from logged tag observations
 - `/loop-timing` — find what is pushing the loop past 50 Hz
 - `/brownout-analysis` — attribute battery sags to mechanisms from a log; never raises a limit
-- `/port-commands-v3` — the Commands V3 port, gated on `processInputs()` still running
+- `/port-commands-v3` — the V2 → V3 port procedure. **The V3 port is done**; keep it as the reference for what changed and for porting any code copied in from a V2 repo, gated on `processInputs()` still running
 
 How humans run each one in sim and on the robot: [docs/skills.md](docs/skills.md).
 
@@ -273,7 +280,7 @@ None of it is part of the robot build, and it is excluded from Spotless so upstr
 stay clean.
 
 - **ClaudeScope** — `/scope` and `/simulate` skills for querying `.wpilog` and live NT
-- **log-sync** — pulls match logs off the roboRIO to Google Drive between matches
+- **log-sync** — pulls match logs off the robot controller to Google Drive between matches
 - **wpilib-agent-tools** — Python CLI for sim, NT4 recording, and log analysis
 
 `.agent/skills/` holds two harness-agnostic skills:

@@ -188,7 +188,7 @@ subsystems/<name>/
 ├── <Name>Constants.java      gains, ratios, limits, getFXConfig()
 └── <Name>Visualizer.java     OPTIONAL — position mechanisms only
 
-commands/<Name>Commands.java  static factories, all .withName()'d
+commands/<Name>Commands.java  static factories, all ending in `.named(...)`
 ```
 
 **Generate the visualizer for position mechanisms; skip it for velocity ones.** It draws the
@@ -288,6 +288,9 @@ needed there, a setpoint was left behind.
 branch needs an anonymous `<Name>IO() {}`; without it the logged inputs are not replayed
 and the whole point of AdvantageKit is lost for that mechanism.
 
+**`RobotContainer.periodic()`** — call the new mechanism's `periodic()` once each loop
+before the V3 scheduler. This refreshes inputs and records them for replay.
+
 **`Triggers.java`** — every controller button accessor. `RobotContainer` never touches a
 controller object, and never constructs a `Trigger`. Name accessors for the action, not the
 button: `intake()`, not `leftBumper()`. Analog triggers use
@@ -317,7 +320,7 @@ nothing new written, because both read the real sources rather than a registry:
 | If it fails | What the scaffold got wrong |
 |---|---|
 | `CanIdUniquenessTest` | The new CAN ID collides, is out of range, or reuses the swerve block |
-| `RobotContainerSmokeTest` | Wiring throws, the chooser breaks, or a default command is unnamed |
+| `RobotContainerSmokeTest` | Wiring throws, subsystem inputs are missing, or a default command blocks normal commands |
 
 **Everything else is on you.** Nothing automated checks the architecture rules — a `TalonFX` in
 the subsystem instead of the IO impl, a `periodic()` missing `Logger.processInputs`, a subsystem

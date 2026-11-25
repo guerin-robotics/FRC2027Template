@@ -13,7 +13,7 @@
 > the rest of the AI workflow work — see `docs/ai-development-handbook.md` §7.
 
 **Status:** template skeleton — not yet a description of any robot
-**Last updated:** when this template was created
+**Last updated:** Commands V3 alpha migration
 
 ---
 
@@ -36,20 +36,19 @@ existed, not just what it did. It is worth the half hour.
 
 | Layer | Choice |
 |---|---|
-| Framework | WPILib Command-Based |
-| Logging / replay | AdvantageKit (`LoggedRobot`, IO layer, `@AutoLog`) |
+| Framework | WPILib 2027.0.0-alpha-8 on Systemcore |
+| Logging / replay | AdvantageKit (`LoggedOpModeRobot`, IO layer, `@AutoLog`) |
 | Motor control | CTRE Phoenix 6 (TalonFX, TalonFXS, CANcoder, Pigeon2) |
 | Vision | PhotonVision over NetworkTables |
 | Paths | BLine-Lib (`FollowPath`, paths from BLine Web in `deploy/autos`), BLine autos only for now |
 | Distance sensing | CTRE CANrange (Phoenix 6), Grapple LaserCAN (`libgrapplefrc`) |
 | Dashboard | Elastic + AdvantageScope |
 | Formatting | Spotless / Google Java Format (runs on `compileJava`) |
-| Java | 17 |
-| Commands | V2 (`edu.wpi.first.wpilibj2.command`) |
+| Java | 25 |
+| Commands | V3 (`org.wpilib.command3`) |
 
-**2027 target:** Systemcore, Java 25, `org.wpilib`, Commands V3. Not ported yet — see
-[2027-migration.md](2027-migration.md) for the gates and [commands-v3.md](commands-v3.md) for
-what each command rule becomes. Update this table in the port commit.
+See the [migration notes](2027-migration.md) and [command guide](commands-v3.md).
+Systemcore and dashboard verification are pending.
 
 Versions live in `vendordeps/` — see `docs/hardware-layout.md` for the table.
 
@@ -65,6 +64,7 @@ frc/robot/generated/         TunerConstants (Tuner X generated — never hand-ed
 frc/robot/subsystems/drive/  Drive, Module, Gyro/Module IO, PhoenixOdometryThread
 frc/robot/subsystems/vision/ Vision, VisionConstants, io/
 frc/robot/commands/          DriveCommands (+ one file per mechanism)
+frc/robot/opmodes/           Driver Station program registration and lifecycle
 frc/robot/autos/             BLineAutos (FollowPath.Builder, gains, event bindings),
                              AutoPreview (preview widget + start-pose check)
 ```
@@ -86,11 +86,11 @@ Summarized here; authoritative version is `.claude/rules/01-architecture.md`.
 - No subsystem holds a reference to another subsystem. Shared state goes through
   `RobotState`; one-off values go through a `Supplier` passed at construction.
 - Commands are static factory methods, never `extends Command` classes. Every one calls
-  `.withName()`.
+  `.named(...)`.
 - Exactly one `SwerveDrivePoseEstimator`, inside `Drive`. `RobotState` delegates to it.
 - `TunerConstants` is the sole source of truth for drivetrain geometry and gains.
 - Never call `DriverStation.getAlliance()` in a hot path — use `AllianceFlipUtil`.
-- Every `waitUntil` has a `withTimeout`.
+- Every `waitUntil` has an explicit timeout.
 
 **None of these are checked automatically.** They are enforced by review, using
 [review-checklist.md](review-checklist.md). An ArchUnit test enforced them briefly and was
@@ -102,13 +102,12 @@ removed to keep the suite small.
 
 | Phase | What happens |
 |---|---|
-| Constructor | Record build metadata; configure AdvantageKit receivers per `Constants.currentMode`; `Logger.start()`; register `RobotState` with `AutoLogOutputManager`; construct `RobotContainer` |
-| `robotPeriodic` | `loopMonitor.begin()` → `AllianceFlipUtil.refresh()` → `CommandScheduler.run()` → `CommandLogger.periodic()` → `batteryLogger` update → CAN bus, match metadata and `FaultMonitor` → `loopMonitor.end()` |
-| `disabledInit` / `disabledPeriodic` | Stop hoot logging; coast the drive `COAST_DELAY_SECONDS` (3 s) after disable |
-| `autonomousInit` | Brake + start hoot logging; start the auto timer; schedule the chooser's auto |
-| `autonomousExit` | Log `Auto/DurationSeconds` and `Auto/Overran` |
-| `teleopInit` | Brake + start hoot logging; cancel the auto command |
-| `testInit` | Brake + start hoot logging; `CommandScheduler.cancelAll()` |
+| Constructor | Configure and start AdvantageKit, construct `RobotContainer`, and register OpModes |
+| `robotPeriodic` | Begin loop timing, refresh alliance, call `RobotContainer.periodic()` for subsystem inputs, run `Scheduler.getDefault().run()`, then log and run diagnostics |
+| `disabledInit` / `disabledPeriodic` | Stop hoot logging and coast the drive after 3 s disabled |
+| OpMode start | Enable drive brake mode and start hoot logging |
+| Autonomous OpMode | Publish preview while selected and disabled, schedule the selected routine on start, and report its duration |
+| Utility OpMode | Schedule the selected characterization command on start and cancel it on exit |
 
 `AllianceFlipUtil.refresh()` must run **before** the scheduler — commands read the cached
 value during their own execution.
@@ -123,7 +122,7 @@ dashboard publishing here. Add whatever 2027 equivalents appear, and keep this t
 Runtime mode only.
 
 - `simMode` — `SIM` or `REPLAY`, chosen at compile time
-- `currentMode` — `REAL` on a roboRIO, otherwise `simMode`
+- `currentMode` — `REAL` on Systemcore, otherwise `simMode`
 - `disableHAL` — set true in unit tests so `AllianceFlipUtil` skips DriverStation access
 
 The 2026 `RobotType` enum (COMP/ALPHA) was removed along with the dual `TunerConstants`.
@@ -142,7 +141,7 @@ remembering which of the two a value lived in while a match clock was running. T
 Constants
 ├── Mode / simMode / currentMode   runtime mode selection
 ├── disableHAL                     unit-test escape hatch
-├── CanIds                         every non-swerve CAN ID, each with // CANivore or // RIO CAN
+├── CanIds                         every non-swerve CAN ID, each with // CANivore or // assigned Systemcore port
 ├── Setpoints                      voltages, velocities, positions a mechanism is commanded to
 ├── Waits                          every command timeout — nothing inline
 └── Thresholds                     alignment tolerances, readiness bands
@@ -189,8 +188,8 @@ from `deploy/autos/config.json`: the 2026 PathPlanner constraints (4.0 m/s, 450 
 1020 deg/s²) except acceleration, raised from PathPlanner's 5.75 to 8.0 m/s² as an experiment,
 with BLine's default 0.03 m / 2° end tolerance and 0.45 m handoff; re-measure for
 2027) and per-path constraints. Paths are authored blue-left; the Driver
-Station alliance flips them and the `Auto Side` chooser mirrors them for Right. `AutoPreview`
-draws the selected routine and checks the start pose in `disabledPeriodic`. BLine
+Station alliance flips them and the Right autonomous OpMode mirrors them. `AutoPreview`
+draws the selected routine and checks the start pose in `AutoOpMode.disabledPeriodic()`. BLine
 follows physical progress, so every path command carries `Constants.Waits.PATH_TIMEOUT_SECONDS`
 (3.0 s placeholder). There is no pathfinding: BLine has none, and `driveToPose` is straight-line
 only.
@@ -206,15 +205,11 @@ stator current and **torque current**, plus the odometry sample queues. Both mot
 `*TorqueCurrentFOC` requests, so torque current is the actual control signal — stator
 current alone cannot distinguish a module fighting a stall from one spinning free.
 Registered at 50 Hz in the same frame as stator current, so it adds no CAN traffic.
-`ModuleIOSim` and `ModuleIOMapleSim` leave both torque channels at zero rather than inventing a value.
+`ModuleIOSim` leaves both torque channels at zero.
 
-**Simulation.** SIM mode runs the drivetrain in maple-sim (`DriveSimulation`: a rigid chassis, a
-field boundary built from `FieldConstants`, wheel slip and collisions) unless
-`DriveConstants.USE_MAPLE_SIM` is false, which falls back to `ModuleIOSim`. Module geometry, gear
-ratios and wheel radius come from `TunerConstants`; mass, bumper size and wheel friction are the
-`SIM_*` placeholders in `DriveConstants` and need this robot's values. Simulated cameras see the
-chassis's true pose, not odometry. Game pieces are not simulated: add them when maple-sim ships a
-2027 arena. Maple-sim is `vendordeps/maple-sim.json`, pinned to `0.4.0-beta`.
+**Simulation.** SIM mode uses four `ModuleIOSim` instances. PhotonVision simulation uses
+the drive pose estimate as its camera pose source. The maple-sim chassis model and its
+tests are saved in [template/deferred/maple-sim](../template/deferred/maple-sim/README.md).
 
 **Gains.** Both drive and steer use `ClosedLoopOutputType.TorqueCurrentFOC`, so every
 Slot0 gain is in amps. See `docs/characterization-and-tuning.md` for how to measure them.
@@ -325,7 +320,7 @@ per robot function. State triggers go here as `LoggedTrigger` fields.
 
 | Accessor | Button | Bound to |
 |---|---|---|
-| `resetGyro()` | flight stick 2 | re-zero heading, works while disabled |
+| `resetGyro()` | flight stick 2 | re-zero heading while disabled, or acquire Drive before resetting while enabled |
 | `lockHeading()` | flight stick 3 | `joystickDriveAtAngle` at 0° |
 | `stopWithX()` | flight stick 4 | `stopWithX` |
 
@@ -339,10 +334,9 @@ See §9 for drive commands. TODO for mechanism commands.
 
 Patterns that must survive the season:
 
-- Static factories only, every one `.withName()`'d
-- Every `waitUntil` has a `withTimeout`
+- Static factories only, each ending in `.named(...)`
+- Every `waitUntil` has an explicit timeout
 - Ready → Align → Act, where phase 2 gets the *remaining* budget, not a fresh one
-- `ContinuousConditionalCommand` when a mode can change mid-execution
 
 ---
 
@@ -350,13 +344,12 @@ Patterns that must survive the season:
 
 Wiring layer. Constructs subsystems per `Constants.currentMode` (REAL / SIM / REPLAY),
 creates the BLine `FollowPath.Builder`, binds event triggers with `BLineAutos.bind` **before** any
-routine is built, builds the auto chooser, then configures bindings.
+routine is built, and configures bindings.
 
-Current bindings: default `joystickDrive`, plus the three flight-stick accessors in §13. The
-auto chooser is a `LoggedDashboardChooser<Supplier<Command>>`: "None", BLine routines
-(`BLineAutos.all`; a separate `Auto Side` Left/Right chooser mirrors them), and the SysId and
-characterization routines. Each option is built when auto starts, so only the selected auto's
-paths load, and the selection is logged for replay.
+The default command is `joystickDrive`, with the flight-stick bindings in §13.
+The Driver Station selects programs registered in `opmodes/OpModes.java`. Each BLine
+routine registers Left and Right autonomous choices when present. SysId and characterization
+register as Utility choices. AdvantageKit logs the OpMode selection for replay.
 
 No game logic here. Ever.
 
@@ -367,7 +360,6 @@ No game logic here. Ever.
 | Class | Purpose |
 |---|---|
 | `AllianceFlipUtil` | Alliance mirroring; `refresh()` once per loop, `shouldFlip()` reads the cache |
-| `ContinuousConditionalCommand` | Conditional that re-evaluates while running |
 | `FieldConstants` | Field dimensions + AprilTag layout; gains game geometry each season |
 | `BatteryLogger` | Per-subsystem current accounting for brownout analysis |
 | `PhoenixUtil` | `tryUntilOk` retries CTRE configuration up to the attempt limit and returns whether the write was confirmed |

@@ -8,8 +8,8 @@
 package frc.lib.util;
 
 import com.ctre.phoenix6.StatusCode;
-import edu.wpi.first.wpilibj.DriverStation;
 import java.util.function.Supplier;
+import org.wpilib.driverstation.DriverStationErrors;
 
 public class PhoenixUtil {
   /**
@@ -31,7 +31,7 @@ public class PhoenixUtil {
         return true;
       }
     }
-    DriverStation.reportError(
+    DriverStationErrors.reportError(
         "Phoenix call failed after " + maxAttempts + " attempts: " + last.getName(), true);
     return false;
   }

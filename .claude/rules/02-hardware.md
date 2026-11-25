@@ -11,10 +11,10 @@ IO implementation.
 
 ```java
 // CORRECT
-new TalonFX(Constants.CanIds.MECHANISM_LEADER, "rio");
+new TalonFX(Constants.CanIds.MECHANISM_LEADER, Constants.CanIds.MECHANISM_BUS_A);
 
 // WRONG
-new TalonFX(30, "rio");   ← magic number, invisible in review
+new TalonFX(30, "rio");   ← magic number, and there is no "rio" bus on Systemcore
 ```
 
 **There is one robot-wide constants file.** `Constants` holds CAN IDs, setpoints, command timeouts,
@@ -36,16 +36,24 @@ The 2026 repo had one and it was the fastest way to answer "what is on ID 14?".
 
 ## CAN Bus Assignment Rules
 
+Systemcore has five native CAN buses (`CANPort.CAN_S0`–`CAN_S4`) and **no `"rio"` bus**. Phoenix
+26.70 constructs a bus with `new CANBus(CANPort)`; the CANivore is still `new CANBus("Canivore")`.
+
 | Bus | What belongs on it | Why |
 |---|---|---|
-| `"Canivore"` | All swerve devices (drive, steer, encoders, Pigeon2) | Low-latency, deterministic; swerve odometry needs sub-ms jitter |
-| `"rio"` | All other subsystems | Sufficient for non-odometry-critical control |
+| `TunerConstants.kCANBus` (`"Canivore"`) | All swerve devices (drive, steer, encoders, Pigeon2) | Low-latency, deterministic; swerve odometry needs sub-ms jitter |
+| `Constants.CanIds.MECHANISM_BUS_A` (`CAN_S0`) | Mechanism devices — **placeholder, not measured** | Sufficient for non-odometry-critical control |
+| `Constants.CanIds.MECHANISM_BUS_B` (`CAN_S1`) | Mechanism devices — **placeholder, not measured** | The 2027 robot is expected to use at least two Systemcore buses; which devices go on which is not decided |
+
+**Until the wiring is decided every mechanism uses bus A.** `CanIdUniquenessTest` still treats every
+mechanism ID as sharing one bus, which is stricter than needed; give it a per-ID bus when IDs are
+assigned to buses.
 
 When adding a CAN device:
 
 1. Decide the bus intentionally
 2. Add the ID constant to the constants class
-3. Add a comment on the constant line: `// CANivore` or `// RIO CAN`
+3. Add a comment on the constant line: `// CANivore`, `// SYSTEMCORE BUS A` or `// SYSTEMCORE BUS B`
 4. Document it in `docs/hardware-layout.md`
 
 ---
@@ -376,7 +384,7 @@ is where the answer is.
 `PhoenixSignalLogger` wraps this. It starts on enable and stops on disable, so recordings are
 bounded to matches rather than accumulating while the robot sits powered in the pit. Files go to
 `/U/logs` beside the AdvantageKit logs; if the path cannot be set — usually a missing USB stick —
-logging stays off rather than falling back to internal roboRIO storage, which is small and much
+logging stays off rather than falling back to internal Systemcore storage, which is small and much
 worse to fill. Set `ENABLED = false` in that class to turn it off entirely.
 
 ---

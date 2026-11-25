@@ -1,13 +1,13 @@
 package frc.lib.util;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Pose3d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Transform2d;
-import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.geometry.Twist2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Pose3d;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.geometry.Transform2d;
+import org.wpilib.math.geometry.Transform3d;
+import org.wpilib.math.geometry.Translation2d;
+import org.wpilib.math.geometry.Twist2d;
+import org.wpilib.math.kinematics.ChassisVelocities;
 
 /**
  * Conversions between WPILib geometry types.
@@ -21,17 +21,17 @@ public class GeomUtil {
 
   /** Translation to a transform with no rotation. */
   public static Transform2d toTransform2d(Translation2d translation) {
-    return new Transform2d(translation, Rotation2d.kZero);
+    return new Transform2d(translation, Rotation2d.ZERO);
   }
 
   /** X/Y offset to a transform with no rotation. */
   public static Transform2d toTransform2d(double x, double y) {
-    return new Transform2d(x, y, Rotation2d.kZero);
+    return new Transform2d(x, y, Rotation2d.ZERO);
   }
 
   /** Rotation to a transform with no translation. */
   public static Transform2d toTransform2d(Rotation2d rotation) {
-    return new Transform2d(Translation2d.kZero, rotation);
+    return new Transform2d(Translation2d.ZERO, rotation);
   }
 
   /** Pose to the transform that would produce it from the origin. */
@@ -46,12 +46,12 @@ public class GeomUtil {
 
   /** Translation to a pose with no rotation. */
   public static Pose2d toPose2d(Translation2d translation) {
-    return new Pose2d(translation, Rotation2d.kZero);
+    return new Pose2d(translation, Rotation2d.ZERO);
   }
 
   /** Rotation to a pose at the origin. */
   public static Pose2d toPose2d(Rotation2d rotation) {
-    return new Pose2d(Translation2d.kZero, rotation);
+    return new Pose2d(Translation2d.ZERO, rotation);
   }
 
   /** Pose to a 3D transform at z = 0. */
@@ -85,9 +85,8 @@ public class GeomUtil {
    *
    * <p>Multiply by the timestep with {@link #multiply} to integrate a single loop.
    */
-  public static Twist2d toTwist2d(ChassisSpeeds speeds) {
-    return new Twist2d(
-        speeds.vxMetersPerSecond, speeds.vyMetersPerSecond, speeds.omegaRadiansPerSecond);
+  public static Twist2d toTwist2d(ChassisVelocities speeds) {
+    return new Twist2d(speeds.vx, speeds.vy, speeds.omega);
   }
 
   /** Same pose, different translation. */

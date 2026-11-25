@@ -1,15 +1,17 @@
 package frc.robot.commands;
 
-import edu.wpi.first.units.measure.Voltage;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
+import static org.wpilib.units.Units.Seconds;
+
 import frc.lib.util.LoggedTunableNumber;
 import frc.robot.Constants;
 import frc.robot.subsystems.exampleLift.ExampleLift;
 import frc.robot.subsystems.exampleLift.ExampleLiftConstants;
 import java.util.function.DoubleSupplier;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.command3.Command;
+import org.wpilib.driverstation.DriverStationErrors;
+import org.wpilib.system.Timer;
+import org.wpilib.units.measure.Voltage;
 
 /**
  * Command factory for a linear position-controlled mechanism.
@@ -17,8 +19,8 @@ import org.littletonrobotics.junction.Logger;
  * <p>Commands are <b>static factory methods, not classes</b>. See {@code
  * .claude/rules/01-architecture.md}.
  *
- * <p><b>Always call {@code .withName()}.</b> Names appear in AdvantageKit's command log, and bad
- * names make a match impossible to debug.
+ * <p><b>Every command ends in {@code .named(...)}</b> (V3 requires it). Names appear in
+ * AdvantageKit's command log, and bad names make a match impossible to debug.
  *
  * <h2>SETPOINTS ARE PARAMETERS</h2>
  *
@@ -60,7 +62,7 @@ public class ExampleLiftCommands {
    *       the detector is reset, so the stall that ends zeroing is one that happened under the
    *       creep. {@code settleSeconds} must exceed the time the carriage takes to start moving.
    *   <li><b>The reverse soft limit is off while creeping</b>. It boots off — before a zero it is
-   *       measured from the power-on position and means nothing — and goes on in {@code finallyDo}
+   *       measured from the power-on position and means nothing — and goes on in {@code whenExited}
    *       only once the lift is zeroed.
    *   <li><b>Nothing waits on the bus except one short write.</b> The zero itself is sent without
    *       waiting and confirmed from the logged position, so a slow or missing Talon cannot stall
@@ -95,49 +97,64 @@ public class ExampleLiftCommands {
    */
   public static Command zero(
       ExampleLift lift, Voltage creepVoltage, double settleSeconds, double timeoutSeconds) {
-    return Commands.sequence(
-            // The reverse bound has to be off to creep down to the stop. It boots off, so on a
-            // first
-            // zero this writes nothing; it only costs a (waited-for) write when re-zeroing a lift
-            // that was already zeroed. If that write fails, the creep is stopped by the bound
-            // instead of the stop, never stalls, and the routine times out without zeroing.
-            Commands.runOnce(() -> lift.setReverseSoftLimitEnabled(false), lift),
-            Commands.run(() -> lift.setVoltage(creepVoltage), lift).withTimeout(settleSeconds),
-            // Forget anything the detector saw before or during the settle.
-            Commands.runOnce(lift::resetZeroingStallDetection, lift),
-            Commands.run(() -> lift.setVoltage(creepVoltage), lift)
-                .until(lift::isAtZeroingStall)
-                .withTimeout(timeoutSeconds),
-            Commands.either(
+    return lift.run(
+            co -> {
+              // The reverse bound has to be off to creep down to the stop. It boots off, so on a
+              // first zero this writes nothing; it only costs a (waited-for) write when re-zeroing
+              // a lift that was already zeroed. If that write fails, the creep is stopped by the
+              // bound instead of the stop, never stalls, and the routine times out without zeroing.
+              lift.setReverseSoftLimitEnabled(false);
+
+              // Creep for settleSeconds before a stall may count.
+              Timer timer = Timer.createStarted();
+              while (!timer.hasElapsed(settleSeconds)) {
+                lift.setVoltage(creepVoltage);
+                co.yield();
+              }
+
+              // Forget anything the detector saw before or during the settle.
+              lift.resetZeroingStallDetection();
+
+              // Creep until the stall, bounded by the timeout so a missing stop cannot hang this.
+              timer.restart();
+              while (!lift.isAtZeroingStall() && !timer.hasElapsed(timeoutSeconds)) {
+                lift.setVoltage(creepVoltage);
+                co.yield();
+              }
+
+              if (lift.isAtZeroingStall()) {
                 // Send the zero without waiting, keep the carriage pressed into the stop, and let
                 // the subsystem confirm it from the logged position. The wait is bounded by twice
                 // the subsystem's own confirmation window, as a backstop.
-                Commands.deadline(
-                    Commands.sequence(
-                        Commands.runOnce(lift::requestZero),
-                        Commands.waitUntil(() -> !lift.isZeroPending())
-                            .withTimeout(2.0 * ExampleLiftConstants.ZERO_CONFIRM_SECONDS)),
-                    Commands.run(() -> lift.setVoltage(creepVoltage))),
-                Commands.runOnce(
-                    () ->
-                        DriverStation.reportError(
-                            ExampleLiftConstants.NAME
-                                + " zero failed: hard stop not found within "
-                                + (settleSeconds + timeoutSeconds)
-                                + "s",
-                            false)),
-                lift::isAtZeroingStall))
+                lift.requestZero();
+                timer.restart();
+                while (lift.isZeroPending()
+                    && !timer.hasElapsed(2.0 * ExampleLiftConstants.ZERO_CONFIRM_SECONDS)) {
+                  lift.setVoltage(creepVoltage);
+                  co.yield();
+                }
+              } else {
+                DriverStationErrors.reportError(
+                    ExampleLiftConstants.NAME
+                        + " zero failed: hard stop not found within "
+                        + (settleSeconds + timeoutSeconds)
+                        + "s",
+                    false);
+              }
+            })
         // Stop, then put the bound back on if — and only if — the lift is zeroed. That covers a
         // fresh zero (bound on in the new frame), an interrupted re-zero (bound back on in the old,
         // still valid frame), and a failed one (left off, because an unzeroed bound means nothing).
-        .finallyDo(
-            interrupted -> {
+        // whenExited runs on completion, cancel and interruption alike; a body that can finish
+        // must clean up on every exit, not only on cancel.
+        .whenExited(
+            () -> {
               lift.stop();
               if (lift.isZeroed()) {
                 lift.setReverseSoftLimitEnabled(true);
               }
             })
-        .withName("ExampleLift_Zero");
+        .named("ExampleLift_Zero");
   }
 
   /**
@@ -148,22 +165,29 @@ public class ExampleLiftCommands {
    * obeys — so the guard lives here, where the refusal is visible in the command log as a command
    * that ended immediately.
    *
-   * <p><b>The timeout is mandatory.</b> A bare {@code waitUntil} hangs forever if the condition
-   * never becomes true, and a robot that hangs mid-sequence scores zero. See {@code
-   * .claude/rules/03-commands.md}.
+   * <p><b>The timeout is mandatory.</b> An untimed {@code waitUntil} (the command or the coroutine
+   * form) hangs forever if the condition never becomes true, and a robot that hangs mid-sequence
+   * scores zero. See {@code .claude/rules/03-commands.md}. The timed form returns a {@code
+   * WaitResult}; this logs whether the move timed out.
    *
    * <p>It does <b>not</b> stop the mechanism when it ends. That is deliberate on a gravity-loaded
    * lift: the Talon keeps holding the last commanded height, which is what you want between the
-   * move and whatever happens next. A {@code finallyDo(stop)} here would drop the carriage the
+   * move and whatever happens next. A {@code whenExited(stop)} here would drop the carriage the
    * moment the command completed.
    */
   public static Command goToHeight(ExampleLift lift, double inches) {
-    return Commands.sequence(
-            Commands.runOnce(() -> lift.setPositionInches(inches), lift),
-            Commands.waitUntil(lift::isAtPosition)
-                .withTimeout(Constants.Waits.MECHANISM_READY_SECONDS))
-        .onlyIf(lift::isZeroed)
-        .withName("ExampleLift_GoTo_" + Math.round(inches) + "in");
+    return lift.run(
+            co -> {
+              if (!lift.isZeroed()) {
+                return; // refuse: ends immediately, visible in the command log
+              }
+              lift.setPositionInches(inches);
+              var arrived =
+                  co.waitUntil(
+                      lift::isAtPosition, Seconds.of(Constants.Waits.MECHANISM_READY_SECONDS));
+              Logger.recordOutput(ExampleLiftConstants.NAME + "/GoTo/TimedOut", arrived.timedOut());
+            })
+        .named("ExampleLift_GoTo_" + Math.round(inches) + "in");
   }
 
   /**
@@ -176,16 +200,26 @@ public class ExampleLiftCommands {
    * <p>Runs until interrupted, so it is a natural fit for {@code whileTrue}.
    */
   public static Command trackHeight(ExampleLift lift, DoubleSupplier inchesSupplier) {
-    return Commands.run(() -> lift.setPositionInches(inchesSupplier.getAsDouble()), lift)
-        .onlyIf(lift::isZeroed)
-        .withName("ExampleLift_Track");
+    return lift.run(
+            co -> {
+              if (!lift.isZeroed()) {
+                return; // refuse: ends immediately, visible in the command log
+              }
+              while (true) {
+                lift.setPositionInches(inchesSupplier.getAsDouble());
+                co.yield();
+              }
+            })
+        .named("ExampleLift_Track");
   }
 
   /**
    * Default command: hold a safe resting height.
    *
-   * <p>Runs whenever nothing else requires the subsystem, and it must <b>never end</b> — {@code
-   * Commands.run}, not {@code Commands.runOnce}.
+   * <p>Runs whenever nothing else requires the mechanism, and it must <b>never end</b> — {@code
+   * runRepeatedly}, not a one-shot. It runs at {@code LOWEST_PRIORITY}: V3 lets a new command
+   * interrupt a running one only at equal or higher priority, so a default at or above {@code
+   * DEFAULT_PRIORITY} would block every ordinary command.
    *
    * <p><b>Do not make this a stop.</b> Zero output on a gravity-loaded lift means the carriage
    * falls. The safe idle state for this scaffold is holding a height, which is what closed-loop
@@ -197,8 +231,9 @@ public class ExampleLiftCommands {
    * belongs in the pre-match routine rather than being something the code works around.
    */
   public static Command holdAt(ExampleLift lift, double stowInches) {
-    return Commands.run(() -> lift.setPositionInches(stowInches), lift)
-        .withName("ExampleLift_Hold");
+    return lift.runRepeatedly(() -> lift.setPositionInches(stowInches))
+        .withPriority(Command.LOWEST_PRIORITY)
+        .named("ExampleLift_Hold");
   }
 
   /**
@@ -209,8 +244,13 @@ public class ExampleLiftCommands {
    * zeroing. Use it to confirm direction of travel, with a hand on disable.
    */
   public static Command runAtVoltage(ExampleLift lift, Voltage voltage) {
-    return Commands.startEnd(() -> lift.setVoltage(voltage), lift::stop, lift)
-        .withName("ExampleLift_Voltage");
+    return lift.run(
+            co -> {
+              lift.setVoltage(voltage);
+              co.park();
+            })
+        .whenExited(lift::stop)
+        .named("ExampleLift_Voltage");
   }
 
   /**
@@ -231,32 +271,32 @@ public class ExampleLiftCommands {
    * does. It does not stop when it ends: the carriage keeps holding the last height, because zero
    * output on a gravity-loaded lift lets it fall.
    *
-   * <p><b>Test mode, with Start held.</b> Bind it with {@code
-   * triggers.tuningEnabled.whileTrue(...)}, which is true only while the robot is enabled in test
-   * mode AND the operator holds Start — a dead-man switch, so enabling test mode for something else
-   * does not move the mechanism. It also refuses to start outside test mode and ends the moment the
-   * robot leaves it, and {@code LoggedTunableNumber.get()} returns its default outside test mode
-   * anyway, so the dashboard value can never reach the field. At the 2027 port it becomes a
-   * {@code @Utility} OpMode; keep the held button.
+   * <p><b>Utility mode, with Start held.</b> Bind it with {@code
+   * triggers.tuningEnabled.whileTrue(...)}, which is true only while the robot is enabled in
+   * Utility mode AND the operator holds Start (the {@code menu()} button) — a dead-man switch, so
+   * enabling a Utility OpMode for something else does not move the mechanism. It also ends the
+   * moment the robot leaves Utility mode, and {@code LoggedTunableNumber.get()} returns its default
+   * outside it anyway, so the dashboard value can never reach the field. It is a candidate to
+   * become a {@code @Utility} OpMode of its own; keep the held button.
    *
    * <p>When the number is right, write it into {@code Constants.Setpoints} and commit it. The
    * dashboard value lives only in NetworkTables and is gone at the next boot.
    */
   public static Command tuneHeight(ExampleLift lift) {
-    return Commands.run(
-            () -> {
-              // Guard every execution as well as scheduling: the end check runs after execute(),
-              // so a mode transition must not apply one last dashboard setpoint.
-              if (!DriverStation.isTestEnabled()) {
-                return;
+    return lift.run(
+            co -> {
+              if (!lift.isZeroed()) {
+                return; // refuse, as goToHeight does
               }
-              double inches = TUNE_HEIGHT_INCHES.get();
-              Logger.recordOutput(ExampleLiftConstants.NAME + "/Tune/HeightIn", inches);
-              lift.setPositionInches(inches);
-            },
-            lift)
-        .onlyIf(() -> DriverStation.isTestEnabled() && lift.isZeroed())
-        .until(() -> !DriverStation.isTestEnabled())
-        .withName("ExampleLift_Tune");
+              // The loop condition is the guard: it refuses to start outside Utility mode and
+              // ends the moment the robot leaves it, so a mode transition applies no last setpoint.
+              while (org.wpilib.driverstation.RobotState.isUtilityEnabled()) {
+                double inches = TUNE_HEIGHT_INCHES.get();
+                Logger.recordOutput(ExampleLiftConstants.NAME + "/Tune/HeightIn", inches);
+                lift.setPositionInches(inches);
+                co.yield();
+              }
+            })
+        .named("ExampleLift_Tune");
   }
 }

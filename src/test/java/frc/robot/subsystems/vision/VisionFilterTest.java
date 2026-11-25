@@ -10,14 +10,6 @@ package frc.robot.subsystems.vision;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import edu.wpi.first.hal.HAL;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Pose3d;
-import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
-import edu.wpi.first.wpilibj.simulation.DriverStationSim;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.RobotState;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.vision.io.VisionIO;
@@ -29,6 +21,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.hardware.hal.HAL;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Pose3d;
+import org.wpilib.math.geometry.Rotation3d;
+import org.wpilib.math.kinematics.ChassisVelocities;
+import org.wpilib.math.kinematics.SwerveDriveKinematics;
+import org.wpilib.simulation.DriverStationSim;
 
 /**
  * Exercises every branch of the pose-rejection ladder in {@code Vision.periodic()}.
@@ -49,22 +48,21 @@ import org.littletonrobotics.junction.Logger;
  * the {@code VisionConsumer} — the pose estimator on a real robot — was handed it. No hardware, no
  * PhotonVision, no camera.
  *
- * <p><b>Cleanup matters.</b> {@code Vision} extends {@code SubsystemBase}, whose constructor
- * registers into the JVM-wide {@code CommandScheduler}. Each instance built here is unregistered
- * immediately — {@link #periodicWith} drives {@code periodic()} directly — so that a dozen stray
- * Vision objects are not still running during later test classes.
+ * <p>{@code Vision} is not a V3 mechanism and registers with nothing, so there is no scheduler
+ * cleanup: {@link #periodicWith} drives {@code periodic()} directly, as {@code
+ * RobotContainer.periodic()} does on the robot.
  */
 class VisionFilterTest {
 
   /** Comfortably inside the field, on the floor, level. The baseline every case perturbs. */
-  private static final Pose3d GOOD_POSE = new Pose3d(4.0, 3.0, 0.0, Rotation3d.kZero);
+  private static final Pose3d GOOD_POSE = new Pose3d(4.0, 3.0, 0.0, Rotation3d.ZERO);
 
   private static final double GOOD_TIMESTAMP = 12.34;
 
   @BeforeAll
   static void initializeHal() {
     // A bare assert would be skipped when JVM assertions are off, so HAL init must not live in one.
-    assertTrue(HAL.initialize(500, 0), "HAL failed to initialize; sim-backed tests cannot run");
+    assertTrue(HAL.initialize(), "HAL failed to initialize; sim-backed tests cannot run");
 
     // Vision.periodic() calls Logger.processInputs and Logger.recordOutput unconditionally.
     Logger.AdvancedHooks.disableRobotBaseCheck();
@@ -74,8 +72,8 @@ class VisionFilterTest {
     // record type the first time one is logged, and warns when that happens while enabled
     // because the work can blow the loop budget. VisionIOInputs carries PoseObservation and
     // TargetObservation records, so this test is where they are first seen — and the
-    // CommandScheduler is a JVM-wide singleton, so whichever test class ran first may have left
-    // the DriverStation enabled. On a real robot the schema is built during disabled, before
+    // DriverStation is JVM-wide, so whichever test class ran first may have left it enabled. On a
+    // real robot the schema is built during disabled, before
     // the match starts; saying so here makes the test match the robot rather than silencing a
     // warning that would be real.
     DriverStationSim.setEnabled(false);
@@ -245,15 +243,12 @@ class VisionFilterTest {
    */
   private static List<Pose2d> periodicWith(PoseObservation observation) {
     List<Pose2d> accepted = new ArrayList<>();
-    Vision vision =
+    try (Vision vision =
         new Vision(
             (pose, timestamp, stdDevs) -> accepted.add(pose),
-            new FakeVisionIO(new PoseObservation[] {observation}));
-
-    // periodic() is driven directly, so this instance has no business in the scheduler.
-    CommandScheduler.getInstance().unregisterSubsystem(vision);
-
-    vision.periodic();
+            new FakeVisionIO(new PoseObservation[] {observation}))) {
+      vision.periodic();
+    }
     return accepted;
   }
 
@@ -287,7 +282,7 @@ class VisionFilterTest {
     SwerveDriveKinematics kinematics = new SwerveDriveKinematics(Drive.getModuleTranslations());
     RobotState.getInstance()
         .updateModuleStates(
-            kinematics.toSwerveModuleStates(new ChassisSpeeds(0.0, 0.0, radiansPerSecond)));
+            kinematics.toSwerveModuleVelocities(new ChassisVelocities(0.0, 0.0, radiansPerSecond)));
   }
 
   /** Replays a fixed set of observations, standing in for a camera. */
