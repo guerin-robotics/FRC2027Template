@@ -3,7 +3,7 @@
 What is under test, what each check catches, and what to add when you build a mechanism.
 
 The suite is deliberately minimal, modelled on 6328's public robot code (one
-`RobotContainerTest`, plus constant checks wired into deploy and PRs): **5 test classes**, all
+`RobotContainerTest`, plus constant checks wired into deploy and PRs): **3 active test classes**, all
 fast, none touching hardware. It covers the failures that are *silent* — a robot that will not
 construct, two devices on one CAN ID, an event marker nothing is bound to — and leaves
 behaviour to simulation, logs and practice time. Adding a test is cheap; maintaining one that
@@ -37,9 +37,9 @@ built from one constant. Swerve devices do not claim; the test covers them.
 ### Wiring
 
 **`frc/robot/RobotContainerSmokeTest`** builds a real `RobotContainer` in SIM and asserts the
-constructor completes, the auto chooser yields a command, `Drive` keeps its `Drive_Joystick`
+constructor completes, each OpMode routine factory yields a command, `Drive` keeps its `Drive_Joystick`
 default, every default command is named, every BLine `lib_key` a path uses has a
-command bound to it, the auto preview survives "None" and a missing path file, and BLine's
+command bound to it, the auto preview survives an empty selection and a missing path file, and BLine's
 logging reaches the Auto Preview widget when a path runs (proof that `BLineAutos.createBuilder`
 installed its logging consumers).
 
@@ -68,11 +68,9 @@ reordering a filter does.
 
 ### Simulated drivetrain
 
-**`frc/robot/subsystems/drive/DriveSimulationTest`** runs `Drive` against the maple-sim chassis:
-it drives forward, rotates, resets the pose, and drives into the field boundary. It fails if
-module order disagrees between maple-sim and `Drive`, if the gyro stops following the chassis, if
-`setPose` moves the estimate but not the simulated robot, or if the boundary is missing. It steps
-the FPGA clock with `SimHooks.stepTiming` and waits on conditions rather than a fixed loop count.
+The maple-sim chassis tests are saved in [template/deferred/maple-sim](../template/deferred/maple-sim/README.md).
+The current SIM wiring uses per-module simulation. The smoke test checks that Drive and
+Vision log their inputs every loop and that each registered routine factory builds a command.
 
 ---
 

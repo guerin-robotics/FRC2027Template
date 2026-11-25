@@ -22,6 +22,11 @@ class Mechanism {                class Mechanism {
 }
 ```
 
+**Under Commands V3 nothing calls `periodic()` for you.** A V3 `Mechanism` has no
+`Subsystem.periodic()`, so `RobotContainer.periodic()` calls every subsystem's `periodic()` (which
+calls `Logger.processInputs()`) explicitly, in a fixed order, before the scheduler runs. A new
+subsystem must be added there; `RobotContainerSmokeTest` fails when one is missing.
+
 **Why:** This enables AdvantageKit log replay. If hardware calls are in the subsystem,
 you cannot replay a match log to reproduce a bug. We caught real match bugs this way.
 
@@ -76,13 +81,18 @@ methods, and delete the annotation when a method loses its last real caller.
 // CORRECT
 public class MechanismCommands {
     public static Command runAtVelocity(Mechanism mechanism, AngularVelocity velocity) {
-        return Commands.run(() -> mechanism.setVelocity(velocity), mechanism)
-            .withName("Mechanism_Velocity");
+        return mechanism
+            .run(co -> {
+              mechanism.setVelocity(velocity);
+              co.park();
+            })
+            .whenExited(mechanism::stop)
+            .named("Mechanism_Velocity");
     }
 }
 
 // WRONG
-public class RunMechanismAtVelocityCommand extends Command {
+public class RunMechanismAtVelocityCommand implements Command {
     private final Mechanism mechanism;
     ...
 }
@@ -91,10 +101,9 @@ public class RunMechanismAtVelocityCommand extends Command {
 **Why:** Static factories are composable, testable, and traceable in AdvantageKit logs.
 Named command classes create unnecessary files and hide composition structure.
 
-**Under Commands V3 this rule stays.** V3 makes `mechanism.run(...)` the builder entry point; the
-factories still live in `*Commands` classes, not on the subsystem. V3 also has **no
-`Subsystem.periodic()`** — nothing calls a mechanism's `periodic()` for you, so the port must wire
-every one explicitly or `Logger.processInputs()` silently stops running. See
+`mechanism.run(...)` is the V3 builder entry point and invites putting factories on the mechanism.
+Keep them in `*Commands` classes. V3 makes `.named(...)` a compile-time requirement, so "every
+command is named" is no longer a review item. Full rules: `03-commands.md` and
 [docs/commands-v3.md](../../docs/commands-v3.md).
 
 ---
@@ -125,46 +134,53 @@ was holding while ordinary driving looked fine (`docs/drive-controller-mode.md`)
 
 ## AllianceFlipUtil
 
-**Rule:** Never call `DriverStation.getAlliance()` in a hot path (any method called
-more than once per match).
+**Rule:** Never call `MatchState.getAlliance()` (2027's `DriverStation.getAlliance()`) in a hot
+path (any method called more than once per match).
 
 Use `AllianceFlipUtil.shouldFlip()`, which caches the result once per loop.
 `Robot.robotPeriodic()` calls `AllianceFlipUtil.refresh()` before the scheduler runs —
 do not remove that call.
 
-**Why:** `DriverStation.getAlliance()` returns `Optional<Alliance>` and allocates on
+**Why:** `MatchState.getAlliance()` returns `Optional<Alliance>` and allocates on
 every call. At 50 Hz this creates GC pressure and unpredictable `periodic()` timing.
 
 ---
 
 ## BLine Wiring
 
-Autos are BLine paths, followed by BLine-Lib's `FollowPath`. Point-to-point autos and the
-PID-to-pose finish were removed for now. See [docs/autos.md](../../docs/autos.md).
+Autos are BLine paths, followed by BLine-Lib's V3 `FollowPath` (`bline.commands.FollowPath`,
+`2027.0.0-beta.3`). Point-to-point autos and the PID-to-pose finish were removed for now. See
+[docs/autos.md](../../docs/autos.md).
 
 **Rule:** The path follower is BLine-Lib's `FollowPath`, configured in `BLineAutos.createBuilder`
-and fed by exactly three `Drive` methods: `getPose`, `getChassisSpeeds` (robot-relative, measured)
-and `runVelocity` (robot-relative, commanded). `Drive` holds no path-following code and no BLine
-import. The follower gains are named constants at the top of `BLineAutos`.
+and fed by exactly these `Drive` methods: `getPose`, `setPose` (the pose-reset callback),
+`getChassisSpeeds` (robot-relative, measured) and `runVelocity` (robot-relative, commanded). `Drive`
+is the `Mechanism` the path requires. `Drive` holds no path-following code and no BLine import. The
+follower gains are named constants at the top of `BLineAutos`.
 
-**Rule:** There is exactly one `FollowPath.Builder`, created by `BLineAutos.createBuilder(drive, mirror, preview)` in
-`RobotContainer`. `mirror` is the Left/Right chooser's supplier, and `preview` is the one
-`AutoPreview`; `createBuilder` is also the only place BLine's four logging consumers are set. Routines are static factories in `robot/autos/BLineAutos.java` that take it. The
+**Rule:** There is exactly one `FollowPath.Builder`, created by `BLineAutos.createBuilder(drive,
+mirror, preview)` in `RobotContainer`. `mirror` is the supplier for the Left/Right side, and
+`preview` is the one `AutoPreview`; `createBuilder` is also the only place BLine's four logging
+consumers are set. Routines are static factories in `robot/autos/BLineAutos.java` that take it. The
 builder reuses its PID objects, so two path commands from it must never run at once.
+
+**Rule:** Build path commands with `BLineAutos.follow(builder, path)` — never `builder.build(path)`
+directly, or the command is not mirrored. In 2027 BLine mirroring and pose reset are **per
+command**, not builder state.
 
 **Rule:** Event triggers are bound with `BLineAutos.bind(key, command)` in `RobotContainer`, before
 any routine is built. An unregistered `lib_key` only logs a warning on the field, and the auto
 follows its path without the action. `RobotContainerSmokeTest` fails if a path in
 `deploy/autos/paths` uses a `lib_key` nothing is bound to.
 
-**Rule:** A command bound to an event trigger must not require the drive. It is scheduled alongside
-the path command, which requires the drive, so sharing that requirement interrupts the path
-mid-run. When an event command shares a requirement with a later step of the same routine, compose
-the routine with `BLineCommands` (`sequence`, `deadline`, ...) instead of `Commands`, or scheduling
-the event cancels the whole group.
+**Rule:** A command bound to an event trigger must not require the drive. BLine schedules it on the
+default `Scheduler` independently of the path command, which requires the drive; an equal-priority
+command sharing that requirement interrupts the path mid-run. When an event command shares a
+requirement with a later step of the same routine, structure the routine so the event command is
+not canceled with a group (see `03-commands.md`).
 
 **Rule:** Autos are authored blue-left only. The Driver Station alliance flips them
-(`withDefaultShouldFlip`) and the `Auto Side` chooser mirrors them (`withShouldMirror`); neither is
+(`withDefaultShouldFlip`) and the Right OpMode mirrors them (`withShouldMirror`); neither is
 reimplemented in code. Never also call `Path.flip()` or `mirror()` on a path you hand to the
 builder, or it transforms twice.
 
@@ -172,18 +188,20 @@ builder, or it transforms twice.
 physical progress, not a clock, so a blocked robot never finishes a path on its own.
 
 **Rule:** Reset odometry from the first path of a routine only, with
-`builder.withPoseReset(drive::setPose)`, then clear it with `builder.withPoseReset(ignored -> {})`.
-Resetting from a later path teleports the pose estimate mid-auto. Do not call
-`drive.setPose(path.getStartPose())` yourself: it skips the alliance flip the builder applies.
+`BLineAutos.followFirst(builder, path)`, and use `follow` for every later path. Resetting from a
+later path teleports the pose estimate mid-auto. Do not call `drive.setPose(path.getStartPose())`
+yourself: it skips the alliance flip BLine applies.
 
-**Rule:** The auto chooser is AdvantageKit's `LoggedDashboardChooser<Supplier<Command>>`. The
-selection is then a logged input and replays; the supplier builds the routine at auto start, so only
-the selected auto's paths load.
+**Rule:** Each routine is registered as an **Autonomous OpMode** (per side) by `frc.robot.opmodes
+.OpModes`, from the map `BLineAutos.all(...)` returns. The supplier builds the routine when the
+OpMode starts, so only the selected auto's paths load. AdvantageKit logs the selected OpMode, so the
+selection replays. There is no dashboard auto chooser.
 
 **Why the robot config is not in code:** BLine paths carry no robot model. Speed and acceleration
 ceilings come from `src/main/deploy/autos/config.json` and the per-path constraints exported by
 BLine Web, and a wrong ceiling there makes paths the robot cannot follow. No code change fixes it:
-measure the limits and re-export from BLine Web.
+measure the limits and re-export from BLine Web. The handoff mode (`default_handoff_mode`:
+`PROGRESS`) is also project config in 2027, where 2026 set it on the builder.
 
 ---
 

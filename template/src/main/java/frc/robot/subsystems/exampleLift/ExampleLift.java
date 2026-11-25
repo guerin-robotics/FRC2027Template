@@ -1,19 +1,19 @@
 package frc.robot.subsystems.exampleLift;
 
-import static edu.wpi.first.units.Units.Amps;
-import static edu.wpi.first.units.Units.RPM;
-import static edu.wpi.first.units.Units.Rotations;
+import static org.wpilib.units.Units.Amps;
+import static org.wpilib.units.Units.RPM;
+import static org.wpilib.units.Units.Rotations;
 
-import edu.wpi.first.math.filter.Debouncer;
-import edu.wpi.first.units.measure.Voltage;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.lib.util.CommandLogger;
 import frc.robot.Robot;
 import frc.robot.subsystems.exampleLift.io.ExampleLiftIO;
 import frc.robot.subsystems.exampleLift.io.ExampleLiftIOInputsAutoLogged;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.command3.Mechanism;
+import org.wpilib.driverstation.DriverStationErrors;
+import org.wpilib.math.filter.Debouncer;
+import org.wpilib.system.Timer;
+import org.wpilib.units.measure.Voltage;
 
 /**
  * Linear position-controlled mechanism — elevator, lift, extension.
@@ -49,7 +49,7 @@ import org.littletonrobotics.junction.Logger;
  *       RobotState} or take a {@code Supplier} in the constructor.
  * </ol>
  */
-public class ExampleLift extends SubsystemBase {
+public class ExampleLift implements Mechanism {
 
   /**
    * Fraction of the stator limit at which the mechanism counts as saturated.
@@ -91,7 +91,7 @@ public class ExampleLift extends SubsystemBase {
    */
   private final Debouncer zeroingStallDebounce =
       new Debouncer(
-          ExampleLiftConstants.ZEROING_STALL_DEBOUNCE_SECONDS, Debouncer.DebounceType.kRising);
+          ExampleLiftConstants.ZEROING_STALL_DEBOUNCE_SECONDS, Debouncer.DebounceType.RISING);
 
   private boolean atZeroingStall = false;
 
@@ -106,7 +106,11 @@ public class ExampleLift extends SubsystemBase {
     this.inputs = new ExampleLiftIOInputsAutoLogged();
   }
 
-  @Override
+  /**
+   * Reads inputs and logs. Commands V3 has no {@code Subsystem.periodic()}: nothing calls this for
+   * you. Add it to {@code RobotContainer.periodic()}, or {@code Logger.processInputs()} never runs
+   * and replay silently breaks. {@code RobotContainerSmokeTest} fails if it is missing.
+   */
   public void periodic() {
     io.updateInputs(inputs);
     Logger.processInputs(ExampleLiftConstants.NAME, inputs); // NEVER remove this line
@@ -234,7 +238,7 @@ public class ExampleLift extends SubsystemBase {
     zeroed = false; // the frame is about to change; nothing may trust the old one meanwhile
     closedLoopActive = false;
     zeroPending = true;
-    zeroRequestedAt = Timer.getFPGATimestamp();
+    zeroRequestedAt = Timer.getTimestamp();
     io.zeroPosition();
   }
 
@@ -249,11 +253,10 @@ public class ExampleLift extends SubsystemBase {
       zeroed = true;
       goalInches = 0.0;
       Logger.recordOutput(ExampleLiftConstants.NAME + "/ZeroFailed", false);
-    } else if (Timer.getFPGATimestamp() - zeroRequestedAt
-        > ExampleLiftConstants.ZERO_CONFIRM_SECONDS) {
+    } else if (Timer.getTimestamp() - zeroRequestedAt > ExampleLiftConstants.ZERO_CONFIRM_SECONDS) {
       zeroPending = false;
       Logger.recordOutput(ExampleLiftConstants.NAME + "/ZeroFailed", true);
-      DriverStation.reportError(
+      DriverStationErrors.reportError(
           ExampleLiftConstants.NAME
               + " zero failed: the position never read zero after the zero was sent",
           false);

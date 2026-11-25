@@ -1,15 +1,15 @@
 package frc.robot.subsystems.exampleLift;
 
-import edu.wpi.first.math.geometry.Pose3d;
-import edu.wpi.first.math.geometry.Translation3d;
-import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.util.Color;
-import edu.wpi.first.wpilibj.util.Color8Bit;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.mechanism.LoggedMechanism2d;
 import org.littletonrobotics.junction.mechanism.LoggedMechanismLigament2d;
 import org.littletonrobotics.junction.mechanism.LoggedMechanismRoot2d;
+import org.wpilib.math.geometry.Pose3d;
+import org.wpilib.math.geometry.Translation3d;
+import org.wpilib.math.util.Units;
+import org.wpilib.telemetry.Telemetry;
+import org.wpilib.util.Color;
+import org.wpilib.util.Color8Bit;
 
 /**
  * Draws the lift, so a wrong number is visible as a wrong picture.
@@ -47,9 +47,10 @@ import org.littletonrobotics.junction.mechanism.LoggedMechanismRoot2d;
  * whole thing can be switched off in one place. Turn it off for competition unless you have checked
  * {@code LoopTiming/} with it on and the budget is intact.
  *
- * <p>{@code SmartDashboard.putData} is called <b>once</b>, in the constructor. The 2026 {@code
- * IntakePivotVisualizer} called it inside its update method, re-publishing the Sendable fifty times
- * a second — the dashboard holds a reference and reads through it, so once is all it ever needed.
+ * <p>The {@code Mechanism2d} is published with {@code Telemetry.log} from {@link #update}, every
+ * loop: in 2027 it is a {@code TelemetryLoggable}, which reaches the dashboard only when logged
+ * (2026 published the Sendable once and the dashboard read through it). It rides the same {@code
+ * ENABLED} switch as everything else here.
  *
  * <p>TEMPLATE INSTRUCTIONS: rename throughout, then fill in the {@code Visualization} block in
  * {@link ExampleLiftConstants}. The display geometry is cosmetic and can be nudged while watching
@@ -59,11 +60,11 @@ public class ExampleLiftVisualizer {
 
   // Cached, because a Color8Bit built inside update() is garbage generated fifty times a second
   // for no reason. Same argument as caching StatusSignals — see .claude/rules/02-hardware.md.
-  private static final Color8Bit COLOR_MEASURED = new Color8Bit(Color.kGreen);
-  private static final Color8Bit COLOR_GOAL = new Color8Bit(Color.kYellow);
-  private static final Color8Bit COLOR_BOUND = new Color8Bit(Color.kWhite);
-  private static final Color8Bit COLOR_BACKGROUND = new Color8Bit(Color.kBlack);
-  private static final Color8Bit COLOR_BACKGROUND_AT_GOAL = new Color8Bit(Color.kDarkGreen);
+  private static final Color8Bit COLOR_MEASURED = new Color8Bit(Color.GREEN);
+  private static final Color8Bit COLOR_GOAL = new Color8Bit(Color.YELLOW);
+  private static final Color8Bit COLOR_BOUND = new Color8Bit(Color.WHITE);
+  private static final Color8Bit COLOR_BACKGROUND = new Color8Bit(Color.BLACK);
+  private static final Color8Bit COLOR_BACKGROUND_AT_GOAL = new Color8Bit(Color.DARK_GREEN);
 
   /** Drawn thicker than the goal so it reads on top where the two overlap. */
   private static final double LINE_WIDTH_MEASURED = 6.0;
@@ -121,9 +122,6 @@ public class ExampleLiftVisualizer {
 
     root.append(goal);
     root.append(measured);
-
-    // ONCE, not every loop. The dashboard keeps a reference and reads through it.
-    SmartDashboard.putData(ExampleLiftConstants.NAME + "/Visualizer", mechanism);
   }
 
   /**
@@ -147,6 +145,7 @@ public class ExampleLiftVisualizer {
     mechanism.setBackgroundColor(atGoal ? COLOR_BACKGROUND_AT_GOAL : COLOR_BACKGROUND);
 
     Logger.recordOutput(ExampleLiftConstants.NAME + "/Visualizer/Mechanism2d", mechanism);
+    Telemetry.log(ExampleLiftConstants.NAME + "/Visualizer", mechanism);
 
     // --- 3D component pose, for the AdvantageScope robot model ---
     //

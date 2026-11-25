@@ -2,13 +2,10 @@
 
 Season-start template carried over from the 2026 competition robot (`Rebuilt2026`).
 
-It is the AdvantageKit Tuner X swerve template **plus** the drivetrain, vision and
-infrastructure work from two competition seasons — with every 2026 mechanism and every
-piece of 2026 game logic stripped out.
-
-Build it, deploy it, and the robot drives with field-relative swerve, AprilTag pose
-estimation, BLine path following, and full AdvantageKit logging
-and replay. Nothing else.
+The template carries forward the team's AdvantageKit TalonFX(S) swerve and PhotonVision
+implementation. It targets WPILib 2027 alpha-8, Commands V3, Java 25, and Systemcore.
+Desktop builds and tests pass. Systemcore bring-up and dashboard telemetry validation are pending.
+See the [migration notes](docs/2027-migration.md) for the toolchain and hardware prerequisites.
 
 ---
 
@@ -207,7 +204,6 @@ All in `frc/lib/util/`.
 | `lib/Elastic` | Elastic dashboard notifications and tab switching |
 | `lib/ThrowingRunnable` | Functional interface for throwing config calls |
 | `lib/AllianceFlipUtil` | Alliance mirroring, cached once per loop |
-| `lib/ContinuousConditionalCommand` | Conditional that re-evaluates while running |
 | `lib/FieldConstants` | Field dimensions + AprilTag layout |
 | `lib/GeomUtil` | Pose/Transform/Twist conversions |
 | `lib/PointInPolygon` | Ray-casting zone containment |

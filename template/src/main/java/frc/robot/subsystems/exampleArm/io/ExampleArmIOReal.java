@@ -1,6 +1,6 @@
 package frc.robot.subsystems.exampleArm.io;
 
-import static edu.wpi.first.units.Units.Rotations;
+import static org.wpilib.units.Units.Rotations;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
@@ -10,16 +10,16 @@ import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.MagnetHealthValue;
-import edu.wpi.first.math.filter.Debouncer;
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.AngularVelocity;
-import edu.wpi.first.units.measure.Current;
-import edu.wpi.first.units.measure.Temperature;
-import edu.wpi.first.units.measure.Voltage;
 import frc.lib.device.CanIdRegistry;
 import frc.lib.util.PhoenixUtil;
 import frc.robot.Constants;
 import frc.robot.subsystems.exampleArm.ExampleArmConstants;
+import org.wpilib.math.filter.Debouncer;
+import org.wpilib.units.measure.Angle;
+import org.wpilib.units.measure.AngularVelocity;
+import org.wpilib.units.measure.Current;
+import org.wpilib.units.measure.Temperature;
+import org.wpilib.units.measure.Voltage;
 
 /**
  * Real hardware implementation for a rotary position-controlled mechanism.
@@ -67,11 +67,11 @@ public class ExampleArmIOReal implements ExampleArmIO {
    * for half a second, so a single dropped frame does not raise an alert mid-match.
    */
   private final Debouncer motorConnectedDebounce =
-      new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+      new Debouncer(0.5, Debouncer.DebounceType.FALLING);
 
   /** Separate debouncer for the encoder — it is a separate device that fails independently. */
   private final Debouncer encoderConnectedDebounce =
-      new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+      new Debouncer(0.5, Debouncer.DebounceType.FALLING);
 
   // ---- Control requests, built ONCE ----
 
@@ -80,21 +80,22 @@ public class ExampleArmIOReal implements ExampleArmIO {
   private final MotionMagicTorqueCurrentFOC positionRequest = new MotionMagicTorqueCurrentFOC(0);
 
   public ExampleArmIOReal() {
-    // TODO: add the real IDs to Constants.CanIds, and pick the bus deliberately — RIO_BUS here, or
+    // TODO: add the real IDs to Constants.CanIds, and pick the bus deliberately — MECHANISM_BUS_A
+    // here, or
     // TunerConstants.kCANBus for the CANivore.
     //
     // Claim every ID before constructing its device. A duplicate then stops boot with both owners
     // named, instead of two devices half-working on one ID.
     CanIdRegistry.claim(
         Constants.CanIds.EXAMPLE_ARM_MOTOR,
-        Constants.CanIds.RIO_BUS,
+        Constants.CanIds.MECHANISM_BUS_A,
         ExampleArmConstants.NAME + " motor");
     CanIdRegistry.claim(
         Constants.CanIds.EXAMPLE_ARM_ENCODER,
-        Constants.CanIds.RIO_BUS,
+        Constants.CanIds.MECHANISM_BUS_A,
         ExampleArmConstants.NAME + " encoder");
-    motor = new TalonFX(Constants.CanIds.EXAMPLE_ARM_MOTOR, Constants.CanIds.RIO_BUS);
-    encoder = new CANcoder(Constants.CanIds.EXAMPLE_ARM_ENCODER, Constants.CanIds.RIO_BUS);
+    motor = new TalonFX(Constants.CanIds.EXAMPLE_ARM_MOTOR, Constants.CanIds.MECHANISM_BUS_A);
+    encoder = new CANcoder(Constants.CanIds.EXAMPLE_ARM_ENCODER, Constants.CanIds.MECHANISM_BUS_A);
 
     // ORDER MATTERS: the encoder is configured FIRST, because the motor reads it while applying
     // its own config to set up rotor/CANcoder fusion. Configure the motor first and the fusion is
@@ -289,9 +290,10 @@ public class ExampleArmIOReal implements ExampleArmIO {
   //   // ...in the constructor, AFTER configuring the leader:
   //   CanIdRegistry.claim(
   //       Constants.CanIds.EXAMPLE_ARM_FOLLOWER,
-  //       Constants.CanIds.RIO_BUS,
+  //       Constants.CanIds.MECHANISM_BUS_A,
   //       ExampleArmConstants.NAME + " follower");
-  //   follower = new TalonFX(Constants.CanIds.EXAMPLE_ARM_FOLLOWER, Constants.CanIds.RIO_BUS);
+  //   follower = new TalonFX(Constants.CanIds.EXAMPLE_ARM_FOLLOWER,
+  // Constants.CanIds.MECHANISM_BUS_A);
   //
   //   // The leader's whole config, built once and applied once — MINUS THE TRAVEL BOUNDS. A
   //   // follower runs a Follower request, not a position loop, so its soft limits gate output

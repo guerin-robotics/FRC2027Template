@@ -1,10 +1,10 @@
 package frc.lib.util;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Transform2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.util.Units;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.geometry.Transform2d;
+import org.wpilib.math.geometry.Translation2d;
+import org.wpilib.math.util.Units;
 
 /**
  * Worked example of the pattern 6328 (Mechanical Advantage) rebuilds every season in their real
@@ -126,7 +126,7 @@ public class ExampleFieldConstants {
   public static Pose2d faceScoringPose(int faceIndex, Side side) {
     double lateral = side == Side.LEFT ? SIDE_OFFSET_METERS : -SIDE_OFFSET_METERS;
     return centerFaces[faceIndex].transformBy(
-        new Transform2d(new Translation2d(-STANDOFF_METERS, lateral), Rotation2d.kZero));
+        new Transform2d(new Translation2d(-STANDOFF_METERS, lateral), Rotation2d.ZERO));
   }
 
   /**

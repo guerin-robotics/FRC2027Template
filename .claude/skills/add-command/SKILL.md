@@ -34,31 +34,35 @@ In `commands/XxxCommands.java`, not on the subsystem:
 
 ```java
 public static Command runAtVelocity(Xxx xxx, AngularVelocity velocity) {
-  return Commands.startEnd(() -> xxx.setVelocity(velocity), xxx::stop, xxx)
-      .withName("Xxx_Velocity");
+  return xxx.run(co -> {
+        xxx.setVelocity(velocity);
+        co.park();
+      })
+      .whenExited(xxx::stop)
+      .named("Xxx_Velocity");
 }
 ```
 
 Checklist — all mandatory:
 
 - [ ] `public static Command`, no `extends Command`, no `new SomeCommand(...)`.
-- [ ] `.withName("Subsystem_ActionVerb_Param")`. Names appear in the log.
-- [ ] Requires the subsystem it drives (last argument of the `Commands.*` factory).
+- [ ] `.named("Subsystem_ActionVerb_Param")`. Names appear in the log.
+- [ ] Use the mechanism's factory so the command requires the mechanism it drives.
 - [ ] Setpoints are **parameters**. The factory never reads or hardcodes one.
-- [ ] **Every `Commands.waitUntil` has `.withTimeout(...)`**, from `Constants.Waits`, not inline.
+- [ ] **Every `waitUntil` has an explicit timeout**, from `Constants.Waits`, not inline.
 - [ ] Ready → Align → Act sequences: phase 2 timeout = total budget minus phase 1.
 - [ ] The command leaves the mechanism safe when interrupted (the `end` action stops or holds).
-- [ ] Default commands use `Commands.run`, never `runOnce`, and are safe idle states.
+- [ ] Default commands use `mechanism.runRepeatedly(...)` at `Command.LOWEST_PRIORITY` and are safe idle states.
 - [ ] No hardware calls — everything goes through the subsystem's methods and IO.
 - [ ] A command bound to a BLine event trigger **must not require the drive**, and must end itself.
 
-Factory choice: `startEnd` for hold-to-run, `runOnce` for do-once, `run` for every-loop,
-`sequence` / `parallel` / `deadline` for composition. Cross-subsystem sequencing goes in a
+Use `run` for a coroutine, `runRepeatedly` for an every-loop action, and `Command.sequence` or
+`Command.parallel` for composition. See [the command rules](../../rules/03-commands.md). Cross-subsystem sequencing goes in a
 dedicated command-composition class (the 2027 equivalent of 2026's `ShootSequences`), never in
 `RobotContainer` and never as one subsystem calling another.
 
 A `tune*` command that reads a `LoggedTunableNumber` is the one exception to "no dashboard values":
-it must require the mechanism, run only in enabled Test mode, and end when Test mode ends. Match
+it must require the mechanism, run only in enabled Utility mode with the held-button gate, and end when either gate closes. Match
 commands use compiled values from `Constants.Setpoints`.
 
 ## Step 3 — Put values where they belong

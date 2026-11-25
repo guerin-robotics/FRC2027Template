@@ -1,20 +1,20 @@
 package frc.robot.subsystems.exampleLift.io;
 
-import static edu.wpi.first.units.Units.Amps;
-import static edu.wpi.first.units.Units.Celsius;
-import static edu.wpi.first.units.Units.Inches;
-import static edu.wpi.first.units.Units.Rotations;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
-import static edu.wpi.first.units.Units.Volts;
+import static org.wpilib.units.Units.Amps;
+import static org.wpilib.units.Units.Celsius;
+import static org.wpilib.units.Units.Inches;
+import static org.wpilib.units.Units.Rotations;
+import static org.wpilib.units.Units.RotationsPerSecond;
+import static org.wpilib.units.Units.Volts;
 
-import edu.wpi.first.math.controller.ElevatorFeedforward;
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.system.plant.LinearSystemId;
-import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.Voltage;
-import edu.wpi.first.wpilibj.simulation.ElevatorSim;
 import frc.robot.subsystems.exampleLift.ExampleLiftConstants;
+import org.wpilib.math.controller.ElevatorFeedforward;
+import org.wpilib.math.controller.PIDController;
+import org.wpilib.math.system.Models;
+import org.wpilib.math.util.Units;
+import org.wpilib.simulation.ElevatorSim;
+import org.wpilib.units.measure.Angle;
+import org.wpilib.units.measure.Voltage;
 
 /**
  * Simulation implementation for a linear position-controlled mechanism.
@@ -67,7 +67,7 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
 
   private final ElevatorSim sim =
       new ElevatorSim(
-          LinearSystemId.createElevatorSystem(
+          Models.elevatorFromPhysicalConstants(
               ExampleLiftConstants.Sim.MOTOR,
               ExampleLiftConstants.Sim.CARRIAGE_MASS_KG,
               EFFECTIVE_DRUM_RADIUS_METERS,
@@ -142,14 +142,13 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
     inputs.reverseSoftLimitEnabled = reverseSoftLimitEnabled;
     inputs.motorVoltage = Volts.of(appliedVolts);
     inputs.motorPosition = Rotations.of(metersToRotations(reportedMeters()));
-    inputs.motorVelocity =
-        RotationsPerSecond.of(metersToRotations(sim.getVelocityMetersPerSecond()));
+    inputs.motorVelocity = RotationsPerSecond.of(metersToRotations(sim.getVelocity()));
     // WPILib models winding (stator) current. Supply current is what the battery sees, which under
     // PWM is stator scaled by duty cycle, |applied| / bus voltage. Reporting stator as supply
     // overstates battery draw exactly when the mechanism works hardest — the 2026 mistake in
     // .claude/rules/02-hardware.md — and that number feeds BatteryLogger. An estimate, not a model
     // of the Talon, but the right quantity.
-    double statorAmps = sim.getCurrentDrawAmps();
+    double statorAmps = sim.getCurrentDraw();
     inputs.motorStatorAmps = Amps.of(statorAmps);
     inputs.motorSupplyAmps =
         Amps.of(Math.abs(statorAmps) * Math.abs(appliedVolts) / NOMINAL_BUS_VOLTS);
@@ -190,7 +189,7 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
 
   @Override
   public void zeroPosition() {
-    zeroOffsetMeters = sim.getPositionMeters();
+    zeroOffsetMeters = sim.getPosition();
   }
 
   @Override
@@ -203,7 +202,7 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
 
   /** Height as the mechanism believes it, measured from wherever zero was last declared. */
   private double reportedMeters() {
-    return sim.getPositionMeters() - zeroOffsetMeters;
+    return sim.getPosition() - zeroOffsetMeters;
   }
 
   /** Carriage meters to drum rotations, honouring drum diameter and stage count. */

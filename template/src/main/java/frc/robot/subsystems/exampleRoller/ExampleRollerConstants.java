@@ -1,18 +1,18 @@
 package frc.robot.subsystems.exampleRoller;
 
-import static edu.wpi.first.units.Units.RPM;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
-import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
-import static edu.wpi.first.units.Units.Second;
-import static edu.wpi.first.units.Units.Seconds;
+import static org.wpilib.units.Units.RPM;
+import static org.wpilib.units.Units.RotationsPerSecond;
+import static org.wpilib.units.Units.RotationsPerSecondPerSecond;
+import static org.wpilib.units.Units.Second;
+import static org.wpilib.units.Units.Seconds;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.units.measure.Time;
 import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
+import org.wpilib.math.system.DCMotor;
+import org.wpilib.units.measure.Time;
 
 /**
  * Constants and motor configuration for a <b>VELOCITY-CONTROLLED</b> mechanism.

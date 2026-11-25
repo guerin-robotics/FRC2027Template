@@ -14,17 +14,18 @@ Sensors and outputs that are not motors. Each has the same shape (see
 
 ## Wiring a device into a subsystem
 
-The subsystem takes the wrapper (or its IO) in its constructor and calls `periodic()`:
+The mechanism takes the wrapper (or its IO) in its constructor and calls its `periodic()`.
+Import `org.wpilib.command3.Mechanism` and call `indexer.periodic()` from
+`RobotContainer.periodic()` before the scheduler runs.
 
 ```java
-public class Indexer extends SubsystemBase {
+public class Indexer implements Mechanism {
   private final BeamBreak staged;
 
   public Indexer(BeamBreakIO beamBreakIO) {
     staged = new BeamBreak("Indexer/Staged", beamBreakIO);
   }
 
-  @Override
   public void periodic() {
     staged.periodic(); // NEVER skip — it is what logs the inputs for replay
   }

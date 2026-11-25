@@ -1,18 +1,17 @@
 package frc.robot.commands;
 
-import static edu.wpi.first.units.Units.Degrees;
+import static org.wpilib.units.Units.Degrees;
+import static org.wpilib.units.Units.Seconds;
 
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.Voltage;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import frc.lib.util.LoggedTunableNumber;
 import frc.robot.Constants;
 import frc.robot.subsystems.exampleArm.ExampleArm;
 import frc.robot.subsystems.exampleArm.ExampleArmConstants;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.command3.Command;
+import org.wpilib.units.measure.Angle;
+import org.wpilib.units.measure.Voltage;
 
 /**
  * Command factory for a rotary position-controlled mechanism.
@@ -20,8 +19,10 @@ import org.littletonrobotics.junction.Logger;
  * <p>Commands are <b>static factory methods, not classes</b>. See {@code
  * .claude/rules/01-architecture.md}.
  *
- * <p><b>Always call {@code .withName()}.</b> Names appear in AdvantageKit's command log, and bad
- * names make a match impossible to debug. Format: {@code "SubsystemName_ActionVerb_OptionalParam"}.
+ * <p><b>Every command ends in {@code .named(...)}</b> — Commands V3 will not build one without a
+ * name. Names appear in AdvantageKit's command log, and bad names make a match impossible to debug.
+ * Format: {@code "SubsystemName_ActionVerb_OptionalParam"}. A body that loops must {@code
+ * co.yield()} every pass; V3 has no preemption.
  *
  * <h2>SETPOINTS ARE PARAMETERS</h2>
  *
@@ -46,21 +47,27 @@ public class ExampleArmCommands {
   /**
    * Commands a profiled move and finishes once the arm arrives.
    *
-   * <p><b>The timeout is mandatory.</b> A bare {@code waitUntil} hangs forever if the condition
-   * never becomes true, and a robot that hangs mid-sequence scores zero. This is a competition
-   * safety rule, not a style preference — see {@code .claude/rules/03-commands.md}.
+   * <p><b>The timeout is mandatory.</b> An untimed {@code waitUntil} (the command or the coroutine
+   * form) hangs forever if the condition never becomes true, and a robot that hangs mid-sequence
+   * scores zero. This is a competition safety rule, not a style preference — see {@code
+   * .claude/rules/03-commands.md}. The timed form returns a {@code WaitResult}; this logs whether
+   * the move timed out, so a log can tell "arrived" from "gave up".
    *
    * <p>It does <b>not</b> stop the mechanism when it ends. That is deliberate on a gravity-loaded
    * arm: the Talon keeps holding the last commanded position, which is what you want between the
-   * move and whatever happens next. A {@code finallyDo(stop)} here would let the arm fall the
+   * move and whatever happens next. A {@code whenExited(stop)} here would let the arm fall the
    * moment the command completed.
    */
   public static Command goToPosition(ExampleArm arm, Angle position) {
-    return Commands.sequence(
-            Commands.runOnce(() -> arm.setPosition(position), arm),
-            Commands.waitUntil(arm::isAtPosition)
-                .withTimeout(Constants.Waits.MECHANISM_READY_SECONDS))
-        .withName("ExampleArm_GoTo_" + Math.round(position.in(Degrees)) + "deg");
+    return arm.run(
+            co -> {
+              arm.setPosition(position);
+              var arrived =
+                  co.waitUntil(
+                      arm::isAtPosition, Seconds.of(Constants.Waits.MECHANISM_READY_SECONDS));
+              Logger.recordOutput(ExampleArmConstants.NAME + "/GoTo/TimedOut", arrived.timedOut());
+            })
+        .named("ExampleArm_GoTo_" + Math.round(position.in(Degrees)) + "deg");
   }
 
   /**
@@ -73,22 +80,26 @@ public class ExampleArmCommands {
    * <p>Runs until interrupted, so it is a natural fit for {@code whileTrue}.
    */
   public static Command trackPosition(ExampleArm arm, Supplier<Angle> positionSupplier) {
-    return Commands.run(() -> arm.setPosition(positionSupplier.get()), arm)
-        .withName("ExampleArm_Track");
+    return arm.runRepeatedly(() -> arm.setPosition(positionSupplier.get()))
+        .named("ExampleArm_Track");
   }
 
   /**
    * Default command: hold a safe resting angle.
    *
-   * <p>Runs whenever nothing else requires the subsystem, and it must <b>never end</b> — {@code
-   * Commands.run}, not {@code Commands.runOnce}.
+   * <p>Runs whenever nothing else requires the mechanism, and it must <b>never end</b> — {@code
+   * runRepeatedly}, not a one-shot. It runs at {@code LOWEST_PRIORITY}: V3 lets a new command
+   * interrupt a running one only at equal or higher priority, so a default at or above {@code
+   * DEFAULT_PRIORITY} would block every ordinary command.
    *
    * <p><b>Do not make this a stop.</b> Zero output on a gravity-loaded arm means it falls. The safe
    * idle state for this scaffold is holding a position, which is what closed-loop control gives you
    * for free.
    */
   public static Command holdAt(ExampleArm arm, Angle stowPosition) {
-    return Commands.run(() -> arm.setPosition(stowPosition), arm).withName("ExampleArm_Hold");
+    return arm.runRepeatedly(() -> arm.setPosition(stowPosition))
+        .withPriority(Command.LOWEST_PRIORITY)
+        .named("ExampleArm_Hold");
   }
 
   /**
@@ -99,8 +110,13 @@ public class ExampleArmCommands {
    * anything is tuned; see {@code docs/new-mechanism-bringup.md}.
    */
   public static Command runAtVoltage(ExampleArm arm, Voltage voltage) {
-    return Commands.startEnd(() -> arm.setVoltage(voltage), arm::stop, arm)
-        .withName("ExampleArm_Voltage");
+    return arm.run(
+            co -> {
+              arm.setVoltage(voltage);
+              co.park();
+            })
+        .whenExited(arm::stop)
+        .named("ExampleArm_Voltage");
   }
 
   /**
@@ -120,32 +136,29 @@ public class ExampleArmCommands {
    * <p>It does <b>not</b> stop when it ends: the arm keeps holding the last angle, because zero
    * output on a gravity-loaded arm lets it fall.
    *
-   * <p><b>Test mode, with Start held.</b> Bind it with {@code
-   * triggers.tuningEnabled.whileTrue(...)}, which is true only while the robot is enabled in test
-   * mode AND the operator holds Start — a dead-man switch, so enabling test mode for something else
-   * does not move the mechanism. It also refuses to start outside test mode and ends the moment the
-   * robot leaves it, and {@code LoggedTunableNumber.get()} returns its default outside test mode
-   * anyway, so the dashboard value can never reach the field. At the 2027 port it becomes a
-   * {@code @Utility} OpMode; keep the held button.
+   * <p><b>Utility mode, with Start held.</b> Bind it with {@code
+   * triggers.tuningEnabled.whileTrue(...)}, which is true only while the robot is enabled in
+   * Utility mode AND the operator holds Start (the {@code menu()} button) — a dead-man switch, so
+   * enabling a Utility OpMode for something else does not move the mechanism. It also ends the
+   * moment the robot leaves Utility mode, and {@code LoggedTunableNumber.get()} returns its default
+   * outside it anyway, so the dashboard value can never reach the field. It is a candidate to
+   * become a {@code @Utility} OpMode of its own; keep the held button.
    *
    * <p>When the number is right, write it into {@code Constants.Setpoints} and commit it. The
    * dashboard value lives only in NetworkTables and is gone at the next boot.
    */
   public static Command tunePosition(ExampleArm arm) {
-    return Commands.run(
-            () -> {
-              // Guard every execution as well as scheduling: the end check runs after execute(),
-              // so a mode transition must not apply one last dashboard setpoint.
-              if (!DriverStation.isTestEnabled()) {
-                return;
+    return arm.run(
+            co -> {
+              // The loop condition is the guard: it refuses to start outside Utility mode and
+              // ends the moment the robot leaves it, so a mode transition applies no last setpoint.
+              while (org.wpilib.driverstation.RobotState.isUtilityEnabled()) {
+                double degrees = TUNE_POSITION_DEGREES.get();
+                Logger.recordOutput(ExampleArmConstants.NAME + "/Tune/PositionDeg", degrees);
+                arm.setPosition(Degrees.of(degrees));
+                co.yield();
               }
-              double degrees = TUNE_POSITION_DEGREES.get();
-              Logger.recordOutput(ExampleArmConstants.NAME + "/Tune/PositionDeg", degrees);
-              arm.setPosition(Degrees.of(degrees));
-            },
-            arm)
-        .onlyIf(DriverStation::isTestEnabled)
-        .until(() -> !DriverStation.isTestEnabled())
-        .withName("ExampleArm_Tune");
+            })
+        .named("ExampleArm_Tune");
   }
 }

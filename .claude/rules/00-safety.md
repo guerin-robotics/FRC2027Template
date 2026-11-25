@@ -38,7 +38,7 @@ before any code is written. If unsure whether a change falls here, it does.
 
 - **Timeouts** on any `waitUntil` in a scoring or handoff sequence
 - **Any trigger that gates whether a mechanism is allowed to fire or extend**
-- **Tuning and demo behavior** — there are no tuning or demo flags to leave on. `tune*` commands may run only in enabled Test mode behind the held dead-man button (`Triggers.tuningEnabled`), and in 2027 each becomes a `@Utility` OpMode. Moving one out of that gate is a Hard Stop
+- **Tuning and demo behavior** — there are no tuning or demo flags to leave on. `tune*` commands may run only in enabled **Utility** mode (what 2026 called Test mode) behind the held dead-man button (`Triggers.tuningEnabled`), and characterization routines are Utility OpModes. Moving one out of that gate is a Hard Stop
 
 ### AdvantageKit Integrity
 
