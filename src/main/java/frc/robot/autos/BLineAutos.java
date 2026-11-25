@@ -1,8 +1,8 @@
 package frc.robot.autos;
 
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.lib.BLine.FollowPath;
+import bline.commands.FollowPath;
+import bline.following.DriveType;
+import bline.path.Path;
 import frc.robot.subsystems.drive.Drive;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -11,8 +11,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.command3.Command;
+import org.wpilib.math.controller.PIDController;
 
 /**
  * BLine autos: polyline paths drawn in BLine Web, exported to {@code src/main/deploy/autos/}, and
@@ -64,7 +67,8 @@ public final class BLineAutos {
    * builder.withPoseReset(ignored -> {})} for the rest.
    */
   public static FollowPath.Builder createBuilder(
-      Drive drive, Supplier<Boolean> mirror, AutoPreview preview) {
+      Drive drive, BooleanSupplier mirror, AutoPreview preview) {
+    mirrorSupplier = mirror;
     FollowPath.setDoubleLoggingConsumer(
         value -> Logger.recordOutput(value.getFirst(), value.getSecond()));
     FollowPath.setBooleanLoggingConsumer(
@@ -87,17 +91,40 @@ public final class BLineAutos {
           }
         });
 
+    // 2027 BLine: pose reset and mirroring are per command (see follow / followFirst), the reset
+    // callback is a constructor argument, and the handoff mode moved to config.json
+    // ("default_handoff_mode": "PROGRESS" there replaces the old builder flag).
     return new FollowPath.Builder(
+            DriveType.SWERVE,
             drive,
             drive::getPose,
+            drive::setPose,
             drive::getChassisSpeeds,
             drive::runVelocity,
             new PIDController(TRANSLATION_KP, 0.0, 0.0),
             new PIDController(ROTATION_KP, 0.0, 0.0),
             new PIDController(CROSS_TRACK_KP, 0.0, 0.0))
-        .withDefaultShouldFlip()
-        .withShouldMirror(mirror)
-        .withTRatioBasedTranslationHandoffs(true);
+        .withDefaultShouldFlip();
+  }
+
+  /** The Left/Right supplier handed to {@link #createBuilder}, applied to every path command. */
+  private static BooleanSupplier mirrorSupplier = () -> false;
+
+  /**
+   * A path command that follows {@code path} without touching odometry. Use for every path after
+   * the first in a routine. Mirrors per the Left/Right chooser; flips per the alliance.
+   */
+  public static FollowPath follow(FollowPath.Builder builder, Path path) {
+    return builder.build(path).withShouldMirror(mirrorSupplier);
+  }
+
+  /**
+   * As {@link #follow}, and resets odometry to the path's start (alliance flip and mirror applied
+   * by BLine). Use on the FIRST path of a routine only: resetting from a later path teleports the
+   * pose estimate mid-auto.
+   */
+  public static FollowPath followFirst(FollowPath.Builder builder, Path path) {
+    return follow(builder, path).withPoseReset();
   }
 
   /**
@@ -159,16 +186,15 @@ public final class BLineAutos {
   //   public static Command example(FollowPath.Builder builder, Drive drive) {
   //     Path path = new Path("example"); // loads deploy/autos/paths/example.json
   //
-  //     // Reset odometry to the path's start on the first path only, then clear the reset.
-  //     Command follow =
-  //         builder.withPoseReset(drive::setPose).build(path)
-  //             .withTimeout(Constants.Waits.PATH_TIMEOUT_SECONDS);
-  //     builder.withPoseReset(ignored -> {});
+  //     // Reset odometry to the path's start on the first path only (followFirst); later
+  //     // paths use follow(). Every path command needs a timeout from Constants.Waits.
+  //     Command first =
+  //         followFirst(builder,
+  // path).withTimeout(Seconds.of(Constants.Waits.PATH_TIMEOUT_SECONDS));
   //
-  //     // Mechanism actions go on event triggers (bind). Compose with BLineCommands.sequence /
-  //     // deadline rather than Commands.* when an event command shares a requirement with a
-  //     // later step in the same group, or scheduling it cancels the whole auto.
-  //     return follow.withName("Auto_Example");
+  //     // Mechanism actions go on event triggers (bind). A bound command must not require the
+  //     // drive: it is scheduled independently, and would interrupt the path.
+  //     return Command.sequence(first).named("Auto_Example");
   //   }
 
 }

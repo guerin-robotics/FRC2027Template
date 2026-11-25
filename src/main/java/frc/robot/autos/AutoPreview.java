@@ -1,17 +1,17 @@
 package frc.robot.autos;
 
-import static edu.wpi.first.math.util.Units.metersToInches;
+import static org.wpilib.math.util.Units.metersToInches;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.wpilibj.smartdashboard.Field2d;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import bline.path.Path;
 import frc.robot.Constants;
-import frc.robot.lib.BLine.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.geometry.Translation2d;
+import org.wpilib.smartdashboard.Field2d;
+import org.wpilib.telemetry.Telemetry;
 
 /**
  * "Auto Preview" field widget: draws the selected auto's BLine paths exactly as they will run
@@ -32,6 +32,11 @@ public final class AutoPreview {
 
   private final Field2d field = new Field2d();
 
+  /** The widget itself, for tests to inspect what was drawn. */
+  public Field2d getField() {
+    return field;
+  }
+
   /** What the drawn preview was built from. Any difference means redraw. */
   private List<String> loadedNames = null;
 
@@ -48,17 +53,24 @@ public final class AutoPreview {
   private boolean startHeadingConstrained = true;
 
   public AutoPreview() {
-    SmartDashboard.putData("Auto Preview", field);
+    publish();
+  }
+
+  /** Field2d is a TelemetryLoggable: it reaches the dashboard only when logged. */
+  private void publish() {
+    Telemetry.log("Auto Preview", field);
   }
 
   /** The leg FollowPath is running, as it transformed it (the path the robot actually follows). */
   public void showActivePath(Translation2d[] translations) {
     field.getObject("activePath").setPoses(toPoses(translations));
+    publish();
   }
 
   /** The closest point on the active segment to the robot. */
   public void showClosestPoint(Pose2d pose) {
     field.getObject("closestPoint").setPose(pose);
+    publish();
   }
 
   /**
@@ -83,11 +95,13 @@ public final class AutoPreview {
 
     field.setRobotPose(robotPose);
     checkStartPose(robotPose);
+    publish();
   }
 
   /** Call every loop during auto so the robot follows the path on the widget. */
   public void showRobot(Pose2d robotPose) {
     field.setRobotPose(robotPose);
+    publish();
   }
 
   private void load(List<String> pathNames, boolean flip, boolean mirror) {
@@ -130,6 +144,8 @@ public final class AutoPreview {
 
   private void checkStartPose(Pose2d robotPose) {
     if (startPose == null) {
+      Logger.recordOutput("Auto/StartCheck/DistanceInches", Double.NaN);
+      Logger.recordOutput("Auto/StartCheck/RotationDiffDegrees", Double.NaN);
       Logger.recordOutput("Auto/StartCheck/PositionOK", false);
       Logger.recordOutput("Auto/StartCheck/RotationOK", false);
       return;
@@ -152,7 +168,7 @@ public final class AutoPreview {
   private static List<Pose2d> toPoses(Translation2d[] translations) {
     List<Pose2d> poses = new ArrayList<>();
     for (Translation2d t : translations) {
-      poses.add(new Pose2d(t, Rotation2d.kZero));
+      poses.add(new Pose2d(t, Rotation2d.ZERO));
     }
     return poses;
   }

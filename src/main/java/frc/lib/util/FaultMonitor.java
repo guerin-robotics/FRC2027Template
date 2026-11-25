@@ -1,12 +1,12 @@
 package frc.lib.util;
 
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.telemetry.Telemetry;
 
 /**
  * Collapses every known fault condition into one thing the drive team can actually watch.
@@ -79,8 +79,8 @@ public class FaultMonitor {
     Logger.recordOutput("RobotHealth/ActiveFaults", activeFaults.toArray(new String[0]));
 
     // Dashboard mirror — this is the one the pit actually watches.
-    SmartDashboard.putBoolean("Robot OK", healthy);
-    SmartDashboard.putString("Active Faults", healthy ? "None" : String.join(", ", activeFaults));
+    Telemetry.log("Robot OK", healthy);
+    Telemetry.log("Active Faults", healthy ? "None" : String.join(", ", activeFaults));
   }
 
   /** True when no registered fault is currently present. */

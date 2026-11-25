@@ -3,9 +3,10 @@ package frc.lib.device.beambreak;
 import au.grapplerobotics.interfaces.LaserCanInterface.RangingMode;
 import au.grapplerobotics.interfaces.LaserCanInterface.RegionOfInterest;
 import au.grapplerobotics.interfaces.LaserCanInterface.TimingBudget;
-import edu.wpi.first.units.measure.Distance;
 import frc.lib.device.distance.DistanceSensorIO.DistanceSensorInputs;
 import frc.lib.device.distance.DistanceSensorIOLaserCAN;
+import org.wpilib.hardware.bus.CANPort;
+import org.wpilib.units.measure.Distance;
 
 /**
  * A LaserCAN used as a beam break: broken when a valid reading is closer than a threshold.
@@ -26,12 +27,13 @@ public class BeamBreakIOLaserCAN implements BeamBreakIO {
    */
   public BeamBreakIOLaserCAN(
       String name,
+      CANPort port,
       int canId,
       Distance threshold,
       RangingMode mode,
       RegionOfInterest roi,
       TimingBudget budget) {
-    this.sensor = new DistanceSensorIOLaserCAN(name, canId, mode, roi, budget);
+    this.sensor = new DistanceSensorIOLaserCAN(name, port, canId, mode, roi, budget);
     this.threshold = threshold;
   }
 

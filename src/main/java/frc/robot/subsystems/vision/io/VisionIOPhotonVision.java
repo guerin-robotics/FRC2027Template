@@ -9,8 +9,6 @@ package frc.robot.subsystems.vision.io;
 
 import static frc.robot.subsystems.vision.VisionConstants.*;
 
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Transform3d;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,6 +18,8 @@ import org.photonvision.EstimatedRobotPose;
 import org.photonvision.PhotonCamera;
 import org.photonvision.PhotonPoseEstimator;
 import org.photonvision.targeting.PhotonTrackedTarget;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.geometry.Transform3d;
 
 /**
  * IO implementation for real PhotonVision hardware.
@@ -74,7 +74,7 @@ public class VisionIOPhotonVision implements VisionIO {
                 Rotation2d.fromDegrees(result.getBestTarget().getYaw()),
                 Rotation2d.fromDegrees(result.getBestTarget().getPitch()));
       } else {
-        inputs.latestTargetObservation = new TargetObservation(Rotation2d.kZero, Rotation2d.kZero);
+        inputs.latestTargetObservation = new TargetObservation(Rotation2d.ZERO, Rotation2d.ZERO);
       }
 
       // Skip results with no targets — nothing to estimate from
@@ -101,7 +101,8 @@ public class VisionIOPhotonVision implements VisionIO {
 
       // Record pipeline latency for the newest result we processed.
       inputs.latencySeconds =
-          (result.metadata.publishTimestampMicros - result.metadata.captureTimestampMicros) / 1e6;
+          // PhotonVision 2027 metadata timestamps are nanoseconds (2026 was microseconds).
+          (result.metadata.publishTimestampNanos - result.metadata.captureTimestampNanos) / 1e9;
 
       // Collect all tag IDs seen (estimate.targetsUsed contains every target in the frame).
       //

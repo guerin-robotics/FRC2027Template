@@ -50,7 +50,7 @@ class CanIdUniquenessTest {
    * other mechanism is on the roboRIO bus. If a mechanism is ever deliberately placed on the
    * CANivore, that exception has to be taught to this test as well as written down.
    */
-  private static final String MECHANISM_BUS = Constants.CanIds.RIO_BUS.getName();
+  private static final String MECHANISM_BUS = Constants.CanIds.MECHANISM_BUS_A.getName();
 
   /**
    * Phoenix accepts device IDs 0 through 62. 63 is reserved for broadcast, and a negative ID is a
@@ -179,7 +179,8 @@ class CanIdUniquenessTest {
    * Every {@code public static final int} on {@link Constants.CanIds}.
    *
    * <p>Reflection rather than an enumerated list, so a device added to that class is covered
-   * without anyone remembering to add it here. Non-int fields — {@code RIO_BUS} — are skipped.
+   * without anyone remembering to add it here. Non-int fields — {@code MECHANISM_BUS_A} — are
+   * skipped.
    */
   private static List<CanDevice> mechanismDevices() {
     List<CanDevice> devices = new ArrayList<>();

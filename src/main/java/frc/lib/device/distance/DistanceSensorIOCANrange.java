@@ -5,10 +5,10 @@ import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.CANrangeConfiguration;
 import com.ctre.phoenix6.hardware.CANrange;
-import edu.wpi.first.math.filter.Debouncer;
-import edu.wpi.first.units.measure.Distance;
 import frc.lib.device.CanIdRegistry;
 import frc.lib.util.PhoenixUtil;
+import org.wpilib.math.filter.Debouncer;
+import org.wpilib.units.measure.Distance;
 
 /**
  * A CTRE CANrange. Distance and detection at 50 Hz, ambient at 10 Hz, the sticky fault at 4 Hz,
@@ -26,12 +26,12 @@ public class DistanceSensorIOCANrange implements DistanceSensorIO {
   private final StatusSignal<Double> ambient;
   private final StatusSignal<Boolean> stickyBootDuringEnable;
 
-  private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+  private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.FALLING);
 
   /**
    * @param name Owner name for the CAN ID registry, e.g. "Indexer sensor"
    * @param canId From {@code Constants.CanIds}
-   * @param bus Usually {@code Constants.CanIds.RIO_BUS}
+   * @param bus Usually {@code Constants.CanIds.MECHANISM_BUS_A}
    * @param config The complete configuration, applied once
    */
   public DistanceSensorIOCANrange(

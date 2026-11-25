@@ -1,10 +1,9 @@
 package frc.robot;
 
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.lib.util.LoggedTrigger;
+import org.wpilib.command3.Trigger;
+import org.wpilib.command3.button.CommandJoystick;
+import org.wpilib.command3.button.CommandXboxController;
 
 /**
  * Every {@link Trigger} in the robot, in one file.
@@ -114,12 +113,12 @@ public class Triggers {
    * moves the robot without the wheels turning.
    */
   public Trigger resetGyro() {
-    return flightStick.button(2);
+    return flightStick.getHID().button(2);
   }
 
   /** Holds a fixed heading while the driver still controls translation. */
   public Trigger lockHeading() {
-    return flightStick.button(3);
+    return flightStick.getHID().button(3);
   }
 
   /**
@@ -129,7 +128,7 @@ public class Triggers {
    * scoring position.
    */
   public Trigger stopWithX() {
-    return flightStick.button(4);
+    return flightStick.getHID().button(4);
   }
 
   // ============================================================================================
@@ -179,14 +178,14 @@ public class Triggers {
   // Trigger on every call.
 
   /**
-   * True while the robot is enabled in <b>test mode</b> AND the operator is holding <b>Start</b>.
-   * Bind each mechanism's {@code tune*} command to it with {@code whileTrue}.
+   * True while the robot is enabled in <b>Utility mode</b> AND the operator is holding
+   * <b>Start</b>. Bind each mechanism's {@code tune*} command to it with {@code whileTrue}.
    *
    * <p>This is the gate that replaced the old {@code tuningMode} flag, and it has two halves on
    * purpose:
    *
    * <ul>
-   *   <li><b>Test mode</b> keeps tuning off the field, which never enables it. {@code
+   *   <li><b>Utility mode</b> keeps tuning off the field, which never enables it. {@code
    *       LoggedTunableNumber.get()} enforces the same thing on its own side.
    *   <li><b>The held button</b> is a dead-man switch. Test mode alone is not consent to move: it
    *       gets enabled in the pit to check one sensor, and without the button every bound mechanism
@@ -194,11 +193,13 @@ public class Triggers {
    *       ends.
    * </ul>
    *
-   * <p>At the 2027 port each tuning command becomes a {@code @Utility} OpMode and this trigger goes
-   * away; keep the dead-man button inside the OpMode.
+   * <p>Each tuning command is to become a {@code @Utility} OpMode, at which point this trigger goes
+   * away; keep the dead-man button inside the OpMode. (Start is {@code menu()} on the 2027 Xbox
+   * controller class — same physical button.)
    */
   public final LoggedTrigger tuningEnabled =
       new LoggedTrigger(
           "Triggers/TuningEnabled",
-          () -> DriverStation.isTestEnabled() && xbox.getHID().getStartButton());
+          () ->
+              org.wpilib.driverstation.RobotState.isUtilityEnabled() && xbox.menu().getAsBoolean());
 }

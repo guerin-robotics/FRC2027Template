@@ -9,16 +9,6 @@ package frc.robot.subsystems.vision;
 
 import static frc.robot.subsystems.vision.VisionConstants.*;
 
-import edu.wpi.first.math.Matrix;
-import edu.wpi.first.math.VecBuilder;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Pose3d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.numbers.N1;
-import edu.wpi.first.math.numbers.N3;
-import edu.wpi.first.wpilibj.Alert;
-import edu.wpi.first.wpilibj.Alert.AlertType;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.lib.util.LoggedTracer;
 import frc.robot.RobotState;
 import frc.robot.subsystems.vision.io.VisionIO;
@@ -27,6 +17,14 @@ import frc.robot.subsystems.vision.io.VisionIOInputsAutoLogged;
 import java.util.ArrayList;
 import java.util.List;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Pose3d;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.linalg.Matrix;
+import org.wpilib.math.linalg.VecBuilder;
+import org.wpilib.math.numbers.N1;
+import org.wpilib.math.numbers.N3;
+import org.wpilib.util.Alert;
 
 /**
  * Vision subsystem that processes AprilTag observations from multiple cameras and feeds validated
@@ -51,7 +49,7 @@ import org.littletonrobotics.junction.Logger;
  * single-tag solve at ≥ 3.8 m, some with near-zero ambiguity, so the ambiguity filter alone cannot
  * catch them. Multi-tag observations keep the looser {@link VisionConstants#maxDistanceMeters}.
  */
-public class Vision extends SubsystemBase {
+public class Vision implements AutoCloseable {
   private final VisionConsumer consumer;
   private final VisionIO[] io;
   private final VisionIOInputsAutoLogged[] inputs;
@@ -72,7 +70,21 @@ public class Vision extends SubsystemBase {
     for (int i = 0; i < inputs.length; i++) {
       disconnectedAlerts[i] =
           new Alert(
-              "Vision camera " + Integer.toString(i) + " is disconnected.", AlertType.kWarning);
+              "Vision camera " + Integer.toString(i) + " is disconnected.",
+              "Vision camera " + Integer.toString(i) + " is disconnected.",
+              Alert.Level.MEDIUM);
+    }
+  }
+
+  /**
+   * Releases the disconnected alerts. 2027 alert ids are unique per process, so a second {@code
+   * Vision} cannot be built until the first is closed. The robot builds one and never closes it;
+   * tests build many.
+   */
+  @Override
+  public void close() {
+    for (Alert alert : disconnectedAlerts) {
+      alert.close();
     }
   }
 
@@ -110,7 +122,11 @@ public class Vision extends SubsystemBase {
     return inputs[cameraIndex].hasCalibration;
   }
 
-  @Override
+  /**
+   * Reads camera inputs and fuses accepted poses. Not a V3 {@code Mechanism} and not scheduled:
+   * {@code RobotContainer.periodic()} must call this every loop, before the scheduler runs, or
+   * {@code Logger.processInputs()} never executes and replay silently breaks.
+   */
   public void periodic() {
     for (int i = 0; i < io.length; i++) {
       io[i].updateInputs(inputs[i]);
@@ -121,7 +137,7 @@ public class Vision extends SubsystemBase {
     // If the robot is spinning fast, vision estimates are unreliable due to
     // motion blur and timestamp misalignment. Reject ALL observations this cycle.
     boolean robotSpinningTooFast =
-        Math.abs(RobotState.getInstance().getFieldRelativeVelocity().omegaRadiansPerSecond)
+        Math.abs(RobotState.getInstance().getFieldRelativeVelocity().omega)
             > maxAngularVelocityRadPerSec;
 
     // Initialize logging values — ArrayList is faster than LinkedList for iteration and toArray()

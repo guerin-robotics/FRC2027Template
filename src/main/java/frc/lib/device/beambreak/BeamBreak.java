@@ -1,8 +1,8 @@
 package frc.lib.device.beambreak;
 
-import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.lib.util.FaultMonitor;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.command3.Trigger;
 
 /**
  * A beam break, owned by a subsystem.

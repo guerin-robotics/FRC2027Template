@@ -6,11 +6,11 @@ import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.signals.MagnetHealthValue;
-import edu.wpi.first.math.filter.Debouncer;
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.AngularVelocity;
 import frc.lib.device.CanIdRegistry;
 import frc.lib.util.PhoenixUtil;
+import org.wpilib.math.filter.Debouncer;
+import org.wpilib.units.measure.Angle;
+import org.wpilib.units.measure.AngularVelocity;
 
 /**
  * A CANcoder read on its own. Rates follow {@code .claude/rules/02-hardware.md}: position and
@@ -25,12 +25,12 @@ public class AbsoluteEncoderIOCANcoder implements AbsoluteEncoderIO {
   private final StatusSignal<MagnetHealthValue> magnetHealth;
   private final StatusSignal<Boolean> stickyBootDuringEnable;
 
-  private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+  private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.FALLING);
 
   /**
    * @param name Owner name for the CAN ID registry, e.g. "Turret encoder"
    * @param canId From {@code Constants.CanIds}
-   * @param bus Usually {@code Constants.CanIds.RIO_BUS}
+   * @param bus Usually {@code Constants.CanIds.MECHANISM_BUS_A}
    * @param config The complete configuration — magnet offset, sensor direction, discontinuity point
    *     — applied once. Never apply a hand-built sub-config afterwards.
    */

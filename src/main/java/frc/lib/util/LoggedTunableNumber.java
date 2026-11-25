@@ -1,10 +1,10 @@
 package frc.lib.util;
 
-import edu.wpi.first.wpilibj.DriverStation;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.DoubleSupplier;
 import org.littletonrobotics.junction.networktables.LoggedNetworkNumber;
+import org.wpilib.driverstation.RobotState;
 
 /**
  * A number that can be adjusted from the dashboard while the robot is running.
@@ -70,7 +70,7 @@ public class LoggedTunableNumber implements DoubleSupplier {
    * Driver Station state, so replay takes the same branch the robot did.
    */
   public double get() {
-    return DriverStation.isTestEnabled() ? dashboardNumber.get() : defaultValue;
+    return RobotState.isUtilityEnabled() ? dashboardNumber.get() : defaultValue;
   }
 
   /**

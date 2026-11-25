@@ -1,9 +1,9 @@
 package frc.lib.device.absoluteencoder;
 
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.AngularVelocity;
 import frc.lib.util.FaultMonitor;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.units.measure.Angle;
+import org.wpilib.units.measure.AngularVelocity;
 
 /**
  * A standalone absolute encoder, owned by a subsystem.

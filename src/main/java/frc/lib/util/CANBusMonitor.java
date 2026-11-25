@@ -1,9 +1,8 @@
 package frc.lib.util;
 
 import com.ctre.phoenix6.CANBus;
-import edu.wpi.first.wpilibj.Alert;
-import edu.wpi.first.wpilibj.Alert.AlertType;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.util.Alert;
 
 /**
  * Logs CAN bus health so bandwidth problems are visible in a match log instead of only in Tuner X
@@ -47,11 +46,13 @@ public class CANBusMonitor {
     this.highUtilizationAlert =
         new Alert(
             "CAN bus \"" + name + "\" utilization is high. Reduce signal frequencies.",
-            AlertType.kWarning);
+            "CAN bus \"" + name + "\" utilization is high. Reduce signal frequencies.",
+            Alert.Level.MEDIUM);
     this.busErrorAlert =
         new Alert(
             "CAN bus \"" + name + "\" is reporting errors. Check wiring and termination.",
-            AlertType.kError);
+            "CAN bus \"" + name + "\" is reporting errors. Check wiring and termination.",
+            Alert.Level.HIGH);
   }
 
   /** Call once per loop from {@code robotPeriodic()}. Samples internally at a reduced rate. */
