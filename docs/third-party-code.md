@@ -30,6 +30,7 @@ copy-paste.
 | `frc/lib/util/MotorSpecs.java` | Ours | — | Reads free speeds from WPILib `DCMotor` |
 | `frc/lib/device/**` | Ours | — | Design modelled on FRC 3467's W8-Library (GPLv3). **No code copied** — written fresh against our rules |
 | `vendordeps/libgrapplefrc2026.json` | Grapple Robotics | Vendor metadata | Fetched from Grapple's published `jsonUrl` |
+| `vendordeps/maple-sim.json` | maple-sim (Shenzhen Robotics Alliance) | Vendor metadata (maple-sim is BSD-3) | Upstream's JSON names `0.4.0-beta-obstacles-fix`, which is not in its Maven repo and fails to resolve. Pinned to the published `0.4.0-beta`; re-check when upgrading |
 | `vendordeps/BLine-Lib.json` | BLine contributors (FRC 2638) | Vendor metadata (BLine-Lib is BSD-3) | Taken from the `main` branch of `edanliahovetsky/BLine-Lib`, v0.9.3 |
 | `subsystems/drive/`, `Robot`, `RobotContainer` | AdvantageKit swerve template | BSD | Littleton Robotics |
 

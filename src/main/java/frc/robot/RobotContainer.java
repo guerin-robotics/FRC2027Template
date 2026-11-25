@@ -20,9 +20,13 @@ import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
 import frc.robot.lib.BLine.FollowPath;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.drive.DriveConstants;
+import frc.robot.subsystems.drive.DriveSimulation;
 import frc.robot.subsystems.drive.GyroIO;
+import frc.robot.subsystems.drive.GyroIOMapleSim;
 import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIO;
+import frc.robot.subsystems.drive.ModuleIOMapleSim;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
 import frc.robot.subsystems.vision.Vision;
@@ -88,24 +92,46 @@ public class RobotContainer {
 
       case SIM:
         // Sim robot, instantiate physics sim IO implementations
-        drive =
-            new Drive(
-                new GyroIO() {},
-                new ModuleIOSim(TunerConstants.FrontLeft),
-                new ModuleIOSim(TunerConstants.FrontRight),
-                new ModuleIOSim(TunerConstants.BackLeft),
-                new ModuleIOSim(TunerConstants.BackRight));
+        Supplier<Pose2d> simCameraPose;
+        if (DriveConstants.USE_MAPLE_SIM) {
+          // maple-sim chassis: collisions, wheel slip and a field boundary. Simulated cameras see
+          // its true pose, so odometry drift and vision corrections behave as on a robot.
+          var simulation = DriveSimulation.get();
+          drive =
+              new Drive(
+                  new GyroIOMapleSim(simulation.getGyroSimulation()),
+                  new ModuleIOMapleSim(
+                      simulation.getModules()[0], TunerConstants.FrontLeft.SlipCurrent),
+                  new ModuleIOMapleSim(
+                      simulation.getModules()[1], TunerConstants.FrontRight.SlipCurrent),
+                  new ModuleIOMapleSim(
+                      simulation.getModules()[2], TunerConstants.BackLeft.SlipCurrent),
+                  new ModuleIOMapleSim(
+                      simulation.getModules()[3], TunerConstants.BackRight.SlipCurrent));
+          // The sim robot starts at field center; tell odometry so the two agree.
+          drive.setPose(simulation.getSimulatedDriveTrainPose());
+          simCameraPose = DriveSimulation::getTruePose;
+        } else {
+          drive =
+              new Drive(
+                  new GyroIO() {},
+                  new ModuleIOSim(TunerConstants.FrontLeft),
+                  new ModuleIOSim(TunerConstants.FrontRight),
+                  new ModuleIOSim(TunerConstants.BackLeft),
+                  new ModuleIOSim(TunerConstants.BackRight));
+          simCameraPose = drive::getPose;
+        }
         vision =
             new Vision(
                 drive::addVisionMeasurement,
                 new VisionIOPhotonVisionSim(
-                    VisionConstants.camera0Name, VisionConstants.robotToCamera0, drive::getPose),
+                    VisionConstants.camera0Name, VisionConstants.robotToCamera0, simCameraPose),
                 new VisionIOPhotonVisionSim(
-                    VisionConstants.camera1Name, VisionConstants.robotToCamera1, drive::getPose),
+                    VisionConstants.camera1Name, VisionConstants.robotToCamera1, simCameraPose),
                 new VisionIOPhotonVisionSim(
-                    VisionConstants.camera2Name, VisionConstants.robotToCamera2, drive::getPose),
+                    VisionConstants.camera2Name, VisionConstants.robotToCamera2, simCameraPose),
                 new VisionIOPhotonVisionSim(
-                    VisionConstants.camera3Name, VisionConstants.robotToCamera3, drive::getPose));
+                    VisionConstants.camera3Name, VisionConstants.robotToCamera3, simCameraPose));
         break;
 
       default:

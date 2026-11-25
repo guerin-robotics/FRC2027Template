@@ -206,7 +206,15 @@ stator current and **torque current**, plus the odometry sample queues. Both mot
 `*TorqueCurrentFOC` requests, so torque current is the actual control signal — stator
 current alone cannot distinguish a module fighting a stall from one spinning free.
 Registered at 50 Hz in the same frame as stator current, so it adds no CAN traffic.
-`ModuleIOSim` leaves both torque channels at zero rather than inventing a value.
+`ModuleIOSim` and `ModuleIOMapleSim` leave both torque channels at zero rather than inventing a value.
+
+**Simulation.** SIM mode runs the drivetrain in maple-sim (`DriveSimulation`: a rigid chassis, a
+field boundary built from `FieldConstants`, wheel slip and collisions) unless
+`DriveConstants.USE_MAPLE_SIM` is false, which falls back to `ModuleIOSim`. Module geometry, gear
+ratios and wheel radius come from `TunerConstants`; mass, bumper size and wheel friction are the
+`SIM_*` placeholders in `DriveConstants` and need this robot's values. Simulated cameras see the
+chassis's true pose, not odometry. Game pieces are not simulated: add them when maple-sim ships a
+2027 arena. Maple-sim is `vendordeps/maple-sim.json`, pinned to `0.4.0-beta`.
 
 **Gains.** Both drive and steer use `ClosedLoopOutputType.TorqueCurrentFOC`, so every
 Slot0 gain is in amps. See `docs/characterization-and-tuning.md` for how to measure them.

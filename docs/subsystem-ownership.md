@@ -31,6 +31,9 @@ subsystems/drive/ModuleIO.java
 subsystems/drive/ModuleIOTalonFX.java
 subsystems/drive/ModuleIOTalonFXS.java
 subsystems/drive/ModuleIOSim.java
+subsystems/drive/ModuleIOMapleSim.java       maple-sim module (SIM default; see DriveConstants.USE_MAPLE_SIM)
+subsystems/drive/GyroIOMapleSim.java
+subsystems/drive/DriveSimulation.java        the maple-sim physics world and field boundary
 subsystems/drive/GyroIO.java
 subsystems/drive/GyroIOPigeon2.java
 subsystems/drive/GyroIONavX.java

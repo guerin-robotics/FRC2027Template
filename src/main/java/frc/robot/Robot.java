@@ -17,10 +17,12 @@ import frc.lib.util.BatteryLogger;
 import frc.lib.util.CANBusMonitor;
 import frc.lib.util.CommandLogger;
 import frc.lib.util.FaultMonitor;
+import frc.lib.util.LoggedTracer;
 import frc.lib.util.LoopTimeMonitor;
 import frc.lib.util.MatchMetadataLogger;
 import frc.lib.util.PhoenixSignalLogger;
 import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.drive.DriveSimulation;
 import org.littletonrobotics.junction.AutoLogOutputManager;
 import org.littletonrobotics.junction.LogFileUtil;
 import org.littletonrobotics.junction.LoggedRobot;
@@ -152,6 +154,7 @@ public class Robot extends LoggedRobot {
 
     // Start the loop-time measurement first so it covers everything below.
     loopMonitor.begin();
+    LoggedTracer.reset();
 
     // Refresh the cached alliance color once per loop so that AllianceFlipUtil.shouldFlip()
     // doesn't call DriverStation.getAlliance() (which allocates an Optional) dozens of times
@@ -164,6 +167,9 @@ public class Robot extends LoggedRobot {
     // This must be called from the robot's periodic block in order for anything in
     // the Command-based framework to work.
     CommandScheduler.getInstance().run();
+    // Whatever the scheduler spent beyond the subsystems' own records (Drive, Vision, and any
+    // mechanism that calls LoggedTracer.record) is triggers and command execute()s.
+    LoggedTracer.record("Scheduler");
 
     // Publish the set of commands that ran this cycle (hooks registered in the constructor)
     CommandLogger.periodic();
@@ -172,12 +178,14 @@ public class Robot extends LoggedRobot {
     batteryLogger.setBatteryVoltage(RobotController.getBatteryVoltage());
     batteryLogger.setRioCurrent(RobotController.getInputCurrent());
     batteryLogger.periodicAfterScheduler();
+    LoggedTracer.record("Logging");
 
     // Health and diagnostics. All of these self-throttle or short-circuit, so they are cheap
     // to call every loop.
     canBusMonitor.periodic();
     matchMetadataLogger.periodic();
     FaultMonitor.getInstance().periodic();
+    LoggedTracer.record("Diagnostics");
 
     // Return to non-RT thread priority (do not modify the first argument)
     // Threads.setCurrentThreadPriority(false, 10);
@@ -315,5 +323,8 @@ public class Robot extends LoggedRobot {
 
   /** This function is called periodically whilst in simulation. */
   @Override
-  public void simulationPeriodic() {}
+  public void simulationPeriodic() {
+    // Steps the maple-sim physics world. Does nothing unless the sim drivetrain was built.
+    DriveSimulation.periodic();
+  }
 }

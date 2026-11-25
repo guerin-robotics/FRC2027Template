@@ -19,6 +19,7 @@ import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.lib.util.LoggedTracer;
 import frc.robot.RobotState;
 import frc.robot.subsystems.vision.io.VisionIO;
 import frc.robot.subsystems.vision.io.VisionIO.PoseObservationType;
@@ -268,6 +269,8 @@ public class Vision extends SubsystemBase {
         "Vision/Summary/RobotPosesRejected", allRobotPosesRejected.toArray(new Pose3d[0]));
     Logger.recordOutput("Vision/Summary/AcceptedObservationCount", allRobotPosesAccepted.size());
     Logger.recordOutput("Vision/Summary/RejectedObservationCount", allRobotPosesRejected.size());
+
+    LoggedTracer.record("Vision");
   }
 
   @FunctionalInterface

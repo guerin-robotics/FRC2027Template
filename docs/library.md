@@ -22,7 +22,7 @@ monitoring). See [third-party-code.md](third-party-code.md).
 | Package | What it gives you | Read |
 |---|---|---|
 | `frc/lib/device/` | Sensors and outputs with no motor: `absoluteencoder/` (CANcoder), `distance/` (CANrange, LaserCAN), `beambreak/` (DIO, LaserCAN), `lights/` (CANdle). Plus `CanIdRegistry`, the runtime duplicate-ID check | [devices.md](devices.md) |
-| `frc/lib/util/` | Logging and monitoring (`BatteryLogger`, `FaultMonitor`, `LoopTimeMonitor`, `CANBusMonitor`, `CommandLogger`, `PhoenixSignalLogger`), tunables, `AllianceFlipUtil`, geometry helpers | [subsystem-ownership.md](subsystem-ownership.md), [tunables.md](tunables.md) |
+| `frc/lib/util/` | Logging and monitoring (`BatteryLogger`, `FaultMonitor`, `LoopTimeMonitor`, `CANBusMonitor`, `CommandLogger`, `PhoenixSignalLogger`, `LoggedTracer`), tunables, `AllianceFlipUtil`, geometry helpers | [subsystem-ownership.md](subsystem-ownership.md), [tunables.md](tunables.md) |
 
 Drive and vision stay in `frc/robot/subsystems/`, alongside the mechanisms. They are the
 production form of the same IO pattern the scaffolds teach.

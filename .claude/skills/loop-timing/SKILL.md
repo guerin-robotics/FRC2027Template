@@ -22,6 +22,7 @@ Read these (`LoopTimeMonitor`):
 | `LoopTiming/BudgetMs` | The budget (50 Hz = 20 ms) |
 | `LoopTiming/OverrunCount`, `OverrunFraction` | How often it ran over |
 | `BatteryLogger/LoopSeconds` | Independent measurement of the same loop |
+| `LoggedTracer/<Section>MS` | Where the loop went: milliseconds since the previous record, so read adjacent channels. `Drive`, `Vision`, `Scheduler`, `Logging`, `Diagnostics` ship; a mechanism adds `LoggedTracer.record("Name")` at the end of its `periodic()` |
 
 Classify the pattern before looking at code:
 

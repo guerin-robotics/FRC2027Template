@@ -3,7 +3,7 @@
 What is under test, what each check catches, and what to add when you build a mechanism.
 
 The suite is deliberately minimal, modelled on 6328's public robot code (one
-`RobotContainerTest`, plus constant checks wired into deploy and PRs): **3 test classes**, all
+`RobotContainerTest`, plus constant checks wired into deploy and PRs): **5 test classes**, all
 fast, none touching hardware. It covers the failures that are *silent* — a robot that will not
 construct, two devices on one CAN ID, an event marker nothing is bound to — and leaves
 behaviour to simulation, logs and practice time. Adding a test is cheap; maintaining one that
@@ -57,6 +57,23 @@ vacuously until the first 2027 path exists.
 ---
 
 
+### Vision rejection ladder
+
+**`frc/robot/subsystems/vision/VisionFilterTest`** feeds one synthetic observation per case
+through a fake `VisionIO` and asserts whether the pose estimator was handed it: every branch of the
+ladder in `Vision.periodic()`. The thresholds were tuned against real 2026 match logs, and a filter
+that stops firing raises no error; the robot just teleports mid-auto. The test reads the thresholds
+from `VisionConstants` rather than restating them, so retuning one does not break it. Deleting or
+reordering a filter does.
+
+### Simulated drivetrain
+
+**`frc/robot/subsystems/drive/DriveSimulationTest`** runs `Drive` against the maple-sim chassis:
+it drives forward, rotates, resets the pose, and drives into the field boundary. It fails if
+module order disagrees between maple-sim and `Drive`, if the gyro stops following the chassis, if
+`setPose` moves the estimate but not the simulated robot, or if the boundary is missing. It steps
+the FPGA clock with `SimHooks.stepTiming` and waits on conditions rather than a fixed loop count.
+
 ---
 
 ## Removed tests — where to find them
@@ -66,7 +83,6 @@ with `git show <commit>:<path>` if a mechanism or season needs one back.
 
 | Test | What it covered | Last present at |
 |---|---|---|
-| `frc/robot/subsystems/vision/VisionFilterTest` | Every branch of the vision pose-rejection ladder | `7b81e48` |
 | `frc/robot/commands/DriveToPoseSimTest`, `JoystickDriveAtAngleSimTest` | `driveToPose` and heading hold converge in sim | `7b81e48` |
 | `frc/robot/subsystems/drive/DriveOdometrySimTest` | +X/+Y/+ω commands move odometry the right way | `7b81e48` |
 | `frc/robot/GainSweepTest` | Gain-sweep harness for `/pid-tune` | `7b81e48` |
@@ -90,8 +106,8 @@ is no automated check for any of them. When reviewing, look for:
 - `frc.lib` depending on anything in `frc.robot` except `Constants`
 - A command factory without `.withName()`, or a `waitUntil()` without `.withTimeout()`
 - A setpoint inlined at a binding instead of coming from `Constants.Setpoints`
-- Any change to the vision rejection ladder in `Vision.periodic()` — `VisionFilterTest` used to
-  pin every branch; now only review does
+- A *new* filter in the vision rejection ladder in `Vision.periodic()` — `VisionFilterTest` pins
+  every existing branch, but a branch added without a case there is covered by review alone
 
 `docs/review-checklist.md` is the working version of that list. These were briefly enforced by
 an ArchUnit test; it was removed to keep the suite small, so the checklist is now the only

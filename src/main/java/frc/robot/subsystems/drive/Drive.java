@@ -32,6 +32,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.lib.util.CommandLogger;
 import frc.lib.util.FieldConstants;
+import frc.lib.util.LoggedTracer;
 import frc.robot.Constants;
 import frc.robot.Constants.Mode;
 import frc.robot.Robot;
@@ -263,6 +264,8 @@ public class Drive extends SubsystemBase {
 
     // Update gyro alert
     gyroDisconnectedAlert.set(!gyroInputs.connected && Constants.currentMode != Mode.SIM);
+
+    LoggedTracer.record("Drive");
   }
 
   /**
@@ -423,6 +426,8 @@ public class Drive extends SubsystemBase {
   /** Resets the current odometry pose. */
   public void setPose(Pose2d pose) {
     poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
+    // Keep the simulated chassis where the estimate says it is. No-op unless maple-sim is running.
+    DriveSimulation.resetPose(pose);
   }
 
   /** Adds a new timestamped vision measurement. */
