@@ -1,10 +1,10 @@
 package frc.lib.util;
 
-import edu.wpi.first.wpilibj.DriverStation;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
 import org.littletonrobotics.junction.networktables.LoggedNetworkBoolean;
+import org.wpilib.driverstation.RobotState;
 
 /**
  * A boolean that can be toggled from the dashboard while the robot is running. The boolean
@@ -47,7 +47,7 @@ public class LoggedTunableBoolean implements BooleanSupplier {
    * Driver Station state, so replay takes the same branch the robot did.
    */
   public boolean get() {
-    return DriverStation.isTestEnabled() ? dashboardBoolean.get() : defaultValue;
+    return RobotState.isUtilityEnabled() ? dashboardBoolean.get() : defaultValue;
   }
 
   /**

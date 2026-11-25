@@ -1,12 +1,10 @@
 package frc.lib.util;
 
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.wpilibj.Alert;
-import edu.wpi.first.wpilibj.Alert.AlertType;
-import edu.wpi.first.wpilibj.RobotController;
 import java.util.HashMap;
 import java.util.Map;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.system.RobotController;
+import org.wpilib.util.Alert;
 
 /**
  * Tracks current draw, power consumption, and cumulative energy usage for every subsystem.
@@ -46,7 +44,7 @@ public class BatteryLogger {
   private static final double MAX_LOOP_SECONDS = 0.1;
 
   /** Timestamp of the previous {@link #periodicAfterScheduler()}, in microseconds. */
-  private long lastTimestampMicros = 0;
+  private long lastTimestampNanos = 0;
 
   /** Measured length of the last cycle, in seconds. Logged so the correction is visible. */
   private double lastLoopSeconds = NOMINAL_LOOP_SECONDS;
@@ -74,7 +72,10 @@ public class BatteryLogger {
   private double minVoltage = Double.POSITIVE_INFINITY;
 
   private final Alert brownoutAlert =
-      new Alert("Brownout detected — check battery and drive current limits.", AlertType.kWarning);
+      new Alert(
+          "Brownout detected — check battery and drive current limits.",
+          "Brownout detected — check battery and drive current limits.",
+          Alert.Level.MEDIUM);
 
   // ---- Per-subsystem maps ----
   private final Map<String, Double> subsystemCurrents = new HashMap<>();
@@ -261,24 +262,25 @@ public class BatteryLogger {
   /**
    * Real seconds since the previous cycle, clamped.
    *
-   * <p>Uses AdvantageKit's timestamp rather than {@code Timer.getFPGATimestamp()} on purpose.
-   * During replay the AdvantageKit clock follows the log, so energy replays to the same numbers the
-   * robot produced; wall-clock time would make a replay disagree with the match it is replaying,
-   * which defeats the point of having one.
+   * <p>Uses AdvantageKit's timestamp rather than {@code Timer.getTimestamp()} on purpose. During
+   * replay the AdvantageKit clock follows the log, so energy replays to the same numbers the robot
+   * produced; wall-clock time would make a replay disagree with the match it is replaying, which
+   * defeats the point of having one.
    */
   private double measureLoopSeconds() {
     long now = Logger.getTimestamp();
 
-    if (lastTimestampMicros == 0) {
+    if (lastTimestampNanos == 0) {
       // First cycle — nothing to subtract from yet.
-      lastTimestampMicros = now;
+      lastTimestampNanos = now;
       lastLoopSeconds = NOMINAL_LOOP_SECONDS;
       return lastLoopSeconds;
     }
 
-    double elapsed = (now - lastTimestampMicros) / 1.0e6;
-    lastTimestampMicros = now;
-    lastLoopSeconds = MathUtil.clamp(elapsed, 0.0, MAX_LOOP_SECONDS);
+    // AdvantageKit 27 timestamps are nanoseconds (2026 was microseconds).
+    double elapsed = (now - lastTimestampNanos) / 1.0e9;
+    lastTimestampNanos = now;
+    lastLoopSeconds = Math.clamp(elapsed, 0.0, MAX_LOOP_SECONDS);
     return lastLoopSeconds;
   }
 

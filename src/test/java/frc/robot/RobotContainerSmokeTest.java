@@ -8,69 +8,91 @@
 package frc.robot;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import edu.wpi.first.hal.HAL;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.wpilibj.simulation.DriverStationSim;
-import edu.wpi.first.wpilibj.simulation.RoboRioSim;
-import edu.wpi.first.wpilibj.smartdashboard.Field2d;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import edu.wpi.first.wpilibj2.command.Subsystem;
+import bline.commands.FollowPath;
+import bline.path.Path;
 import frc.robot.autos.AutoPreview;
 import frc.robot.autos.BLineAutos;
-import frc.robot.lib.BLine.FollowPath;
-import frc.robot.lib.BLine.Path;
+import frc.robot.commands.DriveCommands;
+import frc.robot.opmodes.AutoOpMode;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.vision.Vision;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.littletonrobotics.junction.LogDataReceiver;
+import org.littletonrobotics.junction.LogTable;
 import org.littletonrobotics.junction.Logger;
-import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
+import org.wpilib.command3.Command;
+import org.wpilib.command3.Mechanism;
+import org.wpilib.command3.Scheduler;
+import org.wpilib.hardware.hal.HAL;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.geometry.Translation2d;
+import org.wpilib.simulation.DriverStationSim;
+import org.wpilib.simulation.RoboRioSim;
 
 /**
  * Builds a real {@link RobotContainer} and asserts the wiring came out intact.
  *
  * <p>Everything {@code RobotContainer} does happens in a constructor: subsystems are built, the
- * BLine {@code FollowPath.Builder} is created, fault conditions are registered, the auto chooser is
- * assembled, and every button binding is made. None of that is exercised by a unit test of any
- * individual class, and all of it runs exactly once — at robot boot, on the field. A null supplier,
- * a subsystem constructed in the wrong order, or an event key nothing was bound to throws or
- * silently misbehaves there and nowhere else.
+ * BLine {@code FollowPath.Builder} is created, fault conditions are registered, the OpMode routine
+ * maps are assembled, and every button binding is made. None of that is exercised by a unit test of
+ * any individual class, and all of it runs exactly once — at robot boot, on the field. A null
+ * supplier, a subsystem constructed in the wrong order, or an event key nothing was bound to throws
+ * or silently misbehaves there and nowhere else.
  *
  * <p>This is the guardrail on {@code /add-subsystem} in particular. That skill scaffolds wiring
  * into all three mode branches; this test is what proves the scaffold it produced actually
  * constructs.
  *
- * <p><b>Runs in SIM.</b> {@code Constants.currentMode} resolves to {@code SIM} off a roboRIO, so
- * the physics-sim IO implementations are built — including four {@code VisionIOPhotonVisionSim}
+ * <p><b>The processInputs test is the one that matters most.</b> Commands V3 has no {@code
+ * Subsystem.periodic()}, so a subsystem that {@code RobotContainer.periodic()} forgets to call
+ * simply never runs {@code Logger.processInputs()}: no inputs, no replay, no error. {@link
+ * #everySubsystemProcessesItsInputsEveryLoop} fails when that happens.
+ *
+ * <p><b>Runs in SIM.</b> {@code Constants.currentMode} resolves to {@code SIM} off a robot, so the
+ * physics-sim IO implementations are built — including four {@code VisionIOPhotonVisionSim}
  * cameras. The {@code REAL} branch cannot be covered here; it constructs Phoenix device objects
  * against hardware that is not present.
  *
- * <p><b>Cleanup matters.</b> {@code CommandScheduler} is a JVM-wide singleton shared with every
- * other test in this module, and {@code SubsystemBase}'s constructor registers into it. Left alone,
- * the {@code Drive} and {@code Vision} built here would keep running {@code periodic()} during any
- * later test that builds its own. {@link #unregisterSubsystems()} is what prevents that.
+ * <p><b>Cleanup matters.</b> {@code Scheduler.getDefault()} is JVM-wide and shared with every other
+ * test in this module, and {@code RobotContainer} installs default commands on it. {@link
+ * #cancelEverything()} cancels what this class started.
  */
 class RobotContainerSmokeTest {
 
   private static RobotContainer container;
+
+  /** Every key AdvantageKit logged, collected by a receiver added before {@code Logger.start()}. */
+  private static final KeyCollector loggedKeys = new KeyCollector();
+
+  private static final class KeyCollector implements LogDataReceiver {
+    final Set<String> keys = new CopyOnWriteArraySet<>();
+
+    @Override
+    public void putTable(LogTable table) {
+      keys.addAll(table.getAll(false).keySet());
+    }
+  }
 
   @BeforeAll
   static void buildContainer() {
     // JUnit's assertTrue, deliberately not the Java `assert` keyword. It always runs and fails
     // right here if HAL.initialize returns false. An `assert` statement is skipped entirely
     // without -ea, which would skip the initialization and fail later inside the HAL instead.
-    assertTrue(HAL.initialize(500, 0), "HAL failed to initialize; sim-backed tests cannot run");
+    assertTrue(HAL.initialize(), "HAL failed to initialize; sim-backed tests cannot run");
     RoboRioSim.setVInVoltage(12.0);
     DriverStationSim.setEnabled(false);
 
@@ -80,26 +102,30 @@ class RobotContainerSmokeTest {
     // note on Constants.Controllers about verifying ports in the DS USB tab — so modelling them
     // as present is what matches reality. Counts are generous rather than exact so that adding a
     // binding does not silently reintroduce the warning.
-    DriverStationSim.setJoystickButtonCount(Constants.Controllers.FLIGHT_STICK_PORT, 16);
-    DriverStationSim.setJoystickAxisCount(Constants.Controllers.FLIGHT_STICK_PORT, 6);
-    DriverStationSim.setJoystickButtonCount(Constants.Controllers.XBOX_PORT, 16);
-    DriverStationSim.setJoystickAxisCount(Constants.Controllers.XBOX_PORT, 6);
+    DriverStationSim.setJoystickButtonsMaximumIndex(Constants.Controllers.FLIGHT_STICK_PORT, 16);
+    DriverStationSim.setJoystickButtonsAvailable(Constants.Controllers.FLIGHT_STICK_PORT, 0xFFFFL);
+    DriverStationSim.setJoystickAxesMaximumIndex(Constants.Controllers.FLIGHT_STICK_PORT, 6);
+    DriverStationSim.setJoystickAxesAvailable(Constants.Controllers.FLIGHT_STICK_PORT, 0x3F);
+    DriverStationSim.setJoystickButtonsMaximumIndex(Constants.Controllers.XBOX_PORT, 16);
+    DriverStationSim.setJoystickButtonsAvailable(Constants.Controllers.XBOX_PORT, 0xFFFFL);
+    DriverStationSim.setJoystickAxesMaximumIndex(Constants.Controllers.XBOX_PORT, 6);
+    DriverStationSim.setJoystickAxesAvailable(Constants.Controllers.XBOX_PORT, 0x3F);
     DriverStationSim.notifyNewData();
 
-    // Logger.start() normally exits the JVM unless the main class extends LoggedRobot, and
+    // Logger.start() normally exits the JVM unless the main class extends a Logged robot base, and
     // Vision.periodic()/Drive.periodic() call Logger.processInputs unconditionally.
     Logger.AdvancedHooks.disableRobotBaseCheck();
+    Logger.addDataReceiver(loggedKeys);
     Logger.start();
 
     container = new RobotContainer();
   }
 
   @AfterAll
-  static void unregisterSubsystems() {
-    CommandScheduler.getInstance().cancelAll();
-    // Only the subsystems this class created. unregisterAllSubsystems() would also drop any a
-    // later test builds for itself, which is not this class's to decide.
-    CommandScheduler.getInstance().unregisterSubsystem(wiredSubsystems().toArray(new Subsystem[0]));
+  static void cancelEverything() {
+    Scheduler.getDefault().cancelAll();
+    // Alert ids are unique per process in 2027; release Vision's so a later test can build its own.
+    findSubsystem(Vision.class).close();
   }
 
   @Test
@@ -110,31 +136,120 @@ class RobotContainerSmokeTest {
   }
 
   @Test
-  void autonomousCommandIsAvailableAfterOneDashboardCycle() {
-    // LoggedDashboardChooser resolves its selection in periodic(), and its two-argument
-    // constructor calls periodic() BEFORE copying the options across from the SendableChooser it
-    // was handed. So a freshly constructed chooser holds a null selection and get() returns null
-    // until something pumps it again. On the robot that happens on the first loop, inside
-    // Logger.periodicBeforeUser() — which is package-private and cannot be called from here.
-    // Pumping the chooser directly is the same code path the robot takes.
-    autoChooser().periodic();
+  void everySubsystemProcessesItsInputsEveryLoop() throws InterruptedException {
+    // THE V3 GATE. One loop exactly as Robot.robotPeriodic() runs it: AdvantageKit's before-user
+    // hook, RobotContainer.periodic(), then AdvantageKit's after-user hook, which hands the
+    // completed table to the receiver above. Every subsystem the container holds must have put
+    // its inputs under "/<ClassName>/..." (AdvantageKit 27 logs inputs at the root; outputs go
+    // under /RealOutputs) — the convention each subsystem follows when it calls
+    // Logger.processInputs. A subsystem missing here is one RobotContainer.periodic()
+    // does not call.
+    loggedKeys.keys.clear();
+    Logger.AdvancedHooks.invokePeriodicBeforeUser();
+    container.periodic();
+    Logger.AdvancedHooks.invokePeriodicAfterUser(0, 0);
+    // The receiver runs on AdvantageKit's thread; wait briefly for the table to arrive.
+    for (int i = 0;
+        i < 150 && loggedKeys.keys.stream().noneMatch(key -> key.startsWith("/Drive/"));
+        i++) {
+      Thread.sleep(20);
+    }
 
-    Command auto = container.getAutonomousCommand();
-    assertNotNull(
-        auto,
-        "The auto chooser yielded no command after a dashboard cycle."
-            + " RobotContainer installs a \"None\" default that supplies Commands.none(), so null"
-            + " here means the chooser was never built or its supplier returned null — and"
-            + " Robot.autonomousInit would schedule nothing.");
+    List<String> missing = new ArrayList<>();
+    for (Object subsystem : wiredSubsystems()) {
+      String prefix = "/" + subsystem.getClass().getSimpleName() + "/";
+      if (loggedKeys.keys.stream().noneMatch(key -> key.startsWith(prefix))) {
+        missing.add(subsystem.getClass().getSimpleName());
+      }
+    }
+    assertTrue(
+        missing.isEmpty(),
+        () ->
+            "These subsystems logged no inputs in a loop: "
+                + missing
+                + "\n\nCommands V3 calls no periodic() for you. Add each one to"
+                + " RobotContainer.periodic() — without it Logger.processInputs() never runs,"
+                + " and replay is silently broken (.claude/rules/00-safety.md).");
+  }
+
+  @Test
+  void everyOpModeRoutineBuildsACommand() {
+    // Each routine is a supplier called when its OpMode is enabled. A supplier that returns null
+    // or throws is only found out when the drive team selects that OpMode.
+    List<String> broken = new ArrayList<>();
+    container
+        .autoRoutines()
+        .forEach((name, routine) -> checkRoutine("Autonomous " + name, routine, broken));
+    container
+        .utilityRoutines()
+        .forEach((name, routine) -> checkRoutine("Utility " + name, routine, broken));
+    assertTrue(broken.isEmpty(), () -> "These OpMode routines did not build a command: " + broken);
+  }
+
+  private static void checkRoutine(String label, Supplier<Command> routine, List<String> broken) {
+    try {
+      if (routine.get() == null) {
+        broken.add(label + " (returned null)");
+      }
+    } catch (RuntimeException e) {
+      broken.add(label + " (" + e + ")");
+    }
   }
 
   @Test
   void autoPreviewSurvivesNoAutoAndAMissingPathFile() {
-    autoChooser().periodic();
-    // Runs every disabled loop on the robot: neither "None" nor a path file that is not deployed
-    // may throw, or disabledPeriodic dies and the drive team loses the start-pose check.
-    container.updateAutoPreview();
+    // Runs every disabled loop on the robot: neither an empty selection nor a path file that is
+    // not deployed may throw, or the drive team loses the start-pose check.
+    container.updateAutoPreview(List.of(), false);
     new AutoPreview().update(List.of("no-such-path"), false, true, new Pose2d());
+  }
+
+  @Test
+  void deselectingAutoBeforeEnableClearsPreview() throws ReflectiveOperationException {
+    Field field = RobotContainer.class.getDeclaredField("autoPreview");
+    field.setAccessible(true);
+    AutoPreview preview = (AutoPreview) field.get(container);
+    preview.showActivePath(new Translation2d[] {new Translation2d(1.0, 2.0)});
+    assertFalse(preview.getField().getObject("activePath").getPoses().isEmpty());
+
+    // WPILib closes a deselected OpMode even if it never called start() or end().
+    new AutoOpMode(null, container, "Preview test", () -> null, false).close();
+
+    assertTrue(preview.getField().getObject("activePath").getPoses().isEmpty());
+  }
+
+  @Test
+  void gyroResetWorksDisabledAndInterruptsDriveWhenEnabled() {
+    Drive drive = findSubsystem(Drive.class);
+    Command reset = DriveCommands.resetGyro(drive);
+    Command owner = drive.run(co -> co.park()).named("Test_Drive_Owner");
+    Scheduler scheduler = Scheduler.getDefault();
+    Pose2d startingPose = new Pose2d(1.0, 2.0, Rotation2d.fromDegrees(40.0));
+    try {
+      drive.setPose(startingPose);
+      scheduler.schedule(reset);
+      scheduler.run();
+      assertEquals(startingPose.getTranslation(), drive.getPose().getTranslation());
+      assertEquals(0.0, drive.getPose().getRotation().getDegrees(), 1e-9);
+
+      DriverStationSim.setEnabled(true);
+      DriverStationSim.notifyNewData();
+      drive.setPose(startingPose);
+      scheduler.schedule(owner);
+      scheduler.run();
+      assertTrue(scheduler.isScheduledOrRunning(owner));
+
+      scheduler.schedule(reset);
+      scheduler.run();
+      assertFalse(scheduler.isScheduledOrRunning(owner));
+      assertEquals(startingPose.getTranslation(), drive.getPose().getTranslation());
+      assertEquals(0.0, drive.getPose().getRotation().getDegrees(), 1e-9);
+    } finally {
+      scheduler.cancelAll();
+      DriverStationSim.setEnabled(false);
+      DriverStationSim.notifyNewData();
+      drive.setPose(Pose2d.ZERO);
+    }
   }
 
   @Test
@@ -146,15 +261,26 @@ class RobotContainerSmokeTest {
     AutoPreview preview = new AutoPreview();
     FollowPath.Builder builder = BLineAutos.createBuilder(drive, () -> false, preview);
     Command follow =
-        builder.build(new Path(new Path.Waypoint(new Pose2d(2.0, 2.0, Rotation2d.kZero))));
+        BLineAutos.follow(
+            builder,
+            new Path(new Path.Waypoint(new Translation2d(2.0, 2.0), 0.0, Rotation2d.ZERO)));
 
-    follow.initialize();
-    follow.execute();
-    follow.end(true);
+    // V3 will not schedule a command that requires Drive while disabled (Drive must not be
+    // controllableDuringDisabled), so enable the sim Driver Station for this one cycle.
+    DriverStationSim.setEnabled(true);
+    DriverStationSim.notifyNewData();
+    Scheduler scheduler = Scheduler.getDefault();
+    try {
+      scheduler.schedule(follow);
+      scheduler.run();
+      scheduler.cancel(follow);
+    } finally {
+      DriverStationSim.setEnabled(false);
+      DriverStationSim.notifyNewData();
+    }
 
-    Field2d widget = (Field2d) SmartDashboard.getData("Auto Preview");
     assertTrue(
-        !widget.getObject("activePath").getPoses().isEmpty(),
+        !preview.getField().getObject("activePath").getPoses().isEmpty(),
         "FollowPath's pathTranslations never reached the Auto Preview widget — a BLine logging"
             + " consumer is not installed in BLineAutos.createBuilder.");
   }
@@ -171,28 +297,32 @@ class RobotContainerSmokeTest {
             + " which names joystickDrive as non-removable.");
     assertEquals(
         "Drive_Joystick",
-        defaultCommand.getName(),
+        defaultCommand.name(),
         "Drive's default command is not the joystick drive. Whatever is there now will run"
             + " whenever nothing else requires the drivetrain, including the moment teleop"
             + " starts.");
   }
 
   @Test
-  void everyDefaultCommandIsNamed() {
-    // Command names are what appear in the AdvantageKit command log. A command that never got a
-    // .withName() logs under its class name, which for a factory-built command is an anonymous
-    // inner class like "frc.robot.commands.DriveCommands$1" — see .claude/rules/03-commands.md.
-    List<String> unnamed =
-        wiredSubsystems().stream()
-            .map(CommandScheduler.getInstance()::getDefaultCommand)
+  void everyDefaultCommandYieldsToOrdinaryCommands() {
+    // V3 interrupts a running command only when the newcomer's priority is EQUAL OR HIGHER. A
+    // default command at or above DEFAULT_PRIORITY blocks every ordinary command from ever taking
+    // its mechanism. Defaults sit below.
+    List<String> blocking =
+        wiredMechanisms().stream()
+            .map(Mechanism::getDefaultCommand)
             .filter(command -> command != null)
-            .map(Command::getName)
-            .filter(name -> name.contains("$") || name.isBlank())
+            .filter(command -> command.priority() >= Command.DEFAULT_PRIORITY)
+            .map(Command::name)
             .toList();
 
     assertTrue(
-        unnamed.isEmpty(),
-        () -> "These default commands were never given a .withName(): " + unnamed);
+        blocking.isEmpty(),
+        () ->
+            "These default commands are at or above Command.DEFAULT_PRIORITY and will block every"
+                + " ordinary command on their mechanism: "
+                + blocking
+                + "\n\nGive them .withPriority(Command.LOWEST_PRIORITY).");
   }
 
   @Test
@@ -215,24 +345,21 @@ class RobotContainerSmokeTest {
   }
 
   /**
-   * Every subsystem {@link RobotContainer} holds a field for.
+   * Every subsystem {@link RobotContainer} holds a field for: anything with a public {@code
+   * periodic()}, which is the contract {@code RobotContainer.periodic()} calls.
    *
-   * <p>Read by reflection rather than from the {@code CommandScheduler}, which exposes no accessor
-   * for its registered subsystems. Reading the container's own fields is also the more meaningful
-   * set: it is exactly what the wiring layer built, with no leftovers from another test class.
-   *
-   * <p>A subsystem added to {@code RobotContainer} is covered here automatically — nothing in this
-   * file names {@code Drive} or {@code Vision}.
+   * <p>Read by reflection so a subsystem added to {@code RobotContainer} is covered here
+   * automatically — nothing in this file names {@code Drive} or {@code Vision}.
    */
-  private static List<Subsystem> wiredSubsystems() {
-    List<Subsystem> subsystems = new ArrayList<>();
+  private static List<Object> wiredSubsystems() {
+    List<Object> subsystems = new ArrayList<>();
     for (Field field : RobotContainer.class.getDeclaredFields()) {
-      if (!Subsystem.class.isAssignableFrom(field.getType())) {
+      if (!hasPublicPeriodic(field.getType())) {
         continue;
       }
       field.setAccessible(true);
       try {
-        Subsystem subsystem = (Subsystem) field.get(container);
+        Object subsystem = field.get(container);
         if (subsystem != null) {
           subsystems.add(subsystem);
         }
@@ -243,24 +370,25 @@ class RobotContainerSmokeTest {
     return subsystems;
   }
 
-  /** {@link RobotContainer}'s auto chooser, which it does not expose. */
-  @SuppressWarnings("unchecked")
-  private static LoggedDashboardChooser<Supplier<Command>> autoChooser() {
-    return (LoggedDashboardChooser<Supplier<Command>>) readField("autoChooser");
-  }
-
-  private static Object readField(String name) {
+  private static boolean hasPublicPeriodic(Class<?> type) {
     try {
-      Field field = RobotContainer.class.getDeclaredField(name);
-      field.setAccessible(true);
-      return field.get(container);
-    } catch (NoSuchFieldException | IllegalAccessException e) {
-      throw new AssertionError("Could not read RobotContainer." + name, e);
+      Method periodic = type.getMethod("periodic");
+      return periodic.getParameterCount() == 0;
+    } catch (NoSuchMethodException e) {
+      return false;
     }
   }
 
+  /** The wired subsystems that are V3 mechanisms ({@code Vision} is not one). */
+  private static List<Mechanism> wiredMechanisms() {
+    return wiredSubsystems().stream()
+        .filter(Mechanism.class::isInstance)
+        .map(Mechanism.class::cast)
+        .toList();
+  }
+
   /** Finds the single wired subsystem of the given type, failing if it is not there. */
-  private static <T extends Subsystem> T findSubsystem(Class<T> type) {
+  private static <T> T findSubsystem(Class<T> type) {
     return wiredSubsystems().stream()
         .filter(type::isInstance)
         .map(type::cast)

@@ -1,33 +1,33 @@
 {
-  "fileName": "libgrapplefrc2026.json",
-  "name": "libgrapplefrc",
-  "version": "2026.0.0",
-  "frcYear": "2026",
-  "uuid": "8ef3423d-9532-4665-8339-206dae1d7168",
+  "fileName": "grapple-vendordep-2027.json",
+  "name": "grapple",
+  "version": "27.0.0",
+  "wpilibYear": "2027_alpha7",
+  "uuid": "67c91352-d903-4407-946c-5f458ac1b482",
   "mavenUrls": [
     "https://storage.googleapis.com/grapple-frc-maven"
   ],
-  "jsonUrl": "https://storage.googleapis.com/grapple-frc-maven/libgrapplefrc2026.json",
+  "jsonUrl": "https://storage.googleapis.com/grapple-frc-maven/grapple-vendordep-2027.json",
   "javaDependencies": [
     {
       "groupId": "au.grapplerobotics",
-      "artifactId": "libgrapplefrcjava",
-      "version": "2026.0.0"
+      "artifactId": "grappledriver-java",
+      "version": "27.0.0"
     }
   ],
   "jniDependencies": [
     {
       "groupId": "au.grapplerobotics",
-      "artifactId": "libgrapplefrcdriver",
-      "version": "2026.0.0",
+      "artifactId": "grappledriver-driver",
+      "version": "27.0.0",
       "skipInvalidPlatforms": true,
       "isJar": false,
       "validPlatforms": [
         "windowsx86-64",
+        "windowsarm64",
         "linuxarm64",
         "linuxx86-64",
-        "linuxathena",
-        "linuxarm32",
+        "linuxsystemcore",
         "osxuniversal"
       ]
     }
@@ -35,9 +35,9 @@
   "cppDependencies": [
     {
       "groupId": "au.grapplerobotics",
-      "artifactId": "libgrapplefrccpp",
-      "version": "2026.0.0",
-      "libName": "grapplefrc",
+      "artifactId": "grappledriver-cpp",
+      "version": "27.0.0",
+      "libName": "grapple",
       "headerClassifier": "headers",
       "sharedLibrary": true,
       "skipInvalidPlatforms": true,
@@ -45,16 +45,15 @@
         "windowsx86-64",
         "linuxarm64",
         "linuxx86-64",
-        "linuxathena",
-        "linuxarm32",
+        "linuxsystemcore",
         "osxuniversal"
       ]
     },
     {
       "groupId": "au.grapplerobotics",
-      "artifactId": "libgrapplefrcdriver",
-      "version": "2026.0.0",
-      "libName": "grapplefrcdriver",
+      "artifactId": "grappledriver-driver",
+      "version": "27.0.0",
+      "libName": "grappledriver",
       "headerClassifier": "headers",
       "sharedLibrary": true,
       "skipInvalidPlatforms": true,
@@ -62,8 +61,7 @@
         "windowsx86-64",
         "linuxarm64",
         "linuxx86-64",
-        "linuxathena",
-        "linuxarm32",
+        "linuxsystemcore",
         "osxuniversal"
       ]
     }

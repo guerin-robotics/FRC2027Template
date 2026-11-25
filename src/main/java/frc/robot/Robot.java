@@ -7,11 +7,6 @@
 
 package frc.robot;
 
-import edu.wpi.first.wpilibj.RobotController;
-import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.lib.util.AllianceFlipUtil;
 import frc.lib.util.BatteryLogger;
 import frc.lib.util.CANBusMonitor;
@@ -22,14 +17,19 @@ import frc.lib.util.LoopTimeMonitor;
 import frc.lib.util.MatchMetadataLogger;
 import frc.lib.util.PhoenixSignalLogger;
 import frc.robot.generated.TunerConstants;
-import frc.robot.subsystems.drive.DriveSimulation;
+import frc.robot.opmodes.AutoOpMode;
+import frc.robot.opmodes.OpModes;
 import org.littletonrobotics.junction.AutoLogOutputManager;
 import org.littletonrobotics.junction.LogFileUtil;
-import org.littletonrobotics.junction.LoggedRobot;
+import org.littletonrobotics.junction.LoggedOpModeRobot;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.NT4Publisher;
 import org.littletonrobotics.junction.wpilog.WPILOGReader;
 import org.littletonrobotics.junction.wpilog.WPILOGWriter;
+import org.wpilib.command3.Scheduler;
+import org.wpilib.system.RobotController;
+import org.wpilib.system.Timer;
+import org.wpilib.telemetry.Telemetry;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -37,9 +37,9 @@ import org.littletonrobotics.junction.wpilog.WPILOGWriter;
  * the package after creating this project, you must also update the build.gradle file in the
  * project.
  */
-public class Robot extends LoggedRobot {
-  private Command autonomousCommand;
+public class Robot extends LoggedOpModeRobot {
   private final RobotContainer robotContainer;
+  private AutoOpMode runningAuto;
 
   /** Shared battery/energy logger — subsystems call {@code reportCurrentUsage()} each loop. */
   public static final BatteryLogger batteryLogger = new BatteryLogger();
@@ -52,11 +52,6 @@ public class Robot extends LoggedRobot {
 
   /** Writes event and match identity into the log so a pile of logs can be triaged. */
   private final MatchMetadataLogger matchMetadataLogger = new MatchMetadataLogger();
-
-  /** Times the autonomous routine so overruns are visible immediately, not post-season. */
-  private final Timer autoTimer = new Timer();
-
-  private boolean autoDurationLogged = false;
 
   // ---- Disabled coast ----
   //
@@ -117,20 +112,30 @@ public class Robot extends LoggedRobot {
     // Log which commands are running. Registers scheduler hooks; must happen before any
     // command is scheduled or the first few will be missed.
     CommandLogger.start();
+    Scheduler.getDefault()
+        .addEventListener(
+            event -> {
+              if (runningAuto != null) {
+                runningAuto.onSchedulerEvent(event);
+              }
+            });
 
     // Configure CTRE hoot logging. Recording itself starts on enable — see PhoenixSignalLogger
     // for why it is not always-on.
     PhoenixSignalLogger.configure();
 
-    // Instantiate our RobotContainer. This will perform all our button bindings,
-    // and put our autonomous chooser on the dashboard.
+    // Instantiate our RobotContainer. This will perform all our button bindings.
     robotContainer = new RobotContainer();
+
+    // Offer the OpModes on the Driver Station: teleop, one autonomous per routine and side, and
+    // the utility (characterization) routines.
+    OpModes.register(this, robotContainer);
 
     // Short pre-match checklist, visible from the driver station without paper.
     // TODO: fill in the device count and add one line per 2027 mechanism, in the order the
     // drive team exercises them. Keep this in sync with docs/pre-match-checklist.md — that
     // is the full version; this is the pit-side reminder.
-    SmartDashboard.putString(
+    Telemetry.log(
         "Pre-Match Checklist",
         """
         Phoenix Tuner: ___ devices
@@ -161,12 +166,14 @@ public class Robot extends LoggedRobot {
     // per cycle. This must run BEFORE the scheduler, since commands read the cached value.
     AllianceFlipUtil.refresh();
 
-    // Runs the Scheduler. This is responsible for polling buttons, adding
-    // newly-scheduled commands, running already-scheduled commands, removing
-    // finished or interrupted commands, and running subsystem periodic() methods.
-    // This must be called from the robot's periodic block in order for anything in
-    // the Command-based framework to work.
-    CommandScheduler.getInstance().run();
+    // Read every subsystem's inputs BEFORE the scheduler. Commands V3 has no Subsystem.periodic()
+    // and nothing calls one for us, so this is the only place Logger.processInputs() runs for
+    // Drive and Vision. Removing it silently breaks replay. See RobotContainer.periodic().
+    robotContainer.periodic();
+
+    // Runs the V3 Scheduler: polls triggers, schedules and runs commands, and removes finished
+    // or interrupted ones. It runs no subsystem periodic() methods — see above.
+    Scheduler.getDefault().run();
     // Whatever the scheduler spent beyond the subsystems' own records (Drive, Vision, and any
     // mechanism that calls LoggedTracer.record) is triggers and command execute()s.
     LoggedTracer.record("Scheduler");
@@ -174,9 +181,10 @@ public class Robot extends LoggedRobot {
     // Publish the set of commands that ran this cycle (hooks registered in the constructor)
     CommandLogger.periodic();
 
-    // Update battery logger with voltage and RIO current, then log after scheduler
+    // Update battery logger with voltage, then log after scheduler. Systemcore exposes no
+    // controller input-current reading, so "Controls/roboRIO" stays 0 A until one exists or the
+    // draw is measured; do not read brownout current budgets as complete without it.
     batteryLogger.setBatteryVoltage(RobotController.getBatteryVoltage());
-    batteryLogger.setRioCurrent(RobotController.getInputCurrent());
     batteryLogger.periodicAfterScheduler();
     LoggedTracer.record("Logging");
 
@@ -214,9 +222,7 @@ public class Robot extends LoggedRobot {
       hasCoasted = true;
     }
 
-    // Last, so a fault in the preview cannot skip the coast above. Draws the selected auto as it
-    // will run (alliance + side) and does the start-pose check.
-    robotContainer.updateAutoPreview();
+    // The auto preview is drawn by AutoOpMode.disabledPeriodic() while an auto OpMode is selected.
   }
 
   /** Brake on every enable, whichever mode we are entering. */
@@ -226,96 +232,16 @@ public class Robot extends LoggedRobot {
     disabledTimer.stop();
   }
 
-  /** Everything that should happen on any enable, regardless of mode. */
-  private void onEnable() {
+  /** Tracks the active autonomous OpMode for scheduler outcome logging. */
+  public void trackAuto(AutoOpMode auto) {
+    runningAuto = auto;
+  }
+
+  /** Everything that should happen on any enable. Each OpMode calls this from its start(). */
+  public void onEnable() {
     enableBrakeMode();
     PhoenixSignalLogger.start();
   }
-
-  /** This autonomous runs the autonomous command selected by your {@link RobotContainer} class. */
-  @Override
-  public void autonomousInit() {
-    autonomousCommand = robotContainer.getAutonomousCommand();
-
-    onEnable();
-
-    // Time the auto. The 2026 routines overran the auto period and the final path was
-    // truncated in every single match — nobody measured it until the season was over.
-    autoTimer.restart();
-    autoDurationLogged = false;
-
-    // schedule the autonomous command
-    if (autonomousCommand != null) {
-      CommandScheduler.getInstance().schedule(autonomousCommand);
-    }
-  }
-
-  /** This function is called periodically during autonomous. */
-  @Override
-  public void autonomousPeriodic() {
-    // Log the duration the moment the auto command reports finished, so a routine that ends
-    // early is distinguishable from one that ran until the period expired.
-    if (!autoDurationLogged && autonomousCommand != null && !autonomousCommand.isScheduled()) {
-      logAutoDuration(false);
-    }
-
-    // Last, so a fault in the preview cannot skip the duration log above.
-    robotContainer.showAutoRobot();
-  }
-
-  /** Called when leaving autonomous, whether the routine finished or the period expired. */
-  @Override
-  public void autonomousExit() {
-    if (!autoDurationLogged) {
-      // Still running when auto ended — this is the overrun case.
-      logAutoDuration(true);
-    }
-  }
-
-  private void logAutoDuration(boolean overran) {
-    autoDurationLogged = true;
-    double seconds = autoTimer.get();
-    Logger.recordOutput("Auto/DurationSeconds", seconds);
-    Logger.recordOutput("Auto/Overran", overran);
-    Logger.recordOutput(
-        "Auto/Name", autonomousCommand == null ? "None" : autonomousCommand.getName());
-    System.out.println(
-        "Auto finished in "
-            + String.format("%.2f", seconds)
-            + " s"
-            + (overran ? " — STILL RUNNING when auto ended (overran)" : ""));
-  }
-
-  /** This function is called once when teleop is enabled. */
-  @Override
-  public void teleopInit() {
-    onEnable();
-
-    // This makes sure that the autonomous stops running when
-    // teleop starts running. If you want the autonomous to
-    // continue until interrupted by another command, remove
-    // this line or comment it out.
-    if (autonomousCommand != null) {
-      autonomousCommand.cancel();
-    }
-  }
-
-  /** This function is called periodically during operator control. */
-  @Override
-  public void teleopPeriodic() {}
-
-  /** This function is called once when test mode is enabled. */
-  @Override
-  public void testInit() {
-    onEnable();
-
-    // Cancels all running commands at the start of test mode.
-    CommandScheduler.getInstance().cancelAll();
-  }
-
-  /** This function is called periodically during test mode. */
-  @Override
-  public void testPeriodic() {}
 
   /** This function is called once when the robot is first started up. */
   @Override
@@ -323,8 +249,5 @@ public class Robot extends LoggedRobot {
 
   /** This function is called periodically whilst in simulation. */
   @Override
-  public void simulationPeriodic() {
-    // Steps the maple-sim physics world. Does nothing unless the sim drivetrain was built.
-    DriveSimulation.periodic();
-  }
+  public void simulationPeriodic() {}
 }

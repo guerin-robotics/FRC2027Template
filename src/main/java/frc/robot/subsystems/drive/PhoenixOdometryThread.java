@@ -9,9 +9,6 @@ package frc.robot.subsystems.drive;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.RobotController;
 import frc.robot.generated.TunerConstants;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +17,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.DoubleSupplier;
+import org.wpilib.driverstation.DriverStationErrors;
+import org.wpilib.system.Timer;
+import org.wpilib.units.measure.Angle;
 
 /**
  * Provides an interface for asynchronously reading high-frequency measurements to a set of queues.
@@ -125,7 +125,7 @@ public class PhoenixOdometryThread extends Thread {
         // cleanly, because the signal that something asked it to stop is discarded. Reported
         // through DriverStation rather than printStackTrace so it reaches the log.
         Thread.currentThread().interrupt();
-        DriverStation.reportError("Odometry thread interrupted: " + e, false);
+        DriverStationErrors.reportError("Odometry thread interrupted: " + e, false);
       } finally {
         signalsLock.unlock();
       }
@@ -136,7 +136,7 @@ public class PhoenixOdometryThread extends Thread {
         // Sample timestamp is current FPGA time minus average CAN latency
         // Default timestamps from Phoenix are NOT compatible with
         // FPGA timestamps, this solution is imperfect but close
-        double timestamp = RobotController.getFPGATime() / 1e6;
+        double timestamp = Timer.getTimestamp();
         double totalLatency = 0.0;
         for (BaseStatusSignal signal : phoenixSignals) {
           totalLatency += signal.getTimestamp().getLatency();

@@ -1,20 +1,22 @@
 package frc.lib.util;
 
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import edu.wpi.first.wpilibj2.command.Subsystem;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.command3.Command;
+import org.wpilib.command3.Mechanism;
+import org.wpilib.command3.Scheduler;
+import org.wpilib.command3.SchedulerEvent;
 
 /**
- * Logs which commands are running, so a match log can answer "what was the robot trying to do at
- * this timestamp?".
+ * Logs which commands are running, from the V3 scheduler's typed events.
  *
- * <p>WPILib's scheduler does not log this on its own. The 2026 season had no way to see, after the
- * fact, whether a command never started, started and was immediately interrupted, or ran to
- * completion while the mechanism did nothing — which are three completely different bugs that look
- * identical in the mechanism's own signals.
+ * <p>When a mechanism misbehaves, the first question is "what was commanding it?" — and the answer
+ * is often "nothing", "the default", or "something that was interrupted". That is a command
+ * scheduled and interrupted by another, a command canceled by the trigger that started it, or one
+ * that ran to completion while the mechanism did nothing: three different bugs that look identical
+ * in the mechanism's own signals.
  *
  * <p>Publishes:
  *
@@ -23,11 +25,12 @@ import org.littletonrobotics.junction.Logger;
  *   <li>{@code Commands/ActiveCount} — how many
  *   <li>{@code Commands/All/<name>} — a boolean per command name, for graphing one command's
  *       activity against a mechanism's response on the same timeline
+ *   <li>{@code Commands/LastInterrupt} — {@code "<interrupted> by <interrupter>"}, the answer to
+ *       "what stopped that?" that V2 could not give
  * </ul>
  *
- * <p>Names come from {@code Command.getName()}, which is why every factory must call {@code
- * .withName(...)} — see {@code .claude/rules/03-commands.md}. Unnamed commands log as their class
- * name and are nearly useless here.
+ * <p>Names come from {@code Command.name()}, which V3 requires at construction. Whether a name is a
+ * <em>useful</em> one is still a review item — see {@code .claude/rules/03-commands.md}.
  *
  * <p>Call {@link #start()} once from the {@code Robot} constructor.
  */
@@ -41,7 +44,8 @@ public class CommandLogger {
   private CommandLogger() {}
 
   /**
-   * Registers the scheduler hooks. Safe to call more than once; only the first call takes effect.
+   * Registers the scheduler listener. Safe to call more than once; only the first call takes
+   * effect.
    */
   public static void start() {
     if (started) {
@@ -49,14 +53,25 @@ public class CommandLogger {
     }
     started = true;
 
-    CommandScheduler scheduler = CommandScheduler.getInstance();
-    scheduler.onCommandInitialize(command -> update(command, true));
-    scheduler.onCommandFinish(command -> update(command, false));
-    scheduler.onCommandInterrupt(command -> update(command, false));
+    Scheduler.getDefault()
+        .addEventListener(
+            event -> {
+              switch (event) {
+                case SchedulerEvent.Scheduled e -> update(e.command(), true);
+                case SchedulerEvent.Completed e -> update(e.command(), false);
+                case SchedulerEvent.CompletedWithError e -> update(e.command(), false);
+                case SchedulerEvent.Canceled e -> update(e.command(), false);
+                case SchedulerEvent.Interrupted e ->
+                    Logger.recordOutput(
+                        "Commands/LastInterrupt",
+                        e.command().name() + " by " + e.interrupter().name());
+                default -> {}
+              }
+            });
   }
 
   private static void update(Command command, boolean starting) {
-    String name = command.getName();
+    String name = command.name();
     int count = activeCounts.getOrDefault(name, 0) + (starting ? 1 : -1);
 
     if (count <= 0) {
@@ -71,29 +86,30 @@ public class CommandLogger {
   }
 
   /**
-   * Logs which command currently owns a subsystem.
+   * Logs which command currently owns a mechanism.
    *
    * <p>Complements {@code Commands/Active}, which is robot-wide. When one mechanism misbehaves, the
-   * question is usually "what was driving *this* subsystem at that moment" — including whether it
+   * question is usually "what was driving *this* mechanism at that moment" — including whether it
    * had fallen back to its default command, which the global list does not make obvious.
    *
    * <p>Already called by {@code Drive} and by each mechanism scaffold in {@code template/}, so a
-   * mechanism copied from one gets it. Any other subsystem must call it itself, from its {@code
+   * mechanism copied from one gets it. Any other mechanism must call it itself, from its {@code
    * periodic()}:
    *
    * <pre>
    * CommandLogger.recordCurrentCommand(getName(), this);
    * </pre>
    *
-   * <p>Logs the top-level command only. A composition such as {@code sequence(waitUntil(...),
-   * feed())} logs as the group's name, not the step inside it that is running.
+   * <p>Logs the top-level command only. A group logs as the group's name, not the step inside it
+   * that is running.
    *
-   * @param name Log key prefix, normally the subsystem name
-   * @param subsystem The subsystem to inspect
+   * @param name Log key prefix, normally the mechanism name
+   * @param mechanism The mechanism to inspect
    */
-  public static void recordCurrentCommand(String name, Subsystem subsystem) {
-    Command current = CommandScheduler.getInstance().requiring(subsystem);
-    Logger.recordOutput(name + "/CurrentCommand", current == null ? "None" : current.getName());
+  public static void recordCurrentCommand(String name, Mechanism mechanism) {
+    List<Command> running = mechanism.getRunningCommands();
+    Logger.recordOutput(
+        name + "/CurrentCommand", running.isEmpty() ? "None" : running.get(0).name());
   }
 
   /**

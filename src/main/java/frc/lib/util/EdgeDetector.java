@@ -1,8 +1,8 @@
 package frc.lib.util;
 
-import edu.wpi.first.wpilibj.Timer;
 import java.util.ArrayDeque;
 import java.util.function.BooleanSupplier;
+import org.wpilib.system.Timer;
 
 /**
  * Edge detection and event counting over a boolean signal.
@@ -101,7 +101,7 @@ public class EdgeDetector {
      * <p>Call once per loop — it advances the underlying edge detector.
      */
     public int count() {
-      double now = Timer.getFPGATimestamp();
+      double now = Timer.getTimestamp();
 
       if (source.getAsBoolean()) {
         events.addLast(now);

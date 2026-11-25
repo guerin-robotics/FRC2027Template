@@ -8,10 +8,10 @@ import com.ctre.phoenix6.controls.SolidColor;
 import com.ctre.phoenix6.controls.StrobeAnimation;
 import com.ctre.phoenix6.hardware.CANdle;
 import com.ctre.phoenix6.signals.RGBWColor;
-import edu.wpi.first.math.filter.Debouncer;
-import edu.wpi.first.wpilibj.util.Color;
 import frc.lib.device.CanIdRegistry;
 import frc.lib.util.PhoenixUtil;
+import org.wpilib.math.filter.Debouncer;
+import org.wpilib.util.Color;
 
 /**
  * A CTRE CANdle. Animations run in slot 0; switching to a solid colour clears that slot first, or
@@ -31,12 +31,12 @@ public class LightsIOCANdle implements LightsIO {
   private final RainbowAnimation rainbow;
   private final EmptyAnimation clearAnimation = new EmptyAnimation(ANIMATION_SLOT);
 
-  private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+  private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.FALLING);
 
   /**
    * @param name Owner name for the CAN ID registry, e.g. "Lights"
    * @param canId From {@code Constants.CanIds}
-   * @param bus Usually {@code Constants.CanIds.RIO_BUS}
+   * @param bus Usually {@code Constants.CanIds.MECHANISM_BUS_A}
    * @param config The complete configuration (strip type, brightness), applied once
    * @param ledCount Total LEDs including the CANdle's 8 onboard ones — so a 30-LED strip is 38
    */

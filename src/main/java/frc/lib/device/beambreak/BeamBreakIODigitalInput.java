@@ -1,6 +1,6 @@
 package frc.lib.device.beambreak;
 
-import edu.wpi.first.wpilibj.DigitalInput;
+import org.wpilib.hardware.discrete.DigitalInput;
 
 /** A beam break on a roboRIO DIO port. */
 public class BeamBreakIODigitalInput implements BeamBreakIO {

@@ -8,7 +8,8 @@
 package frc.robot;
 
 import com.ctre.phoenix6.CANBus;
-import edu.wpi.first.wpilibj.RobotBase;
+import org.wpilib.framework.RobotBase;
+import org.wpilib.hardware.bus.CANPort;
 
 /**
  * Runtime configuration, CAN IDs, and the values that get changed during a tuning or competition
@@ -114,15 +115,27 @@ public final class Constants {
     private CanIds() {}
 
     /**
-     * The roboRIO's onboard CAN bus.
+     * Systemcore's native CAN buses for mechanisms (there is no "rio" bus on Systemcore).
      *
-     * <p>Use this rather than the string form: {@code new TalonFX(id, "rio")} is deprecated for
-     * removal in Phoenix 6, and constructing a {@code CANBus} per device wastes work at startup.
+     * <p>TODO: PLACEHOLDERS, NOT MEASURED. The 2027 robot is expected to use at least two
+     * Systemcore buses plus the CANivore; which devices sit on {@code A} and which on {@code B} is
+     * not decided. Until it is, every mechanism uses {@code A}. Pick the bus per device when wiring
+     * is fixed, record it in {@code docs/hardware-layout.md}, and change the {@code CANPort}s here
+     * if the harness lands on different connectors. {@code CanIdUniquenessTest} still treats every
+     * mechanism ID as sharing one bus, which is stricter than needed; give it a per-ID bus once IDs
+     * are assigned to buses.
      *
-     * <p>The CANivore bus is {@code TunerConstants.kCANBus} — swerve owns it, and anything else
-     * placed there needs a documented reason (see {@code .claude/rules/02-hardware.md}).
+     * <p>Use these {@code CANBus} objects rather than a name string: constructing a {@code CANBus}
+     * per device wastes work at startup. The CANivore bus is {@code TunerConstants.kCANBus} —
+     * swerve owns it, and anything else placed there needs a documented reason (see {@code
+     * .claude/rules/02-hardware.md}).
      */
-    public static final CANBus RIO_BUS = new CANBus("rio");
+    public static final CANPort MECHANISM_PORT_A = CANPort.CAN_S0;
+
+    public static final CANPort MECHANISM_PORT_B = CANPort.CAN_S1;
+
+    public static final CANBus MECHANISM_BUS_A = new CANBus(MECHANISM_PORT_A);
+    public static final CANBus MECHANISM_BUS_B = new CANBus(MECHANISM_PORT_B);
 
     // ---- No IDs yet ----
     //

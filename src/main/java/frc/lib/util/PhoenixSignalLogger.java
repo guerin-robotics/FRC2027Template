@@ -1,11 +1,10 @@
 package frc.lib.util;
 
 import com.ctre.phoenix6.SignalLogger;
-import edu.wpi.first.wpilibj.Alert;
-import edu.wpi.first.wpilibj.Alert.AlertType;
 import frc.robot.Constants;
 import frc.robot.Constants.Mode;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.util.Alert;
 
 /**
  * Controls CTRE's on-device signal logging, which writes {@code .hoot} files.
@@ -48,7 +47,8 @@ public class PhoenixSignalLogger {
   private static final Alert pathFailedAlert =
       new Alert(
           "Phoenix hoot logging is off — could not write to " + LOG_PATH + " (USB drive missing?)",
-          AlertType.kWarning);
+          "Phoenix hoot logging is off — could not write to " + LOG_PATH + " (USB drive missing?)",
+          Alert.Level.MEDIUM);
 
   private static boolean pathConfigured = false;
   private static boolean running = false;

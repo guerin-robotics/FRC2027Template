@@ -1,10 +1,10 @@
 package frc.lib.device.distance;
 
-import edu.wpi.first.units.measure.Distance;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.lib.util.FaultMonitor;
 import java.util.Optional;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.command3.Trigger;
+import org.wpilib.units.measure.Distance;
 
 /**
  * A distance sensor, owned by a subsystem.
