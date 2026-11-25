@@ -1,6 +1,5 @@
 package frc.lib.util;
 
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -79,8 +78,8 @@ public class FaultMonitor {
     Logger.recordOutput("RobotHealth/ActiveFaults", activeFaults.toArray(new String[0]));
 
     // Dashboard mirror — this is the one the pit actually watches.
-    SmartDashboard.putBoolean("Robot OK", healthy);
-    SmartDashboard.putString("Active Faults", healthy ? "None" : String.join(", ", activeFaults));
+    Logger.recordOutput(
+        "RobotHealth/ActiveFaultSummary", healthy ? "None" : String.join(", ", activeFaults));
   }
 
   /** True when no registered fault is currently present. */

@@ -1,15 +1,10 @@
 package frc.robot.subsystems.drive;
 
-import static edu.wpi.first.units.Units.KilogramSquareMeters;
-import static edu.wpi.first.units.Units.Kilograms;
-import static edu.wpi.first.units.Units.Meters;
-import static edu.wpi.first.units.Units.Volts;
+import static org.wpilib.units.Units.KilogramSquareMeters;
+import static org.wpilib.units.Units.Kilograms;
+import static org.wpilib.units.Units.Meters;
+import static org.wpilib.units.Units.Volts;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.math.system.plant.DCMotor;
 import frc.lib.util.FieldConstants;
 import frc.robot.generated.TunerConstants;
 import org.ironmaple.simulation.SimulatedArena;
@@ -18,6 +13,11 @@ import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
 import org.ironmaple.simulation.drivesims.configs.DriveTrainSimulationConfig;
 import org.ironmaple.simulation.drivesims.configs.SwerveModuleSimulationConfig;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.geometry.Translation2d;
+import org.wpilib.math.kinematics.ChassisVelocities;
+import org.wpilib.math.system.DCMotor;
 
 /**
  * The one maple-sim physics world for the drivetrain: a rigid body with four swerve modules inside
@@ -81,7 +81,7 @@ public final class DriveSimulation {
             new Pose2d(
                 FieldConstants.fieldLength / 2.0,
                 FieldConstants.fieldWidth / 2.0,
-                Rotation2d.kZero));
+                Rotation2d.ZERO));
     SimulatedArena.getInstance().addDriveTrainSimulation(simulation);
     return simulation;
   }
@@ -109,7 +109,7 @@ public final class DriveSimulation {
     if (instance != null) {
       instance.setSimulationWorldPose(pose);
       // Teleporting must not leave the old momentum behind, or sim drifts away from the reset.
-      instance.setRobotSpeeds(new ChassisSpeeds());
+      instance.setRobotSpeeds(new ChassisVelocities());
     }
   }
 

@@ -31,7 +31,7 @@
             "height": 256.0,
             "type": "Boolean Box",
             "properties": {
-              "topic": "/SmartDashboard/Robot OK",
+              "topic": "/AdvantageKit/RealOutputs/RobotHealth/OK",
               "period": 0.06,
               "data_type": "boolean",
               "true_color": 4283215696,
@@ -48,7 +48,7 @@
             "height": 256.0,
             "type": "Text Display",
             "properties": {
-              "topic": "/SmartDashboard/Active Faults",
+              "topic": "/AdvantageKit/RealOutputs/RobotHealth/ActiveFaultSummary",
               "period": 0.06,
               "data_type": "string",
               "show_submit_button": false
@@ -251,7 +251,7 @@
             "height": 128.0,
             "type": "Boolean Box",
             "properties": {
-              "topic": "/SmartDashboard/Robot OK",
+              "topic": "/AdvantageKit/RealOutputs/RobotHealth/OK",
               "period": 0.06,
               "data_type": "boolean",
               "true_color": 4283215696,
@@ -268,7 +268,7 @@
             "height": 128.0,
             "type": "Text Display",
             "properties": {
-              "topic": "/SmartDashboard/Active Faults",
+              "topic": "/AdvantageKit/RealOutputs/RobotHealth/ActiveFaultSummary",
               "period": 0.06,
               "data_type": "string",
               "show_submit_button": false

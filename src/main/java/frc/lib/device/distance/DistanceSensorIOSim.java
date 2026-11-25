@@ -1,8 +1,8 @@
 package frc.lib.device.distance;
 
-import edu.wpi.first.units.measure.Distance;
 import java.util.Optional;
 import java.util.function.Supplier;
+import org.wpilib.units.measure.Distance;
 
 /**
  * Reports a distance chosen by the simulation — typically from game-piece state in {@code

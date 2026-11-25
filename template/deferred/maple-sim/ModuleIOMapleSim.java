@@ -1,16 +1,15 @@
 package frc.robot.subsystems.drive;
 
-import static edu.wpi.first.units.Units.Amps;
-import static edu.wpi.first.units.Units.Radians;
-import static edu.wpi.first.units.Units.RadiansPerSecond;
-import static edu.wpi.first.units.Units.Volts;
+import static org.wpilib.units.Units.Amps;
+import static org.wpilib.units.Units.Radians;
+import static org.wpilib.units.Units.RadiansPerSecond;
+import static org.wpilib.units.Units.Volts;
 
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.wpilibj.Timer;
 import org.ironmaple.simulation.drivesims.SwerveModuleSimulation;
 import org.ironmaple.simulation.motorsims.SimulatedMotorController;
+import org.wpilib.math.controller.PIDController;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.system.Timer;
 
 /**
  * Module IO backed by one maple-sim swerve module. Like {@link ModuleIOSim} it is voltage-driven
@@ -72,8 +71,8 @@ public class ModuleIOMapleSim implements ModuleIO {
     } else {
       turnController.reset();
     }
-    driveAppliedVolts = MathUtil.clamp(driveAppliedVolts, -12.0, 12.0);
-    turnAppliedVolts = MathUtil.clamp(turnAppliedVolts, -12.0, 12.0);
+    driveAppliedVolts = Math.clamp(driveAppliedVolts, -12.0, 12.0);
+    turnAppliedVolts = Math.clamp(turnAppliedVolts, -12.0, 12.0);
     driveMotor.requestVoltage(Volts.of(driveAppliedVolts));
     turnMotor.requestVoltage(Volts.of(turnAppliedVolts));
 
@@ -96,7 +95,7 @@ public class ModuleIOMapleSim implements ModuleIO {
     inputs.turnTempCelsius = 25.0; // not modeled
 
     // One sample per loop, matching ModuleIOSim.
-    inputs.odometryTimestamps = new double[] {Timer.getFPGATimestamp()};
+    inputs.odometryTimestamps = new double[] {Timer.getTimestamp()};
     inputs.odometryDrivePositionsRad = new double[] {inputs.drivePositionRad};
     inputs.odometryTurnPositions = new Rotation2d[] {inputs.turnPosition};
   }

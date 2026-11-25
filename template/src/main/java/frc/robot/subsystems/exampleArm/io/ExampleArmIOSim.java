@@ -1,20 +1,20 @@
 package frc.robot.subsystems.exampleArm.io;
 
-import static edu.wpi.first.units.Units.Amps;
-import static edu.wpi.first.units.Units.Celsius;
-import static edu.wpi.first.units.Units.Radians;
-import static edu.wpi.first.units.Units.RadiansPerSecond;
-import static edu.wpi.first.units.Units.Rotations;
-import static edu.wpi.first.units.Units.Volts;
+import static org.wpilib.units.Units.Amps;
+import static org.wpilib.units.Units.Celsius;
+import static org.wpilib.units.Units.Radians;
+import static org.wpilib.units.Units.RadiansPerSecond;
+import static org.wpilib.units.Units.Rotations;
+import static org.wpilib.units.Units.Volts;
 
-import edu.wpi.first.math.controller.ArmFeedforward;
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.system.plant.LinearSystemId;
-import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.Voltage;
-import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 import frc.robot.subsystems.exampleArm.ExampleArmConstants;
+import org.wpilib.math.controller.ArmFeedforward;
+import org.wpilib.math.controller.PIDController;
+import org.wpilib.math.system.Models;
+import org.wpilib.math.util.Units;
+import org.wpilib.simulation.SingleJointedArmSim;
+import org.wpilib.units.measure.Angle;
+import org.wpilib.units.measure.Voltage;
 
 /**
  * Simulation implementation for a rotary position-controlled mechanism.
@@ -64,7 +64,7 @@ public class ExampleArmIOSim implements ExampleArmIO {
   // read back out crosses back through mechanismRadians().
   private final SingleJointedArmSim sim =
       new SingleJointedArmSim(
-          LinearSystemId.createSingleJointedArmSystem(
+          Models.singleJointedArmFromPhysicalConstants(
               ExampleArmConstants.Sim.MOTOR,
               SingleJointedArmSim.estimateMOI(
                   ExampleArmConstants.Sim.ARM_LENGTH_METERS, ExampleArmConstants.Sim.ARM_MASS_KG),
@@ -139,7 +139,7 @@ public class ExampleArmIOSim implements ExampleArmIO {
     inputs.motorVoltage = Volts.of(appliedVolts);
     // Velocity needs no conversion: the two frames differ by a constant.
     inputs.motorPosition = Radians.of(mechanismRadians());
-    inputs.motorVelocity = RadiansPerSecond.of(sim.getVelocityRadPerSec());
+    inputs.motorVelocity = RadiansPerSecond.of(sim.getVelocity());
     inputs.encoderAbsolutePosition = Radians.of(mechanismRadians());
     inputs.encoderMagnetHealth = 3; // green — sim has no magnet to mount badly
     // WPILib models winding (stator) current. Supply current is what the battery sees, which under
@@ -147,7 +147,7 @@ public class ExampleArmIOSim implements ExampleArmIO {
     // overstates battery draw exactly when the mechanism works hardest — the 2026 mistake in
     // .claude/rules/02-hardware.md — and that number feeds BatteryLogger. An estimate, not a model
     // of the Talon, but the right quantity.
-    double statorAmps = sim.getCurrentDrawAmps();
+    double statorAmps = sim.getCurrentDraw();
     inputs.motorStatorAmps = Amps.of(statorAmps);
     inputs.motorSupplyAmps =
         Amps.of(Math.abs(statorAmps) * Math.abs(appliedVolts) / NOMINAL_BUS_VOLTS);
@@ -196,6 +196,6 @@ public class ExampleArmIOSim implements ExampleArmIO {
 
   /** The sim's angle, crossed back out of its gravity frame into the mechanism's. */
   private double mechanismRadians() {
-    return sim.getAngleRads() - GRAVITY_FRAME_OFFSET_RADIANS;
+    return sim.getAngle() - GRAVITY_FRAME_OFFSET_RADIANS;
   }
 }

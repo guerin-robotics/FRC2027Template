@@ -7,29 +7,8 @@
 
 package frc.robot.subsystems.drive;
 
-import static edu.wpi.first.units.Units.*;
+import static org.wpilib.units.Units.*;
 
-import edu.wpi.first.hal.FRCNetComm.tInstances;
-import edu.wpi.first.hal.FRCNetComm.tResourceType;
-import edu.wpi.first.hal.HAL;
-import edu.wpi.first.math.Matrix;
-import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.geometry.Twist2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
-import edu.wpi.first.math.kinematics.SwerveModulePosition;
-import edu.wpi.first.math.kinematics.SwerveModuleState;
-import edu.wpi.first.math.numbers.N1;
-import edu.wpi.first.math.numbers.N3;
-import edu.wpi.first.wpilibj.Alert;
-import edu.wpi.first.wpilibj.Alert.AlertType;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.lib.util.CommandLogger;
 import frc.lib.util.FieldConstants;
 import frc.lib.util.LoggedTracer;
@@ -42,8 +21,25 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.command3.Command;
+import org.wpilib.command3.Mechanism;
+import org.wpilib.command3.sysid.SysIdRoutine;
+import org.wpilib.math.estimator.SwerveDrivePoseEstimator;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.geometry.Translation2d;
+import org.wpilib.math.geometry.Twist2d;
+import org.wpilib.math.kinematics.ChassisVelocities;
+import org.wpilib.math.kinematics.SwerveDriveKinematics;
+import org.wpilib.math.kinematics.SwerveModulePosition;
+import org.wpilib.math.kinematics.SwerveModuleVelocity;
+import org.wpilib.math.linalg.Matrix;
+import org.wpilib.math.numbers.N1;
+import org.wpilib.math.numbers.N3;
+import org.wpilib.util.Alert;
+import org.wpilib.util.UsageReporting;
 
-public class Drive extends SubsystemBase {
+public class Drive implements Mechanism {
 
   /** True while the modules are held in the X pattern by {@code DriveCommands.stopWithX}. */
   public boolean areWheelsXed = false;
@@ -64,7 +60,10 @@ public class Drive extends SubsystemBase {
   private static final double POSE_JUMP_THRESHOLD_METERS = 1.0;
 
   private final Alert offFieldAlert =
-      new Alert("Pose estimate is off the field — odometry or vision is wrong.", AlertType.kError);
+      new Alert(
+          "Pose estimate is off the field — odometry or vision is wrong.",
+          "Pose estimate is off the field — odometry or vision is wrong.",
+          Alert.Level.HIGH);
 
   private double largestJumpThisLoop = 0.0;
   private int poseJumpCount = 0;
@@ -77,13 +76,17 @@ public class Drive extends SubsystemBase {
 
   private final Alert motorHotAlert =
       new Alert(
-          "A swerve motor is running hot — output will be thermally limited.", AlertType.kWarning);
+          "A swerve motor is running hot — output will be thermally limited.",
+          "A swerve motor is running hot — output will be thermally limited.",
+          Alert.Level.MEDIUM);
 
   private final Alert stickyFaultAlert =
       new Alert(
           "A swerve motor latched a sticky fault (reboot, undervoltage, over-temp or hardware). "
               + "Check Drive/Module*/Sticky* in the log.",
-          AlertType.kWarning);
+          "A swerve motor latched a sticky fault (reboot, undervoltage, over-temp or hardware). "
+              + "Check Drive/Module*/Sticky* in the log.",
+          Alert.Level.MEDIUM);
 
   // TunerConstants doesn't include these constants, so they are declared locally
   static final double ODOMETRY_FREQUENCY = TunerConstants.kCANBus.isNetworkFD() ? 250.0 : 100.0;
@@ -102,10 +105,13 @@ public class Drive extends SubsystemBase {
   private final Module[] modules = new Module[4]; // FL, FR, BL, BR
   private final SysIdRoutine sysId;
   private final Alert gyroDisconnectedAlert =
-      new Alert("Disconnected gyro, using kinematics as fallback.", AlertType.kError);
+      new Alert(
+          "Disconnected gyro, using kinematics as fallback.",
+          "Disconnected gyro, using kinematics as fallback.",
+          Alert.Level.HIGH);
 
   private SwerveDriveKinematics kinematics = new SwerveDriveKinematics(getModuleTranslations());
-  private Rotation2d rawGyroRotation = Rotation2d.kZero;
+  private Rotation2d rawGyroRotation = Rotation2d.ZERO;
   private SwerveModulePosition[] lastModulePositions = // For delta tracking
       new SwerveModulePosition[] {
         new SwerveModulePosition(),
@@ -114,7 +120,7 @@ public class Drive extends SubsystemBase {
         new SwerveModulePosition()
       };
   private SwerveDrivePoseEstimator poseEstimator =
-      new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions, Pose2d.kZero);
+      new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions, Pose2d.ZERO);
 
   public Drive(
       GyroIO gyroIO,
@@ -129,7 +135,7 @@ public class Drive extends SubsystemBase {
     modules[3] = new Module(brModuleIO, 3, TunerConstants.BackRight);
 
     // Usage reporting for swerve template
-    HAL.report(tResourceType.kResourceType_RobotDrive, tInstances.kRobotDriveSwerve_AdvantageKit);
+    UsageReporting.reportUsage("RobotDrive", "Swerve-AdvantageKit");
 
     // Start odometry thread
     PhoenixOdometryThread.getInstance().start();
@@ -140,17 +146,18 @@ public class Drive extends SubsystemBase {
     // ModuleIOTalonFX sends as a TORQUE CURRENT request because TunerConstants selects
     // ClosedLoopOutputType.TorqueCurrentFOC. So SysId's "volts" are amps here, and the
     // null config below means WPILib's defaults (1 V/s ramp, 7 V step) land as 1 A/s and
-    // 7 A — far gentler than intended. Pass an explicit SysIdRoutine.Config with
-    // amp-appropriate values before relying on these routines.
+    // 7 A — far gentler than intended. The defaults are passed explicitly because the V3
+    // Config no longer accepts null; put amp-appropriate values here before relying on these
+    // routines.
     // See docs/characterization-and-tuning.md.
     sysId =
         new SysIdRoutine(
             new SysIdRoutine.Config(
-                null,
-                null,
-                null,
+                SysIdRoutine.Config.DEFAULT_RAMP_RATE,
+                SysIdRoutine.Config.DEFAULT_STEP_VOLTAGE,
+                SysIdRoutine.Config.DEFAULT_TIMEOUT,
                 (state) -> Logger.recordOutput("Drive/SysIdState", state.toString())),
-            new SysIdRoutine.Mechanism(
+            new SysIdRoutine.SysIdMechanism(
                 (voltage) -> runCharacterization(voltage.in(Volts)), null, this));
 
     // Wire RobotState to use Drive's single pose estimator.
@@ -159,7 +166,11 @@ public class Drive extends SubsystemBase {
     RobotState.getInstance().setPoseSupplier(this::getPose);
   }
 
-  @Override
+  /**
+   * Reads inputs and updates odometry. V3 has no {@code Subsystem.periodic()} and nothing calls
+   * this for us: {@code RobotContainer.periodic()} must, every loop, before the scheduler runs.
+   * Without it {@code Logger.processInputs()} never executes and replay silently breaks.
+   */
   public void periodic() {
     // try/finally so the odometry thread is never left blocked on a lock this method failed to
     // release. In practice an exception here takes the robot program down with it, so this is
@@ -176,16 +187,16 @@ public class Drive extends SubsystemBase {
     }
 
     // Stop moving when disabled
-    if (DriverStation.isDisabled()) {
+    if (org.wpilib.driverstation.RobotState.isDisabled()) {
       for (var module : modules) {
         module.stop();
       }
     }
 
     // Log empty setpoint states when disabled
-    if (DriverStation.isDisabled()) {
-      Logger.recordOutput("SwerveStates/Setpoints", new SwerveModuleState[] {});
-      Logger.recordOutput("SwerveStates/SetpointsOptimized", new SwerveModuleState[] {});
+    if (org.wpilib.driverstation.RobotState.isDisabled()) {
+      Logger.recordOutput("SwerveStates/Setpoints", new SwerveModuleVelocity[] {});
+      Logger.recordOutput("SwerveStates/SetpointsOptimized", new SwerveModuleVelocity[] {});
     }
 
     CommandLogger.recordCurrentCommand("Drive", this);
@@ -202,8 +213,7 @@ public class Drive extends SubsystemBase {
         modulePositions[moduleIndex] = modules[moduleIndex].getOdometryPositions()[i];
         moduleDeltas[moduleIndex] =
             new SwerveModulePosition(
-                modulePositions[moduleIndex].distanceMeters
-                    - lastModulePositions[moduleIndex].distanceMeters,
+                modulePositions[moduleIndex].distance - lastModulePositions[moduleIndex].distance,
                 modulePositions[moduleIndex].angle);
         lastModulePositions[moduleIndex] = modulePositions[moduleIndex];
       }
@@ -273,11 +283,13 @@ public class Drive extends SubsystemBase {
    *
    * @param speeds Speeds in meters/sec
    */
-  public void runVelocity(ChassisSpeeds speeds) {
+  public void runVelocity(ChassisVelocities speeds) {
     // Calculate module setpoints
-    ChassisSpeeds discreteSpeeds = ChassisSpeeds.discretize(speeds, 0.02);
-    SwerveModuleState[] setpointStates = kinematics.toSwerveModuleStates(discreteSpeeds);
-    SwerveDriveKinematics.desaturateWheelSpeeds(setpointStates, TunerConstants.kSpeedAt12Volts);
+    ChassisVelocities discreteSpeeds = speeds.discretize(0.02);
+    SwerveModuleVelocity[] setpointStates = kinematics.toSwerveModuleVelocities(discreteSpeeds);
+    setpointStates =
+        SwerveDriveKinematics.desaturateWheelVelocities(
+            setpointStates, TunerConstants.kSpeedAt12Volts);
 
     // Log unoptimized setpoints and setpoint speeds
     Logger.recordOutput("SwerveStates/Setpoints", setpointStates);
@@ -285,10 +297,10 @@ public class Drive extends SubsystemBase {
 
     // Send setpoints to modules
     for (int i = 0; i < 4; i++) {
-      modules[i].runSetpoint(setpointStates[i]);
+      setpointStates[i] = modules[i].runSetpoint(setpointStates[i]);
     }
 
-    // Log optimized setpoints (runSetpoint mutates each state)
+    // Log optimized setpoints (runSetpoint returns the optimized state; 2027 states are immutable)
     Logger.recordOutput("SwerveStates/SetpointsOptimized", setpointStates);
   }
 
@@ -316,7 +328,7 @@ public class Drive extends SubsystemBase {
 
   /** Stops the drive. */
   public void stop() {
-    runVelocity(new ChassisSpeeds());
+    runVelocity(new ChassisVelocities());
   }
 
   /**
@@ -326,7 +338,7 @@ public class Drive extends SubsystemBase {
   public void stopWithX() {
     Rotation2d[] headings = new Rotation2d[4];
     for (int i = 0; i < 4; i++) {
-      headings[i] = getModuleTranslations()[i].getAngle();
+      headings[i] = getModuleTranslations()[i].getAngle().orElse(Rotation2d.ZERO);
     }
     kinematics.resetHeadings(headings);
     stop();
@@ -334,20 +346,26 @@ public class Drive extends SubsystemBase {
 
   /** Returns a command to run a quasistatic test in the specified direction. */
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
-    return run(() -> runCharacterization(0.0))
-        .withTimeout(1.0)
-        .andThen(sysId.quasistatic(direction));
+    return runRepeatedly(() -> runCharacterization(0.0))
+        .named("Drive_SysIdSettle")
+        .withTimeout(Seconds.of(1.0))
+        .andThen(sysId.quasistatic(direction))
+        .named("Drive_SysIdQuasistatic_" + direction);
   }
 
   /** Returns a command to run a dynamic test in the specified direction. */
   public Command sysIdDynamic(SysIdRoutine.Direction direction) {
-    return run(() -> runCharacterization(0.0)).withTimeout(1.0).andThen(sysId.dynamic(direction));
+    return runRepeatedly(() -> runCharacterization(0.0))
+        .named("Drive_SysIdSettle")
+        .withTimeout(Seconds.of(1.0))
+        .andThen(sysId.dynamic(direction))
+        .named("Drive_SysIdDynamic_" + direction);
   }
 
   /** Returns the module states (turn angles and drive velocities) for all of the modules. */
   @AutoLogOutput(key = "SwerveStates/Measured")
-  private SwerveModuleState[] getModuleStates() {
-    SwerveModuleState[] states = new SwerveModuleState[4];
+  private SwerveModuleVelocity[] getModuleStates() {
+    SwerveModuleVelocity[] states = new SwerveModuleVelocity[4];
     for (int i = 0; i < 4; i++) {
       states[i] = modules[i].getState();
     }
@@ -365,8 +383,8 @@ public class Drive extends SubsystemBase {
 
   /** Returns the measured chassis speeds of the robot, robot-relative. */
   @AutoLogOutput(key = "SwerveChassisSpeeds/Measured")
-  public ChassisSpeeds getChassisSpeeds() {
-    return kinematics.toChassisSpeeds(getModuleStates());
+  public ChassisVelocities getChassisSpeeds() {
+    return kinematics.toChassisVelocities(getModuleStates());
   }
 
   /** Returns the position of each module in radians. */
@@ -426,8 +444,6 @@ public class Drive extends SubsystemBase {
   /** Resets the current odometry pose. */
   public void setPose(Pose2d pose) {
     poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
-    // Keep the simulated chassis where the estimate says it is. No-op unless maple-sim is running.
-    DriveSimulation.resetPose(pose);
   }
 
   /** Adds a new timestamped vision measurement. */

@@ -1,7 +1,7 @@
 package frc.lib.device.lights;
 
-import edu.wpi.first.wpilibj.util.Color;
 import org.littletonrobotics.junction.AutoLog;
+import org.wpilib.util.Color;
 
 /**
  * An LED controller: CANdle on the robot, {@code LightsIOSim} in simulation, {@code new LightsIO()

@@ -1,0 +1,5 @@
+# Skip BLine Web exports. Shared runtime settings (autos/config.json) and robot code stay in scope.
+reviews:
+  path_filters:
+    - '!src/main/deploy/autos/paths/**'
+    - '!src/main/deploy/autos/project.json'

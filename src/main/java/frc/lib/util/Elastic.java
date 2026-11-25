@@ -8,21 +8,21 @@ package frc.lib.util;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.networktables.PubSubOption;
-import edu.wpi.first.networktables.StringPublisher;
-import edu.wpi.first.networktables.StringTopic;
-import edu.wpi.first.wpilibj.DriverStation;
+import org.wpilib.driverstation.DriverStationErrors;
+import org.wpilib.networktables.NetworkTableInstance;
+import org.wpilib.networktables.PubSubOption;
+import org.wpilib.networktables.StringPublisher;
+import org.wpilib.networktables.StringTopic;
 
 public final class Elastic {
   private static final StringTopic notificationTopic =
       NetworkTableInstance.getDefault().getStringTopic("/Elastic/RobotNotifications");
   private static final StringPublisher notificationPublisher =
-      notificationTopic.publish(PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
+      notificationTopic.publish(PubSubOption.SEND_ALL, PubSubOption.KEEP_DUPLICATES);
   private static final StringTopic selectedTabTopic =
       NetworkTableInstance.getDefault().getStringTopic("/Elastic/SelectedTab");
   private static final StringPublisher selectedTabPublisher =
-      selectedTabTopic.publish(PubSubOption.keepDuplicates(true));
+      selectedTabTopic.publish(PubSubOption.KEEP_DUPLICATES);
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
   /**
@@ -51,7 +51,8 @@ public final class Elastic {
       // Not printStackTrace: that writes to the console, which is not captured in the match log
       // and is gone by the time anyone reviews the match. A notification failing to serialize is
       // a dashboard-cosmetics problem, so it is reported and swallowed rather than thrown.
-      DriverStation.reportWarning("Elastic notification could not be serialized: " + e, false);
+      DriverStationErrors.reportWarning(
+          "Elastic notification could not be serialized: " + e, false);
     }
   }
 

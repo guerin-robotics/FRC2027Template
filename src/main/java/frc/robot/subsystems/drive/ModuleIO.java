@@ -7,8 +7,8 @@
 
 package frc.robot.subsystems.drive;
 
-import edu.wpi.first.math.geometry.Rotation2d;
 import org.littletonrobotics.junction.AutoLog;
+import org.wpilib.math.geometry.Rotation2d;
 
 public interface ModuleIO {
   @AutoLog
@@ -40,8 +40,8 @@ public interface ModuleIO {
 
     public boolean turnConnected = false;
     public boolean turnEncoderConnected = false;
-    public Rotation2d turnAbsolutePosition = Rotation2d.kZero;
-    public Rotation2d turnPosition = Rotation2d.kZero;
+    public Rotation2d turnAbsolutePosition = Rotation2d.ZERO;
+    public Rotation2d turnPosition = Rotation2d.ZERO;
     public double turnVelocityRadPerSec = 0.0;
     public double turnAppliedVolts = 0.0;
     public double turnCurrentAmps = 0.0;

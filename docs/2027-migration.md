@@ -1,44 +1,83 @@
 # WPILib 2027 / Commands V3 Migration
 
-> **Status: not started, deliberately.** This repo is on WPILib 2026 (GradleRIO 2026.2.1, Java 17,
-> `edu.wpi.first`, commands V2) and stays there until WPILib 2027 reaches **beta** and the team
-> has Systemcore hardware. This document records the audit so the port does not have to re-derive
-> it.
+> **Status: ported on branch `feature/2027-v3`; desktop-verified only.** The code is on WPILib
+> **2027.0.0-alpha-8** (GradleRIO `org.wpilib.GradleRIO`), Gradle 9.4.1, Java 25, `org.wpilib`
+> imports, Commands **V3**, and a Systemcore deploy target. `./gradlew build` (format check,
+> compile, 30 tests) passes on a desktop. **Nothing has run on Systemcore hardware, nothing has run
+> against a real CAN bus. The integration PR passed its first GitHub Actions build.** This document keeps the audit and records what the
+> port actually found.
 >
-> *Audit date: 2026-09-28, against WPILib `2027.0.0-alpha-7` (tagged 2026-08-30, published 2026-09-01) and
-> allwpilib `main` of 2026-09-27. Previous audit: 2026-08-26, alpha-6. Re-check the version tables
-> before acting on them.*
+> *Audit dates: 2026-09-28 against alpha-7; the port itself on 2026-11-25 against alpha-8, reading
+> the jars in the local WPILib install and Gradle cache.*
 >
-> **What each command rule becomes under V3 is already written down** — see
-> [commands-v3.md](commands-v3.md). This document is the platform port; that one is the doctrine.
+> **What each command rule became under V3** is in [commands-v3.md](commands-v3.md), and
+> `.claude/rules/03-commands.md` was rewritten from it.
 
 ---
 
-## Why we are still waiting
+## How it was done — and where it departed from the plan below
 
-WPILib 2027 is at **alpha-7**. No beta.
+This file originally recommended two steps: port the platform on V2, get a green suite, then do
+V2 → V3 on its own branch, so a red test could be blamed on one or the other. **The team chose one
+combined branch** because the 2027 robot will run V3 from the start and there is no 2026 robot to
+keep deployable. The cost is the one the plan predicted: a failure could have been either step.
+In practice most breakage showed up at compile time, where the compiler names it, and the few that
+did not are listed under *Silent breaks* below.
 
-The API is still moving, and alpha-7 was the largest breaking release yet (see below). Porting onto
-it means chasing renames rather than writing robot code, and every line of the port would be redone
-at beta anyway.
+Four things in the original gates were resolved by decision, not by evidence:
 
-The Commands V3 package, which moved between alpha-3 (`org.wpilib.commands3`) and alpha-5
-(`org.wpilib.command3`), has **held still** since: alpha-5, alpha-6, alpha-7 and `main` all use
-`org.wpilib.command3`. That was the biggest single reason to wait in August and it is now the
-smallest. What is still moving is the API *inside* the package — alpha-7 turned `Mechanism` from a
-class into an interface.
+- **Beta.** WPILib 2027 is still alpha (alpha-8 is the newest release found). The port targets the
+  alpha knowingly; everything here must be re-checked at beta.
+- **Systemcore hardware.** None is available to this repo yet. The deploy target is configured; it
+  has not been deployed.
+- **Auto selection.** Decided: **OpModes**. Autonomous routines and characterization are OpModes
+  registered in `frc.robot.opmodes.OpModes`; there is no dashboard chooser. AdvantageKit 27 has no
+  `LoggedDashboardChooser`, and the OpMode selection is logged by `LoggedOpModeRobot`.
+- **maple-sim.** It has no 2027 build (the previous dependency was `v0.4.0-beta` for WPILib 2026), so the maple-sim
+  drivetrain was moved to `template/deferred/maple-sim/` with a README on restoring it. Simulation
+  uses the per-module `ModuleIOSim`. NavX was dropped (the robot uses a Pigeon2).
 
-The second reason has not changed: **we have no Systemcore hardware.** 2027 is a control-system
-change, not a library bump — the roboRIO is legal only through the 2026 season, and 2027 code
-targets Systemcore. Without a unit, nothing we port can be tested beyond sim and unit tests, and
-`main` would stop being deployable on the hardware the team actually has.
+---
 
-**Decision: build season-independent work (scaffolds, tests, docs, V3 doctrine) on 2026 now; do
-the 2027 port as one clean pass at beta, once a Systemcore unit is in hand.**
+## AdvantageKit Drive and Vision templates
+
+AdvantageKit's 2027 alpha ships a skeleton project. The official 2027 TalonFX(S) swerve
+and Vision templates are pending. This branch ports the team's existing Tuner X module
+IO, Phoenix odometry, PhotonVision IO and vision filters to the alpha stack. The existing
+swerve values are for the 2026 chassis and require a fresh Tuner X export for the 2027 robot.
+Compare both subsystems again when AdvantageKit publishes the 2027 templates.
+[AdvantageKit installation](https://docs.advantagekit.org/getting-started/installation/) ·
+[Systemcore alpha notes](https://github.com/wpilibsuite/SystemCoreTesting/blob/main/AdvantageKit.md)
+
+---
+
+## Silent breaks — compiled, would have run, and been wrong
+
+These are the findings worth knowing about. Each was caught by reading a source jar, not by the
+compiler.
+
+| What | Why it was silent | Fix |
+|---|---|---|
+| AdvantageKit `Logger.getTimestamp()` is **nanoseconds** in 27 | `BatteryLogger` divided by `1.0e6`, so every loop time came out 1000× too large | `/ 1.0e9` |
+| PhotonVision metadata timestamps are **nanoseconds** | `latencySeconds` was off by 1000×. The old field names no longer exist, so this one did fail to compile | `publishTimestampNanos`, `/ 1e9` |
+| `SwerveModuleVelocity.optimize` / `cosineScale` **return new objects** (2026 mutated in place) | Ignoring the result drops the optimization. The `@NoDiscard` check caught it | `Module.runSetpoint` returns the optimized state and `Drive` logs that |
+| `Translation2d.getAngle()` returns `Optional<Rotation2d>` | A zero vector has no angle; 2026 returned 0 | `.orElse(Rotation2d.ZERO)` |
+| `DCMotor` has no `createDCMotorSystem` factory | Sim only | `Models.singleJointedArmFromPhysicalConstants`, which is the same two-state matrices |
+| `TalonFX.setNeutralMode` became `configNeutralMode` | It is now a config write that may block on CAN for its timeout | Called only on enable and the post-disable coast, never per loop (comment in `ModuleIOTalonFX`) |
+| `RobotController.getInputCurrent` is gone | Systemcore exposes none | `Controls/roboRIO` logs 0 A; see CLAUDE.md |
+| `PubSubOption.sendAll(true)` etc. became constants | Compile error | `SEND_ALL`, `KEEP_DUPLICATES` |
+| `Alert` takes a group, a unique id and a `Level` (`HIGH`/`MEDIUM`/`LOW`) | A duplicate id throws `AlertException` at construction | The text is used as the id; `Vision` is `AutoCloseable` so tests can rebuild it |
+| `ChassisSpeeds` → `ChassisVelocities` (fields `vx`/`vy`/`omega`), `SwerveModuleState` → `SwerveModuleVelocity`, `fromFieldRelativeSpeeds` → instance `toRobotRelative` | Compile errors, but they touch the whole drive path | Renamed throughout; no value changed |
+
+Handled but not verified on hardware: BLine's follower, `Drive`, Phoenix's 26.70 swerve and
+odometry code, and the interaction of the 2027 `Telemetry` backend with `AutoPreview` (the smoke
+test prints `no backend for path` because it has none configured).
 
 ---
 
 ## What the port actually involves
+
+*(Kept from the audit. Every row below is done unless the *Open* list further down says otherwise.)*
 
 Not a version bump. In rough order of blast radius:
 
@@ -165,45 +204,58 @@ needs the new bus identity too.
 
 ---
 
-## Concrete checklist for the beta port
+## Checklist — status
 
-Do these in order. Steps 1–4 are gates; stop if one fails.
+Done on `feature/2027-v3`:
 
-- [ ] **1.** Confirm WPILib 2027 is at beta, and diff the Commands V3 API against
-      [commands-v3.md](commands-v3.md) — the package has settled, the API inside it has not.
-- [ ] **2.** Confirm a Systemcore unit is available to test on.
-- [ ] **3.** Check which BLine-Lib release (`2027.0.0-beta.3` or later) matches that WPILib version. Do
-      not change the dependency yet — it cannot build against the current 2026 GradleRIO.
-- [ ] **4.** Confirm PhotonVision ships a 2027 vendordep for that WPILib version, and that
-      AdvantageKit's alert logging is still present.
-- [ ] **5.** Branch. Never do this on `main` while the team needs a deployable robot.
-- [ ] **6.** `build.gradle`: GradleRIO 2027 and, with it, the BLine-Lib release found in step 3, Java 25 toolchain, Systemcore deploy target and
-      dependency configurations. Revisit the JVM flags in `.claude/rules/04-build.md` — they
-      are sized for a RIO 2.
-- [ ] **7.** Update the CI workflow's JDK. It runs `spotlessCheck` then `build` — do not weaken it.
-- [ ] **8.** Pull every 2027 vendordep, including the new AprilTag vendordep.
-- [ ] **9.** `edu.wpi.first` → `org.wpilib` across `src/` **and** `template/`, commands V2 to
-      `org.wpilib.command2`, `ALL_CAPS` constants. Mechanical.
-- [ ] **10.** Audit every raw integer timestamp for the microsecond → nanosecond change.
-- [ ] **11.** Replace SmartDashboard in `FaultMonitor`, `Robot` and every mechanism visualizer
-      (the scaffolds' `ExampleArmVisualizer`, `ExampleLiftVisualizer`) with the Telemetry API; decide `Selectable` vs OpModes for autos. Decide
-      each replacement once and apply it everywhere.
-- [ ] **12.** `Triggers.java`: new gamepad button names; disable the new default deadband.
-- [ ] **13.** Re-express the CAN bus assignment rules for Systemcore; rename `RIO_BUS`.
-- [ ] **14.** Get the test suite green **on V2**. This is the checkpoint that proves the platform
-      port on its own. Merge it.
-- [ ] **15.** New branch: Commands V2 → V3, following [commands-v3.md](commands-v3.md). Rewrite
-      `.claude/rules/03-commands.md` and the command parts of `01-architecture.md` in the same pass —
-      a rule that lies is worse than no rule. Settle the `Mechanism` name collision first.
-- [ ] **16.** Re-derive `ContinuousConditionalCommand`, `LoggedTrigger`, `CommandLogger` per
-      commands-v3.md, and rewrite `RobotContainerSmokeTest` and every sim test's scheduler cleanup
-      for the V3 `Scheduler`.
-- [ ] **17.** Re-run the template scaffold check (see `template/GUIDE.md`) and confirm the three
-      scaffolds still fail with exactly their expected symbols and nothing else.
-- [ ] **18.** Update `TunerConstants` for the real 2027 robot, and `FieldConstants` for the 2027
-      field, per the Template Status table in [`CLAUDE.md`](../CLAUDE.md).
-- [ ] **19.** Update every doc that names a 2026 API: `docs/robot-spec.md` §2, the
-      `.claude/rules/`, the scaffolds' javadoc, and this file's status line.
+- [x] **5.** Branched (`feature/2027-v3`); `main` is untouched.
+- [x] **6.** `build.gradle`: GradleRIO 2027 alpha-8, Java 25, Systemcore deploy target and
+      dependency configurations, `application` plugin. Gradle wrapper 8.11 → 9.4.1.
+- [x] **7.** CI workflow bumped to JDK 25. The integration PR passed its first CI run.
+- [x] **8.** 2027 vendordeps: AdvantageKit `27.0.0-alpha-7`, Phoenix 6 `26.70.0-alpha-2`, PhotonVision
+      (a dev snapshot built for alpha-7, not a tagged release), BLine-Lib `2027.0.0-beta.3`, Grapple
+      `27.0.0`, plus the WPILib `CommandsV3`, `AprilTag` and `CameraServer` vendordeps.
+- [x] **9.** `edu.wpi.first` → `org.wpilib` across `src/` and `template/`; commands to V3; constants
+      to `ALL_CAPS`.
+- [x] **10.** Raw timestamps audited (see *Silent breaks*).
+- [x] **11.** SmartDashboard replaced with `Telemetry.log` in `FaultMonitor`, `Robot`, `AutoPreview`
+      and both scaffold visualizers; auto selection is OpModes.
+- [x] **12.** `Triggers.java`: Start is `menu()`; flight-stick buttons go through `getHID()`. The
+      default Gamepad deadband does not apply — the controllers used here are the flight stick and an
+      Xbox, and `DriveCommands` still applies its own radial deadband, with no per-axis deadband
+      added in `Triggers`.
+- [x] **13.** CAN bus rules re-expressed for Systemcore; `RIO_BUS` replaced by `MECHANISM_BUS_A/B`
+      (placeholders) — see `.claude/rules/02-hardware.md`.
+- [x] **14–15.** Combined: V3 port done with the platform. `03-commands.md` and the command parts of
+      `01-architecture.md` rewritten in the same change.
+- [x] **16.** `LoggedTrigger` ported, `CommandLogger` rewritten, `ContinuousConditionalCommand`
+      deleted, `RobotContainerSmokeTest` rewritten for the V3 `Scheduler`.
+- [x] **17.** Scaffold check: the three `template/` scaffolds fail to compile on exactly the values
+      they owe and nothing else (checked with `javac -proc:none` against the main classpath).
+- [x] **19.** Docs updated (this file, `commands-v3.md`, `robot-spec.md`, rules, skills, the
+      checklists).
+
+**Open — needs hardware, a decision, or a release:**
+
+- [ ] **Run it on Systemcore.** Deploy, enable, drive on blocks, check `LoopTiming/` and CAN
+      utilisation. Until then every statement in this repo about 2027 behavior is from source and
+      desktop tests.
+- [ ] **Regenerate `TunerConstants` with Tuner X 2027** for the real robot. The file was edited only
+      enough to compile (`new CANBus("Canivore")`, `.withNetwork(kCANBus)`); its values are 2026's.
+- [ ] **JVM heap and GC flags** — dropped for Systemcore; measure, then set.
+- [ ] **Decide which devices go on which Systemcore bus** and update `Constants.CanIds`,
+      `docs/hardware-layout.md` and `CanIdUniquenessTest` (which treats all mechanism IDs as one bus).
+- [ ] **Re-diff V3 and BLine at beta.** BLine `2027.0.0-beta.3` was built against alpha-7 and has not
+      been run on alpha-8. PhotonVision is a dev snapshot.
+- [ ] **maple-sim**: add back when it ships a 2027 build (`template/deferred/maple-sim/README.md`).
+- [x] **CI**: the integration PR passed on the hosted runner.
+- [ ] **Telemetry backend**: confirm the `Auto Preview` and `Visualizer` widgets actually appear on a
+      dashboard; `Telemetry.log` has no backend in the unit tests.
+- [ ] **Phoenix online update URL**: CTRE's 2027 latest manifest URL currently returns 404.
+      Select the pinned Phoenix release from WPILib's Vendor Dependencies list if needed.
+- [ ] **Controller input current** for `BatteryLogger`: Systemcore exposes none.
+- [ ] **FieldConstants / AprilTag layout** for the 2027 game when WPILib ships it, and PhotonVision's
+      pose estimator against that `Field` type.
 
 ---
 

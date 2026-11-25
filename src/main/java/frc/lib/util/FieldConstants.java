@@ -7,9 +7,9 @@
 
 package frc.lib.util;
 
-import edu.wpi.first.apriltag.AprilTagFieldLayout;
-import edu.wpi.first.apriltag.AprilTagFields;
-import edu.wpi.first.math.util.Units;
+import org.wpilib.fields.Field;
+import org.wpilib.fields.Fields;
+import org.wpilib.math.util.Units;
 
 /**
  * Field dimensions and the AprilTag layout, defined from the blue alliance perspective.
@@ -21,8 +21,8 @@ import edu.wpi.first.math.util.Units;
  * <p><b>Start-of-season checklist:</b>
  *
  * <ol>
- *   <li>Update {@link #aprilTagLayout} to the new season's {@link AprilTagFields} value. Everything
- *       else here derives from it.
+ *   <li>Update {@link #aprilTagLayout} to the new season's {@link Fields} value. Everything else
+ *       here derives from it.
  *   <li>Add game-element geometry (goals, scoring zones, staging marks) as nested static classes
  *       below, following the 2026 pattern: dimensions first, then reference points derived from tag
  *       poses so the numbers stay tied to the official layout.
@@ -40,8 +40,7 @@ public class FieldConstants {
    * the 2026 Rebuilt welded field, so any pose estimate produced by this template is against the
    * 2026 field.
    */
-  public static final AprilTagFieldLayout aprilTagLayout =
-      AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltWelded);
+  public static final Field aprilTagLayout = Field.loadField(Fields.FRC_2026_REBUILT_WELDED);
 
   /** Number of tags in the layout. */
   public static final int aprilTagCount = aprilTagLayout.getTags().size();

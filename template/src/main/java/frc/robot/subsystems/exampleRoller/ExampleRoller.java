@@ -1,17 +1,17 @@
 package frc.robot.subsystems.exampleRoller;
 
-import static edu.wpi.first.units.Units.Amps;
-import static edu.wpi.first.units.Units.RPM;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static org.wpilib.units.Units.Amps;
+import static org.wpilib.units.Units.RPM;
+import static org.wpilib.units.Units.RotationsPerSecond;
 
-import edu.wpi.first.units.measure.AngularVelocity;
-import edu.wpi.first.units.measure.Voltage;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.lib.util.CommandLogger;
 import frc.robot.Robot;
 import frc.robot.subsystems.exampleRoller.io.ExampleRollerIO;
 import frc.robot.subsystems.exampleRoller.io.ExampleRollerIOInputsAutoLogged;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.command3.Mechanism;
+import org.wpilib.units.measure.AngularVelocity;
+import org.wpilib.units.measure.Voltage;
 
 /**
  * Velocity-controlled mechanism — roller, flywheel, feeder, transport, intake.
@@ -36,7 +36,7 @@ import org.littletonrobotics.junction.Logger;
  *       RobotState} or take a {@code Supplier} in the constructor.
  * </ol>
  */
-public class ExampleRoller extends SubsystemBase {
+public class ExampleRoller implements Mechanism {
 
   /**
    * Fraction of the stator limit at which the mechanism counts as saturated.
@@ -67,7 +67,11 @@ public class ExampleRoller extends SubsystemBase {
     this.inputs = new ExampleRollerIOInputsAutoLogged();
   }
 
-  @Override
+  /**
+   * Reads inputs and logs. Commands V3 has no {@code Subsystem.periodic()}: nothing calls this for
+   * you. Add it to {@code RobotContainer.periodic()}, or {@code Logger.processInputs()} never runs
+   * and replay silently breaks. {@code RobotContainerSmokeTest} fails if it is missing.
+   */
   public void periodic() {
     io.updateInputs(inputs);
     Logger.processInputs(ExampleRollerConstants.NAME, inputs); // NEVER remove this line

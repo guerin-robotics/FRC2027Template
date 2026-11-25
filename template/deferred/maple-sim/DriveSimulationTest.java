@@ -3,12 +3,6 @@ package frc.robot.subsystems.drive;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import edu.wpi.first.hal.HAL;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.wpilibj.simulation.DriverStationSim;
-import edu.wpi.first.wpilibj.simulation.SimHooks;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.lib.util.FieldConstants;
 import frc.robot.generated.TunerConstants;
@@ -17,6 +11,12 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.hardware.hal.HAL;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.kinematics.ChassisVelocities;
+import org.wpilib.simulation.DriverStationSim;
+import org.wpilib.simulation.SimHooks;
 
 /**
  * The maple-sim drivetrain end to end: {@code Drive} commands the wheels, the physics world moves
@@ -69,11 +69,11 @@ class DriveSimulationTest {
 
   private static Pose2d centerPose() {
     return new Pose2d(
-        FieldConstants.fieldLength / 2.0, FieldConstants.fieldWidth / 2.0, Rotation2d.kZero);
+        FieldConstants.fieldLength / 2.0, FieldConstants.fieldWidth / 2.0, Rotation2d.ZERO);
   }
 
   /** One robot loop: command, run Drive, step the physics, advance the clock. */
-  private static void loop(ChassisSpeeds speeds) {
+  private static void loop(ChassisVelocities speeds) {
     drive.runVelocity(speeds);
     drive.periodic();
     DriveSimulation.periodic();
@@ -92,7 +92,7 @@ class DriveSimulationTest {
 
     int loops = 0;
     while (DriveSimulation.getTruePose().getX() < startX + 1.0 && loops++ < MAX_LOOPS) {
-      loop(new ChassisSpeeds(1.0, 0.0, 0.0));
+      loop(new ChassisVelocities(1.0, 0.0, 0.0));
     }
 
     Pose2d truth = DriveSimulation.getTruePose();
@@ -109,7 +109,7 @@ class DriveSimulationTest {
     drive.setPose(centerPose());
     int loops = 0;
     while (DriveSimulation.getTruePose().getRotation().getDegrees() < 45.0 && loops++ < MAX_LOOPS) {
-      loop(new ChassisSpeeds(0.0, 0.0, 1.5));
+      loop(new ChassisVelocities(0.0, 0.0, 1.5));
     }
     double truthDegrees = DriveSimulation.getTruePose().getRotation().getDegrees();
     assertTrue(truthDegrees >= 45.0, "Chassis never rotated 45 degrees; got " + truthDegrees);
@@ -132,7 +132,7 @@ class DriveSimulationTest {
     drive.setPose(centerPose());
     // Drive straight at the far wall for far longer than it takes to reach it.
     for (int i = 0; i < MAX_LOOPS; i++) {
-      loop(new ChassisSpeeds(2.0, 0.0, 0.0));
+      loop(new ChassisVelocities(2.0, 0.0, 0.0));
     }
     double x = DriveSimulation.getTruePose().getX();
     assertTrue(x < FieldConstants.fieldLength, "Robot drove through the wall to x=" + x);

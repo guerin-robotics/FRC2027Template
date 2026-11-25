@@ -1,12 +1,12 @@
 package frc.robot.subsystems.exampleArm;
 
-import static edu.wpi.first.units.Units.Degrees;
-import static edu.wpi.first.units.Units.RPM;
-import static edu.wpi.first.units.Units.Rotations;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
-import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
-import static edu.wpi.first.units.Units.Second;
-import static edu.wpi.first.units.Units.Seconds;
+import static org.wpilib.units.Units.Degrees;
+import static org.wpilib.units.Units.RPM;
+import static org.wpilib.units.Units.Rotations;
+import static org.wpilib.units.Units.RotationsPerSecond;
+import static org.wpilib.units.Units.RotationsPerSecondPerSecond;
+import static org.wpilib.units.Units.Second;
+import static org.wpilib.units.Units.Seconds;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
@@ -15,12 +15,12 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.SensorDirectionValue;
 import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
-import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.geometry.Translation3d;
-import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.units.measure.Time;
 import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
+import org.wpilib.math.geometry.Rotation3d;
+import org.wpilib.math.geometry.Translation3d;
+import org.wpilib.math.system.DCMotor;
+import org.wpilib.units.measure.Time;
 
 /**
  * Constants and motor configuration for a <b>ROTARY POSITION-CONTROLLED</b> mechanism.
@@ -537,10 +537,10 @@ public class ExampleArmConstants {
     // is obviously wrong on sight. That is the intent.
 
     /** Pivot axis in the robot frame. */
-    public static final Translation3d PIVOT_OFFSET = Translation3d.kZero;
+    public static final Translation3d PIVOT_OFFSET = Translation3d.ZERO;
 
     /** Fixed mounting rotation of the component, before the mechanism's own motion is added. */
-    public static final Rotation3d PIVOT_ROTATION = Rotation3d.kZero;
+    public static final Rotation3d PIVOT_ROTATION = Rotation3d.ZERO;
 
     /**
      * Which way the mesh turns as the measured angle increases.

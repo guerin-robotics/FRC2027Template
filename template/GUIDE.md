@@ -88,7 +88,7 @@ subsystems/myMechanism/
 ├── MyMechanismConstants.java       ← gains, ratios, limits — how it is built
 └── MyMechanismVisualizer.java      ← position mechanisms only; see below
 
-commands/MyMechanismCommands.java   ← static factories, all .withName()'d
+commands/MyMechanismCommands.java   ← static factories, all .named(...)'d
 ```
 
 A mechanism with sensors or lights also owns those, from `frc/lib/device/` — the absolute encoder,
@@ -248,6 +248,9 @@ Logger.processInputs("MyMechanism", inputs);   // NEVER remove this line
 
 Each scaffold checks the results of its required `PhoenixUtil.tryUntilOk` startup writes and logs
 the combined result as the `configured` input so replay applies the same closed-loop gate.
+Call the copied mechanism's `periodic()` in `RobotContainer.periodic()` before the
+Commands V3 scheduler. This is required for input updates and replay.
+
 Register `() -> !mechanism.isConfigured()` with `FaultMonitor` in `RobotContainer` to surface
 startup failures.
 
@@ -268,9 +271,9 @@ competition seasons. Don't rewrite them; extend them.
 | `AllianceFlipUtil` + per-loop caching | Prevents thousands of `Optional` allocations per match |
 | `BatteryLogger` | Per-subsystem current tracking; the only way to diagnose a brownout |
 | `LoggedTrigger` | Makes trigger state visible in AdvantageKit logs |
-| `ContinuousConditionalCommand` | Correct answer when a command's mode changes while running |
+| V3 coroutine | Re-evaluate live mode changes at each yield. See the [command guide](../docs/commands-v3.md). |
 | `PhoenixUtil.tryUntilOk` | Retries CTRE configuration up to the attempt limit and returns whether the write was confirmed |
-| `LoggedDashboardChooser` | Logs which auto was selected — essential for post-match review |
+| Driver Station OpModes | AdvantageKit logs the selected autonomous routine and side |
 | The test suite in `src/test/` | `RobotContainer` wiring, BLine event-key bindings and CAN ID validation. The first and last cover a new mechanism the moment it exists — see `docs/testing.md` |
 
 ---

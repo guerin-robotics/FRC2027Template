@@ -1,8 +1,8 @@
 package frc.lib.util;
 
-import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.math.util.Units;
 import java.util.function.IntFunction;
+import org.wpilib.math.system.DCMotor;
+import org.wpilib.math.util.Units;
 
 /**
  * The motors this team uses, and the arithmetic for turning one into a mechanism's theoretical top
@@ -64,7 +64,7 @@ public enum MotorSpecs {
   MotorSpecs(IntFunction<DCMotor> factory) {
     this.factory = factory;
     this.single = factory.apply(1);
-    this.freeSpeedRpm = Units.radiansPerSecondToRotationsPerMinute(single.freeSpeedRadPerSec);
+    this.freeSpeedRpm = Units.radiansPerSecondToRotationsPerMinute(single.freeSpeed);
   }
 
   /**

@@ -1,9 +1,9 @@
 package frc.lib.util;
 
-import edu.wpi.first.wpilibj.Timer;
 import java.util.HashMap;
 import java.util.Map;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.system.Timer;
 
 /**
  * Attributes loop time to named sections. {@link LoopTimeMonitor} says the loop is over budget;
@@ -22,7 +22,7 @@ import org.littletonrobotics.junction.Logger;
  * so keep sections coarse.
  */
 public final class LoggedTracer {
-  private static double startSeconds = Timer.getFPGATimestamp();
+  private static double startSeconds = Timer.getMonotonicTimestamp();
 
   /** Log keys built once per name, so a record() call allocates nothing after its first. */
   private static final Map<String, String> keys = new HashMap<>();
@@ -31,12 +31,12 @@ public final class LoggedTracer {
 
   /** Starts a new measurement. Call once at the top of {@code robotPeriodic()}. */
   public static void reset() {
-    startSeconds = Timer.getFPGATimestamp();
+    startSeconds = Timer.getMonotonicTimestamp();
   }
 
   /** Logs the time since the last {@link #reset()} or {@code record()}, then restarts the clock. */
   public static void record(String name) {
-    double now = Timer.getFPGATimestamp();
+    double now = Timer.getMonotonicTimestamp();
     Logger.recordOutput(
         keys.computeIfAbsent(name, n -> "LoggedTracer/" + n + "MS"), (now - startSeconds) * 1000.0);
     startSeconds = now;

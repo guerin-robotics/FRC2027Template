@@ -7,16 +7,16 @@
 
 package frc.robot.subsystems.vision;
 
-import static edu.wpi.first.math.util.Units.inchesToMeters;
+import static org.wpilib.math.util.Units.inchesToMeters;
 
-import edu.wpi.first.apriltag.AprilTagFieldLayout;
-import edu.wpi.first.math.geometry.Transform3d;
 import frc.lib.util.FieldConstants;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.fields.Field;
+import org.wpilib.math.geometry.Transform3d;
 
 public class VisionConstants {
   // AprilTag layout — single source of truth lives in FieldConstants.
-  public static AprilTagFieldLayout aprilTagLayout = FieldConstants.aprilTagLayout;
+  public static Field aprilTagLayout = FieldConstants.aprilTagLayout;
 
   // ---- Camera setup ----
   //

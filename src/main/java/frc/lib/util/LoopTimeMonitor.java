@@ -1,9 +1,8 @@
 package frc.lib.util;
 
-import edu.wpi.first.wpilibj.Alert;
-import edu.wpi.first.wpilibj.Alert.AlertType;
-import edu.wpi.first.wpilibj.RobotController;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.system.Timer;
+import org.wpilib.util.Alert;
 
 /**
  * Measures how long each robot loop actually takes and complains when it exceeds the budget.
@@ -46,25 +45,26 @@ public class LoopTimeMonitor {
   private final Alert overrunAlert =
       new Alert(
           "Loop time over budget — robot is running slower than 50 Hz. Check Drive and Vision.",
-          AlertType.kWarning);
+          "Loop time over budget — robot is running slower than 50 Hz. Check Drive and Vision.",
+          Alert.Level.MEDIUM);
 
   private final double[] window = new double[WINDOW];
   private int windowIndex = 0;
   private boolean windowFilled = false;
 
-  private long startMicros = 0;
+  private double startSeconds = 0.0;
   private double peakMs = 0.0;
   private long overrunCount = 0;
   private long totalLoops = 0;
 
   /** Call at the very top of {@code robotPeriodic()}. */
   public void begin() {
-    startMicros = RobotController.getFPGATime();
+    startSeconds = Timer.getMonotonicTimestamp();
   }
 
   /** Call at the very bottom of {@code robotPeriodic()}. */
   public void end() {
-    double elapsedMs = (RobotController.getFPGATime() - startMicros) / 1000.0;
+    double elapsedMs = (Timer.getMonotonicTimestamp() - startSeconds) * 1000.0;
 
     totalLoops++;
     if (elapsedMs > BUDGET_MS) {

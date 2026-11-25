@@ -7,9 +7,10 @@
 
 package frc.lib.util;
 
-import edu.wpi.first.math.geometry.*;
-import edu.wpi.first.wpilibj.DriverStation;
 import frc.robot.Constants;
+import org.wpilib.driverstation.Alliance;
+import org.wpilib.driverstation.MatchState;
+import org.wpilib.math.geometry.*;
 
 public class AllianceFlipUtil {
 
@@ -27,8 +28,8 @@ public class AllianceFlipUtil {
   public static void refresh() {
     cachedShouldFlip =
         !Constants.disableHAL
-            && DriverStation.getAlliance().isPresent()
-            && DriverStation.getAlliance().get() == DriverStation.Alliance.Red;
+            && MatchState.getAlliance().isPresent()
+            && MatchState.getAlliance().get() == Alliance.RED;
   }
 
   public static double applyX(double x) {
@@ -44,7 +45,7 @@ public class AllianceFlipUtil {
   }
 
   public static Rotation2d apply(Rotation2d rotation) {
-    return shouldFlip() ? rotation.rotateBy(Rotation2d.kPi) : rotation;
+    return shouldFlip() ? rotation.rotateBy(Rotation2d.PI) : rotation;
   }
 
   public static Pose2d apply(Pose2d pose) {

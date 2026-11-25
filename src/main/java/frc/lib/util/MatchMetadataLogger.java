@@ -1,7 +1,8 @@
 package frc.lib.util;
 
-import edu.wpi.first.wpilibj.DriverStation;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.driverstation.MatchState;
+import org.wpilib.driverstation.RobotState;
 
 /**
  * Records which match a log belongs to, once the driver station tells us.
@@ -24,10 +25,10 @@ public class MatchMetadataLogger {
 
   /** Call once per loop from {@code robotPeriodic()}. Cheap; only writes when something changes. */
   public void periodic() {
-    String eventName = DriverStation.getEventName();
-    var matchType = DriverStation.getMatchType();
-    int matchNumber = DriverStation.getMatchNumber();
-    int replayNumber = DriverStation.getReplayNumber();
+    String eventName = MatchState.getEventName();
+    var matchType = MatchState.getMatchType();
+    int matchNumber = MatchState.getMatchNumber();
+    int replayNumber = MatchState.getReplayNumber();
 
     // Only re-log when the identity of the match actually changes.
     String signature = eventName + "|" + matchType + "|" + matchNumber + "|" + replayNumber;
@@ -40,9 +41,9 @@ public class MatchMetadataLogger {
     Logger.recordOutput("Match/MatchType", matchType.toString());
     Logger.recordOutput("Match/MatchNumber", matchNumber);
     Logger.recordOutput("Match/ReplayNumber", replayNumber);
-    Logger.recordOutput("Match/FMSAttached", DriverStation.isFMSAttached());
+    Logger.recordOutput("Match/FMSAttached", RobotState.isFMSAttached());
     Logger.recordOutput(
-        "Match/Alliance", DriverStation.getAlliance().map(Enum::toString).orElse("Unknown"));
-    Logger.recordOutput("Match/DriverStationLocation", DriverStation.getLocation().orElse(0));
+        "Match/Alliance", MatchState.getAlliance().map(Enum::toString).orElse("Unknown"));
+    Logger.recordOutput("Match/DriverStationLocation", MatchState.getLocation().orElse(0));
   }
 }

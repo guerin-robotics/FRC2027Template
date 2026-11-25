@@ -1,8 +1,8 @@
 package frc.lib.device.lights;
 
-import edu.wpi.first.wpilibj.util.Color;
 import frc.lib.util.FaultMonitor;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.util.Color;
 
 /**
  * An LED strip, owned by a subsystem.
@@ -26,7 +26,7 @@ public class Lights {
   private final LightsInputsAutoLogged inputs = new LightsInputsAutoLogged();
 
   private Mode mode = null;
-  private Color color = Color.kBlack;
+  private Color color = Color.BLACK;
   private boolean wasConnected = false;
 
   /**
@@ -59,7 +59,7 @@ public class Lights {
   }
 
   public void off() {
-    request(Mode.OFF, Color.kBlack);
+    request(Mode.OFF, Color.BLACK);
   }
 
   public void setSolid(Color requested) {
@@ -71,7 +71,7 @@ public class Lights {
   }
 
   public void setRainbow() {
-    request(Mode.RAINBOW, Color.kBlack);
+    request(Mode.RAINBOW, Color.BLACK);
   }
 
   public boolean isConnected() {

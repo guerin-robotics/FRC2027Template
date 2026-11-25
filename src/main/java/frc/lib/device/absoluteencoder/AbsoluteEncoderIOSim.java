@@ -1,10 +1,10 @@
 package frc.lib.device.absoluteencoder;
 
-import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static org.wpilib.units.Units.RotationsPerSecond;
 
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.AngularVelocity;
 import java.util.function.Supplier;
+import org.wpilib.units.measure.Angle;
+import org.wpilib.units.measure.AngularVelocity;
 
 /**
  * Reports whatever the simulation says the measured joint is doing. Pass a supplier from the

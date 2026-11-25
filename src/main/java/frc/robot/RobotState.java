@@ -1,17 +1,17 @@
 package frc.robot;
 
-import static edu.wpi.first.units.Units.Meters;
+import static org.wpilib.units.Units.Meters;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
-import edu.wpi.first.math.kinematics.SwerveModuleState;
-import edu.wpi.first.units.measure.Distance;
 import frc.robot.subsystems.drive.Drive;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.AutoLogOutput;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.geometry.Translation2d;
+import org.wpilib.math.kinematics.ChassisVelocities;
+import org.wpilib.math.kinematics.SwerveDriveKinematics;
+import org.wpilib.math.kinematics.SwerveModuleVelocity;
+import org.wpilib.units.measure.Distance;
 
 /**
  * Centralized robot state container that tracks the robot's position and velocity on the field.
@@ -91,12 +91,12 @@ public class RobotState {
   private final SwerveDriveKinematics kinematics;
 
   /** Current module states for velocity calculation. */
-  private SwerveModuleState[] currentModuleStates =
-      new SwerveModuleState[] {
-        new SwerveModuleState(),
-        new SwerveModuleState(),
-        new SwerveModuleState(),
-        new SwerveModuleState()
+  private SwerveModuleVelocity[] currentModuleStates =
+      new SwerveModuleVelocity[] {
+        new SwerveModuleVelocity(),
+        new SwerveModuleVelocity(),
+        new SwerveModuleVelocity(),
+        new SwerveModuleVelocity()
       };
 
   // ==================== CONSTRUCTOR ====================
@@ -162,9 +162,9 @@ public class RobotState {
    * @return Field-relative chassis speeds
    */
   @AutoLogOutput(key = "RobotState/FieldRelativeVelocity")
-  public ChassisSpeeds getFieldRelativeVelocity() {
-    ChassisSpeeds robotRelative = getRobotRelativeVelocity();
-    return ChassisSpeeds.fromRobotRelativeSpeeds(robotRelative, getRotation());
+  public ChassisVelocities getFieldRelativeVelocity() {
+    ChassisVelocities robotRelative = getRobotRelativeVelocity();
+    return robotRelative.toFieldRelative(getRotation());
   }
 
   /**
@@ -179,8 +179,8 @@ public class RobotState {
    * @return Robot-relative chassis speeds
    */
   @AutoLogOutput(key = "RobotState/RobotRelativeVelocity")
-  public ChassisSpeeds getRobotRelativeVelocity() {
-    return kinematics.toChassisSpeeds(currentModuleStates);
+  public ChassisVelocities getRobotRelativeVelocity() {
+    return kinematics.toChassisVelocities(currentModuleStates);
   }
 
   // ==================== FIELD GEOMETRY HELPERS ====================
@@ -207,7 +207,7 @@ public class RobotState {
    * 2026 shooter did), add half a turn at the call site:
    *
    * <pre>
-   * RobotState.getInstance().getAngleToTarget(target).plus(Rotation2d.kPi)
+   * RobotState.getInstance().getAngleToTarget(target).plus(Rotation2d.PI)
    * </pre>
    *
    * Keeping the offset at the call site rather than baked in here means this method stays correct
@@ -232,7 +232,7 @@ public class RobotState {
    *
    * @param moduleStates The current module states (velocity and angle for each module)
    */
-  public void updateModuleStates(SwerveModuleState[] moduleStates) {
+  public void updateModuleStates(SwerveModuleVelocity[] moduleStates) {
     currentModuleStates = moduleStates;
   }
 }

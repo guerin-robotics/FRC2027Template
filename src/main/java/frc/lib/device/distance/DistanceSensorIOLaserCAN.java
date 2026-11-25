@@ -1,6 +1,6 @@
 package frc.lib.device.distance;
 
-import static edu.wpi.first.units.Units.Millimeters;
+import static org.wpilib.units.Units.Millimeters;
 
 import au.grapplerobotics.ConfigurationFailedException;
 import au.grapplerobotics.LaserCan;
@@ -9,13 +9,15 @@ import au.grapplerobotics.interfaces.LaserCanInterface.Measurement;
 import au.grapplerobotics.interfaces.LaserCanInterface.RangingMode;
 import au.grapplerobotics.interfaces.LaserCanInterface.RegionOfInterest;
 import au.grapplerobotics.interfaces.LaserCanInterface.TimingBudget;
-import edu.wpi.first.math.filter.Debouncer;
-import edu.wpi.first.wpilibj.DriverStation;
+import com.ctre.phoenix6.CANBus;
 import frc.lib.device.CanIdRegistry;
+import org.wpilib.driverstation.DriverStationErrors;
+import org.wpilib.hardware.bus.CANPort;
+import org.wpilib.math.filter.Debouncer;
 
 /**
- * A Grapple LaserCAN. It lives on the roboRIO bus — the driver takes no bus argument — so it claims
- * its ID against {@code "rio"}, where it can collide with a TalonFX.
+ * A Grapple LaserCAN. It takes the Systemcore {@code CANPort} it is wired to, and claims its ID
+ * against that bus, where it can collide with a TalonFX.
  *
  * <p>Ranging mode, region of interest and timing budget are configured once at construction, with
  * the same retry {@code PhoenixUtil.tryUntilOk} gives CTRE devices: a LaserCAN that is still
@@ -28,16 +30,14 @@ import frc.lib.device.CanIdRegistry;
  */
 public class DistanceSensorIOLaserCAN implements DistanceSensorIO {
 
-  /** The LaserCAN bus name. Must match {@code Constants.CanIds.RIO_BUS}. */
-  private static final String BUS = "rio";
-
   private static final int CONFIG_ATTEMPTS = 5;
 
   private final LaserCan sensor;
-  private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+  private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.FALLING);
 
   /**
    * @param name Owner name for the CAN ID registry, e.g. "Indexer sensor"
+   * @param port The Systemcore CAN port, usually {@code Constants.CanIds.MECHANISM_PORT_A}
    * @param canId From {@code Constants.CanIds}, set on the device in GrappleHook
    * @param mode {@code SHORT} for anything inside about 1.3 m — far less sensitive to ambient light
    * @param roi Region of interest in SPAD units, e.g. {@code new RegionOfInterest(8, 8, 16, 16)}
@@ -45,9 +45,14 @@ public class DistanceSensorIOLaserCAN implements DistanceSensorIO {
    * @param budget Longer is steadier but slower; 33 ms is a sensible start inside a 20 ms loop
    */
   public DistanceSensorIOLaserCAN(
-      String name, int canId, RangingMode mode, RegionOfInterest roi, TimingBudget budget) {
-    CanIdRegistry.claim(canId, BUS, name);
-    sensor = new LaserCan(canId);
+      String name,
+      CANPort port,
+      int canId,
+      RangingMode mode,
+      RegionOfInterest roi,
+      TimingBudget budget) {
+    CanIdRegistry.claim(canId, new CANBus(port), name);
+    sensor = new LaserCan(port, canId);
     configure(name, () -> sensor.setRangingMode(mode));
     configure(name, () -> sensor.setRegionOfInterest(roi));
     configure(name, () -> sensor.setTimingBudget(budget));
@@ -78,7 +83,7 @@ public class DistanceSensorIOLaserCAN implements DistanceSensorIO {
         return;
       } catch (ConfigurationFailedException e) {
         if (attempt == CONFIG_ATTEMPTS) {
-          DriverStation.reportError(
+          DriverStationErrors.reportError(
               name + " LaserCAN configuration failed after " + CONFIG_ATTEMPTS + " attempts",
               false);
         }

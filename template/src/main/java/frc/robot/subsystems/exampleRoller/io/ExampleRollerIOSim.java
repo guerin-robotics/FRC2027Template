@@ -1,18 +1,18 @@
 package frc.robot.subsystems.exampleRoller.io;
 
-import static edu.wpi.first.units.Units.Amps;
-import static edu.wpi.first.units.Units.Celsius;
-import static edu.wpi.first.units.Units.Rotations;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
-import static edu.wpi.first.units.Units.Volts;
+import static org.wpilib.units.Units.Amps;
+import static org.wpilib.units.Units.Celsius;
+import static org.wpilib.units.Units.Rotations;
+import static org.wpilib.units.Units.RotationsPerSecond;
+import static org.wpilib.units.Units.Volts;
 
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.controller.SimpleMotorFeedforward;
-import edu.wpi.first.math.system.plant.LinearSystemId;
-import edu.wpi.first.units.measure.AngularVelocity;
-import edu.wpi.first.units.measure.Voltage;
-import edu.wpi.first.wpilibj.simulation.FlywheelSim;
 import frc.robot.subsystems.exampleRoller.ExampleRollerConstants;
+import org.wpilib.math.controller.PIDController;
+import org.wpilib.math.controller.SimpleMotorFeedforward;
+import org.wpilib.math.system.Models;
+import org.wpilib.simulation.FlywheelSim;
+import org.wpilib.units.measure.AngularVelocity;
+import org.wpilib.units.measure.Voltage;
 
 /**
  * Simulation implementation for a velocity-controlled mechanism.
@@ -43,7 +43,7 @@ public class ExampleRollerIOSim implements ExampleRollerIO {
 
   private final FlywheelSim sim =
       new FlywheelSim(
-          LinearSystemId.createFlywheelSystem(
+          Models.flywheelFromPhysicalConstants(
               ExampleRollerConstants.Sim.MOTOR,
               ExampleRollerConstants.Sim.MOI,
               ExampleRollerConstants.GEAR_RATIO),
@@ -77,7 +77,7 @@ public class ExampleRollerIOSim implements ExampleRollerIO {
 
   @Override
   public void updateInputs(ExampleRollerIOInputs inputs) {
-    double measuredRotationsPerSec = sim.getAngularVelocityRPM() / 60.0;
+    double measuredRotationsPerSec = sim.getAngularVelocity() / (2.0 * Math.PI);
 
     if (closedLoop) {
       appliedVolts =
@@ -92,7 +92,7 @@ public class ExampleRollerIOSim implements ExampleRollerIO {
     sim.setInputVoltage(appliedVolts);
     sim.update(LOOP_PERIOD_SECONDS);
 
-    measuredRotationsPerSec = sim.getAngularVelocityRPM() / 60.0;
+    measuredRotationsPerSec = sim.getAngularVelocity() / (2.0 * Math.PI);
     positionRotations += measuredRotationsPerSec * LOOP_PERIOD_SECONDS;
 
     inputs.connected = true;
@@ -105,7 +105,7 @@ public class ExampleRollerIOSim implements ExampleRollerIO {
     // overstates battery draw exactly when the mechanism works hardest — the 2026 mistake in
     // .claude/rules/02-hardware.md — and that number feeds BatteryLogger. An estimate, not a model
     // of the Talon, but the right quantity.
-    double statorAmps = sim.getCurrentDrawAmps();
+    double statorAmps = sim.getCurrentDraw();
     inputs.motorStatorAmps = Amps.of(statorAmps);
     inputs.motorSupplyAmps =
         Amps.of(Math.abs(statorAmps) * Math.abs(appliedVolts) / NOMINAL_BUS_VOLTS);

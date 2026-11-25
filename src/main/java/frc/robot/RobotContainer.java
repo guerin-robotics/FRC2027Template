@@ -7,26 +7,17 @@
 
 package frc.robot;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import bline.commands.FollowPath;
 import frc.lib.util.AllianceFlipUtil;
 import frc.lib.util.FaultMonitor;
 import frc.robot.autos.AutoPreview;
 import frc.robot.autos.BLineAutos;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
-import frc.robot.lib.BLine.FollowPath;
 import frc.robot.subsystems.drive.Drive;
-import frc.robot.subsystems.drive.DriveConstants;
-import frc.robot.subsystems.drive.DriveSimulation;
 import frc.robot.subsystems.drive.GyroIO;
-import frc.robot.subsystems.drive.GyroIOMapleSim;
 import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIO;
-import frc.robot.subsystems.drive.ModuleIOMapleSim;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
 import frc.robot.subsystems.vision.Vision;
@@ -34,8 +25,14 @@ import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.io.VisionIO;
 import frc.robot.subsystems.vision.io.VisionIOPhotonVision;
 import frc.robot.subsystems.vision.io.VisionIOPhotonVisionSim;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
-import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
+import org.wpilib.command3.Command;
+import org.wpilib.command3.sysid.SysIdRoutine;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
 
 /**
  * This class is where the bulk of the robot should be declared. Since Command-based is a
@@ -57,10 +54,13 @@ public class RobotContainer {
   // own input devices and never touches a controller object directly.
   // See .claude/rules/01-architecture.md.
 
-  // Dashboard inputs
-  private final LoggedDashboardChooser<Supplier<Command>> autoChooser;
-  private final LoggedDashboardChooser<Boolean> autoSide;
   private final AutoPreview autoPreview;
+
+  /** BLine routines by name, registered as Autonomous OpModes (see {@code OpModes}). */
+  private final Map<String, Supplier<Command>> autoRoutines;
+
+  /** Characterization and SysId routines by name, registered as Utility OpModes. */
+  private final Map<String, Supplier<Command>> utilityRoutines = new LinkedHashMap<>();
 
   /** Auto Side captured when the auto starts, so every leg of one routine mirrors the same way. */
   private boolean mirrorAtAutoStart = false;
@@ -92,35 +92,14 @@ public class RobotContainer {
 
       case SIM:
         // Sim robot, instantiate physics sim IO implementations
-        Supplier<Pose2d> simCameraPose;
-        if (DriveConstants.USE_MAPLE_SIM) {
-          // maple-sim chassis: collisions, wheel slip and a field boundary. Simulated cameras see
-          // its true pose, so odometry drift and vision corrections behave as on a robot.
-          var simulation = DriveSimulation.get();
-          drive =
-              new Drive(
-                  new GyroIOMapleSim(simulation.getGyroSimulation()),
-                  new ModuleIOMapleSim(
-                      simulation.getModules()[0], TunerConstants.FrontLeft.SlipCurrent),
-                  new ModuleIOMapleSim(
-                      simulation.getModules()[1], TunerConstants.FrontRight.SlipCurrent),
-                  new ModuleIOMapleSim(
-                      simulation.getModules()[2], TunerConstants.BackLeft.SlipCurrent),
-                  new ModuleIOMapleSim(
-                      simulation.getModules()[3], TunerConstants.BackRight.SlipCurrent));
-          // The sim robot starts at field center; tell odometry so the two agree.
-          drive.setPose(simulation.getSimulatedDriveTrainPose());
-          simCameraPose = DriveSimulation::getTruePose;
-        } else {
-          drive =
-              new Drive(
-                  new GyroIO() {},
-                  new ModuleIOSim(TunerConstants.FrontLeft),
-                  new ModuleIOSim(TunerConstants.FrontRight),
-                  new ModuleIOSim(TunerConstants.BackLeft),
-                  new ModuleIOSim(TunerConstants.BackRight));
-          simCameraPose = drive::getPose;
-        }
+        drive =
+            new Drive(
+                new GyroIO() {},
+                new ModuleIOSim(TunerConstants.FrontLeft),
+                new ModuleIOSim(TunerConstants.FrontRight),
+                new ModuleIOSim(TunerConstants.BackLeft),
+                new ModuleIOSim(TunerConstants.BackRight));
+        Supplier<Pose2d> simCameraPose = drive::getPose;
         vision =
             new Vision(
                 drive::addVisionMeasurement,
@@ -157,15 +136,11 @@ public class RobotContainer {
 
     // ---- Autos ----
     //
-    // BLine paths share one chooser with the characterization routines.
-    // Each option is a SUPPLIER, built when auto starts: the selected BLine routine loads only
-    // its own paths, and nothing is constructed for autos that never run. The chooser is
-    // AdvantageKit's, so the selection is logged and replays correctly. See docs/autos.md.
+    // Each BLine routine is an Autonomous OpMode, registered by OpModes from autoRoutines, once
+    // per side (Left, Right). Each value is a SUPPLIER, built when the OpMode starts: the selected
+    // routine loads only its own paths, and nothing is constructed for autos that never run.
     // Autos are drawn blue-left only. Alliance comes from the Driver Station (FMS station) and
-    // flips the path; this chooser mirrors it to the right side. Read when the auto starts.
-    autoSide = new LoggedDashboardChooser<>("Auto Side");
-    autoSide.addDefaultOption("Left", false);
-    autoSide.addOption("Right", true);
+    // flips the path; the Right OpMode mirrors it. See docs/autos.md.
     autoPreview = new AutoPreview();
     FollowPath.Builder bline =
         BLineAutos.createBuilder(drive, () -> mirrorAtAutoStart, autoPreview);
@@ -176,26 +151,25 @@ public class RobotContainer {
     //
     //   BLineAutos.bind("Intake", IntakeCommands.deploy(intake));
 
-    autoChooser = new LoggedDashboardChooser<>("Auto Choices");
-    autoChooser.addDefaultOption("None", Commands::none);
-    BLineAutos.all(bline, drive).forEach(autoChooser::addOption);
+    autoRoutines = BLineAutos.all(bline, drive);
 
-    // Characterization and SysId routines
-    autoChooser.addOption(
+    // Characterization and SysId routines — Utility OpModes. Each runs only while a Utility
+    // OpMode is selected and enabled, so none is reachable in a match.
+    utilityRoutines.put(
         "Drive Wheel Radius Characterization",
         () -> DriveCommands.wheelRadiusCharacterization(drive));
-    autoChooser.addOption(
+    utilityRoutines.put(
         "Drive Simple FF Characterization", () -> DriveCommands.feedforwardCharacterization(drive));
-    autoChooser.addOption(
+    utilityRoutines.put(
         "Drive SysId (Quasistatic Forward)",
-        () -> drive.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
+        () -> drive.sysIdQuasistatic(SysIdRoutine.Direction.FORWARD));
+    utilityRoutines.put(
         "Drive SysId (Quasistatic Reverse)",
-        () -> drive.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Drive SysId (Dynamic Forward)", () -> drive.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Drive SysId (Dynamic Reverse)", () -> drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+        () -> drive.sysIdQuasistatic(SysIdRoutine.Direction.REVERSE));
+    utilityRoutines.put(
+        "Drive SysId (Dynamic Forward)", () -> drive.sysIdDynamic(SysIdRoutine.Direction.FORWARD));
+    utilityRoutines.put(
+        "Drive SysId (Dynamic Reverse)", () -> drive.sysIdDynamic(SysIdRoutine.Direction.REVERSE));
 
     // Register fault conditions. These roll up into a single "Robot OK" dashboard boolean
     // plus a named fault list, so the pit does not have to check a dozen indicators
@@ -247,53 +221,64 @@ public class RobotContainer {
         .lockHeading()
         .whileTrue(
             DriveCommands.joystickDriveAtAngle(
-                drive, triggers::driveXSupplier, triggers::driveYSupplier, () -> Rotation2d.kZero));
+                drive, triggers::driveXSupplier, triggers::driveYSupplier, () -> Rotation2d.ZERO));
 
     // Wheels into an X so the robot resists being pushed.
     triggers.stopWithX().whileTrue(DriveCommands.stopWithX(drive));
 
-    // Re-zero the gyro to the current heading.
-    triggers
-        .resetGyro()
-        .onTrue(
-            Commands.runOnce(
-                    () ->
-                        drive.setPose(
-                            new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-                    drive)
-                .ignoringDisable(true));
+    triggers.resetGyro().onTrue(DriveCommands.resetGyro(drive));
   }
 
-  /** True when the Auto Side chooser is on Right: paths are authored left and mirrored. */
-  private boolean mirrorToRight() {
-    return Boolean.TRUE.equals(autoSide.get());
+  /**
+   * Reads every subsystem's inputs. Call once per loop from {@code Robot.robotPeriodic()}, BEFORE
+   * the scheduler runs, in this fixed order.
+   *
+   * <p><b>This is the Logger.processInputs() gate.</b> Commands V3 has no {@code
+   * Subsystem.periodic()} — nothing calls a mechanism's {@code periodic()} for you — so each
+   * subsystem, {@code Vision} included, is called here. A subsystem left out is silent: no inputs,
+   * no replay, no error. Add every new mechanism's {@code periodic()} below; {@code
+   * RobotContainerSmokeTest} proves each one runs.
+   */
+  public void periodic() {
+    drive.periodic();
+    vision.periodic();
+  }
+
+  /** BLine routines by name, for {@code OpModes} to register as Autonomous OpModes. */
+  public Map<String, Supplier<Command>> autoRoutines() {
+    return autoRoutines;
+  }
+
+  /** Characterization routines by name, for {@code OpModes} to register as Utility OpModes. */
+  public Map<String, Supplier<Command>> utilityRoutines() {
+    return utilityRoutines;
+  }
+
+  /** The BLine path files a routine runs, in order, for the preview. */
+  public List<String> pathsOf(Supplier<Command> routine) {
+    return BLineAutos.pathsOf(routine);
+  }
+
+  /**
+   * Latches the Left/Right side. Call when the auto starts: the builder reads it at each path
+   * command's start, and a later leg must not mirror differently from the first.
+   */
+  public void latchMirror(boolean mirror) {
+    mirrorAtAutoStart = mirror;
   }
 
   /** Disabled loop: redraw the auto preview if the selection changed, check the start pose. */
-  public void updateAutoPreview() {
+  public void updateAutoPreview(List<String> pathNames, boolean mirror) {
     autoPreview.update(
-        BLineAutos.pathsOf(autoChooser.get()),
+        pathNames,
         AllianceFlipUtil.shouldFlip(),
-        mirrorToRight(),
+        mirror,
         RobotState.getInstance().getEstimatedPose());
   }
 
   /** Auto loop: keep the robot moving on the preview widget. */
   public void showAutoRobot() {
     autoPreview.showRobot(RobotState.getInstance().getEstimatedPose());
-  }
-
-  /**
-   * Use this to pass the autonomous command to the main {@link Robot} class.
-   *
-   * @return the command to run in autonomous
-   */
-  public Command getAutonomousCommand() {
-    // Latch the side here. The builder reads it at each path command's start, and the chooser can
-    // change once the match is running; a later leg must not mirror differently from the first.
-    mirrorAtAutoStart = mirrorToRight();
-    Supplier<Command> selected = autoChooser.get();
-    return selected == null ? Commands.none() : selected.get();
   }
 
   /** Brake/coast passthrough for {@link Robot}'s disabled-coast handling. */
