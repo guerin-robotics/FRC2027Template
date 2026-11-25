@@ -74,8 +74,10 @@ Give them a checklist, per path:
 - **Compose the routine** as in the example at the bottom of `BLineAutos`:
   - Reset odometry on the **first path only**: `builder.withPoseReset(drive::setPose).build(first)`,
     then `builder.withPoseReset(ignored -> {})` for the rest. Never `drive.setPose(path.getStartPose())`.
-  - Every path command gets `.withTimeout(Constants.Waits.PATH_TIMEOUT_SECONDS)` (or a per-path
-    value in `Constants.Waits`). BLine never times out on its own.
+  - Every path command gets `.withTimeout(...)`. BLine never times out on its own. Size each value
+    from the path's measured duration in sim, with margin, and keep the routine's total inside the
+    auto period. The 3.0 s `Constants.Waits.PATH_TIMEOUT_SECONDS` placeholder only covers about a
+    5 m leg at the shipped limits; give a longer path its own value in `Constants.Waits`.
   - If an event command shares a requirement with another step of the same routine, compose with
     `BLineCommands.sequence` / `deadline`, not `Commands.*`, or the event cancels the whole routine.
   - Name the routine: `"Auto_<Name>"`.

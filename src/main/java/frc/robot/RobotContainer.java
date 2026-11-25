@@ -58,6 +58,9 @@ public class RobotContainer {
   private final LoggedDashboardChooser<Boolean> autoSide;
   private final AutoPreview autoPreview;
 
+  /** Auto Side captured when the auto starts, so every leg of one routine mirrors the same way. */
+  private boolean mirrorAtAutoStart = false;
+
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
     switch (Constants.currentMode) {
@@ -138,7 +141,8 @@ public class RobotContainer {
     autoSide.addDefaultOption("Left", false);
     autoSide.addOption("Right", true);
     autoPreview = new AutoPreview();
-    FollowPath.Builder bline = BLineAutos.createBuilder(drive, this::mirrorToRight, autoPreview);
+    FollowPath.Builder bline =
+        BLineAutos.createBuilder(drive, () -> mirrorAtAutoStart, autoPreview);
 
     // Bind BLine event triggers BEFORE building any routine, so the smoke test sees every key.
     // Bound commands run alongside the path, so they must NOT require the drive
@@ -259,6 +263,9 @@ public class RobotContainer {
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
+    // Latch the side here. The builder reads it at each path command's start, and the chooser can
+    // change once the match is running; a later leg must not mirror differently from the first.
+    mirrorAtAutoStart = mirrorToRight();
     Supplier<Command> selected = autoChooser.get();
     return selected == null ? Commands.none() : selected.get();
   }

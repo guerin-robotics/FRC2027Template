@@ -52,9 +52,10 @@ two in sync — edit both or neither.
 - [ ] Correct auto selected on the dashboard (a BLine routine, or a characterization
       routine —
       the name says which)
-- [ ] Robot placed to match the selected auto's starting pose — `Auto/StartCheck/PositionOK` and
+- [ ] For a BLine routine, robot placed to match its starting pose — `Auto/StartCheck/PositionOK` and
       `RotationOK` both true, and the Auto Preview widget shows the path on the right side of the
-      field for the alliance and Left/Right you selected
+      field for the alliance and Left/Right you selected. Characterization routines have no path,
+      so skip this item for them
 
 ## Function Check (on the cart or in the pit, before queueing)
 

@@ -67,7 +67,8 @@ public static Command twoPieceLeft(FollowPath.Builder builder, Drive drive) {
 and list it in `BLineAutos.all(...)`:
 
 ```java
-routines.put("Two Piece Left", () -> twoPieceLeft(builder, drive));
+add(routines, "Two Piece Left", () -> twoPieceLeft(builder, drive),
+    "left-to-first", "first-to-score");
 ```
 
 Paths are flipped for red by BLine-Lib (`withDefaultShouldFlip`); author them blue-origin. The
@@ -108,7 +109,8 @@ flipped and mirrored the way they will run, and logs `Auto/StartCheck/DistanceIn
 `RotationDiffDegrees`, `PositionOK` and `RotationOK` (tolerances `Constants.Thresholds.START_POSE_*`,
 6 in and 5°). During auto it shows the active leg and the closest point on it. It reloads when the
 auto, the alliance or the side changes — the alliance often arrives from the FMS after the auto is
-picked. Register a routine's path files with `BLineAutos.add(...)` or it has no preview.
+picked. Inside `BLineAutos.all`, register a routine with `add(routines, name, routine, pathFiles...)`, not
+`routines.put`, or it has no preview.
 
 ### Event triggers
 

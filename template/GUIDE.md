@@ -285,7 +285,7 @@ competition seasons. Don't rewrite them; extend them.
 | Game geometry in `FieldConstants` | Field elements change completely — see `frc/lib/util/ExampleFieldConstants.java` in this directory for the tag-pose-derived pattern to copy, and `docs/target-alignment.md` for how it plugs into `driveToPose` |
 | Scoring targets and zone logic in `RobotState` | Field coordinates change |
 | A sequences file (2026 had `ShootSequences` / `SpitSequences`) | The scoring pipeline is the game |
-| PathPlanner `.auto` files and paths (PathPlanner itself has since been replaced by BLine) | Field-specific |
+| BLine paths in `deploy/autos/paths` (PathPlanner and Choreo files were replaced by BLine) | Field-specific |
 | Named commands in `RobotContainer` | Follow the game |
 | Interpolation tables (distance → setpoint) | Measured against this year's field element |
 | Swerve encoder offsets and gains in `TunerConstants` | Re-run Tuner X on the new robot |

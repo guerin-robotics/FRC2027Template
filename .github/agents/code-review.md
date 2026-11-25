@@ -104,8 +104,8 @@ then decide whether the code achieves it. Describing what the code does is not r
   subsystem.
 - **Default commands** that conflict, or a subsystem that should have one and does not.
 - **`whileTrue` vs `onTrue` vs `toggleOnTrue`** misuse.
-- **BLine event-trigger bindings** that require the drive (they interrupt the path), or
-  are bound after a routine is built.
+- **BLine event-trigger bindings** that break the rules in `.claude/rules/01-architecture.md`
+  ("BLine Wiring") and `.claude/rules/03-commands.md` ("BLine Event Triggers").
 - **Game logic that belongs in a command factory or `RobotState`.** This is the wiring layer.
 
 ### RobotState

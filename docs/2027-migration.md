@@ -172,11 +172,12 @@ Do these in order. Steps 1–4 are gates; stop if one fails.
 - [ ] **1.** Confirm WPILib 2027 is at beta, and diff the Commands V3 API against
       [commands-v3.md](commands-v3.md) — the package has settled, the API inside it has not.
 - [ ] **2.** Confirm a Systemcore unit is available to test on.
-- [ ] **3.** Switch to BLine-Lib `2027.0.0-beta.3` (or later) and confirm it matches that WPILib version.
+- [ ] **3.** Check which BLine-Lib release (`2027.0.0-beta.3` or later) matches that WPILib version. Do
+      not change the dependency yet — it cannot build against the current 2026 GradleRIO.
 - [ ] **4.** Confirm PhotonVision ships a 2027 vendordep for that WPILib version, and that
       AdvantageKit's alert logging is still present.
 - [ ] **5.** Branch. Never do this on `main` while the team needs a deployable robot.
-- [ ] **6.** `build.gradle`: GradleRIO 2027, Java 25 toolchain, Systemcore deploy target and
+- [ ] **6.** `build.gradle`: GradleRIO 2027 and, with it, the BLine-Lib release found in step 3, Java 25 toolchain, Systemcore deploy target and
       dependency configurations. Revisit the JVM flags in `.claude/rules/04-build.md` — they
       are sized for a RIO 2.
 - [ ] **7.** Update the CI workflow's JDK. It runs `spotlessCheck` then `build` — do not weaken it.

@@ -44,10 +44,18 @@ final class BLineAssets {
     }
     for (File file : Arrays.stream(files).sorted().toList()) {
       for (JsonNode element : parse(file).path("path_elements")) {
-        String key = element.path("lib_key").asText("");
-        if ("event_trigger".equals(element.path("type").asText()) && !key.isBlank()) {
-          names.add(key);
+        if (!"event_trigger".equals(element.path("type").asText())) {
+          continue;
         }
+        String key = element.path("lib_key").asText("");
+        if (key.isBlank()) {
+          // BLine only warns at runtime and the action never runs, so a blank key is a build error.
+          throw new AssertionError(
+              file.getName()
+                  + " has an event_trigger with a missing or blank lib_key. Set the Lib Key in BLine"
+                  + " Web and re-export; the robot would skip this event silently.");
+        }
+        names.add(key);
       }
     }
     return names;

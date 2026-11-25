@@ -87,5 +87,5 @@ disabled, transformed exactly as they will run (alliance flip, then Left/Right m
 `Auto/StartCheck/*` — distance and heading error from the start pose, with OK flags against
 `Constants.Thresholds.START_POSE_*`. It redraws when the auto, the alliance or the side changes.
 
-A routine only gets a preview if it is registered with `BLineAutos.add(routines, name, supplier,
+A routine only gets a preview if it is registered inside `BLineAutos.all` with `add(routines, name, supplier,
 "path-1", "path-2", ...)`.

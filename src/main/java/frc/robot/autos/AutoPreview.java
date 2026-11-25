@@ -41,6 +41,12 @@ public final class AutoPreview {
   /** Start pose of the first leg, as it will run. Null when nothing valid is selected. */
   private Pose2d startPose = null;
 
+  /**
+   * False when the first path has no rotation target. FollowPath then holds the robot's live
+   * starting heading, so any heading is a valid start and the heading check must not fail.
+   */
+  private boolean startHeadingConstrained = true;
+
   public AutoPreview() {
     SmartDashboard.putData("Auto Preview", field);
   }
@@ -107,6 +113,9 @@ public final class AutoPreview {
         poses.addAll(toPoses(path.getTranslations().toArray(Translation2d[]::new)));
         if (i == 0) {
           startPose = path.getStartPose();
+          startHeadingConstrained =
+              path.getPathElements().stream()
+                  .anyMatch(e -> e instanceof Path.Waypoint || e instanceof Path.RotationTarget);
         }
       }
       field.getObject("path").setPoses(poses);
@@ -136,7 +145,8 @@ public final class AutoPreview {
         distanceInches <= Constants.Thresholds.START_POSE_POSITION_TOLERANCE_INCHES);
     Logger.recordOutput(
         "Auto/StartCheck/RotationOK",
-        rotationDegrees <= Constants.Thresholds.START_POSE_HEADING_TOLERANCE_DEGREES);
+        !startHeadingConstrained
+            || rotationDegrees <= Constants.Thresholds.START_POSE_HEADING_TOLERANCE_DEGREES);
   }
 
   private static List<Pose2d> toPoses(Translation2d[] translations) {

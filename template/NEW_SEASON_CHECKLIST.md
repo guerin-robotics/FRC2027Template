@@ -123,7 +123,7 @@ and are wrong. If you only remember one thing: **measure top speed and slip curr
 - [ ] **15.** Measure the robot's real top speed and acceleration → BLine Web Path Defaults and
       `src/main/deploy/autos/config.json` (the shipped values are BLine Web defaults, not measured)
 - [ ] **16.** Tune the BLine follower (`TRANSLATION_KP`, `ROTATION_KP`, `CROSS_TRACK_KP` in
-      `BLineAutos.java`; cross-track starts at 2.0) and
+      `BLineAutos.java`; cross-track starts at 0.2) and
       the drive-to-pose controller and FF radii (`driveController`, `DRIVE_TO_POSE_FF_*_RADIUS_METERS` in
       `DriveCommands`) — teleop alignment depends on the latter
 - [ ] **17.** Re-tune `angleController` (heading kP/kD) in `DriveCommands` for the new chassis
