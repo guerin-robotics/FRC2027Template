@@ -130,6 +130,7 @@ public class Robot extends LoggedOpModeRobot {
     // Offer the OpModes on the Driver Station: teleop, one autonomous per routine and side, and
     // the utility (characterization) routines.
     OpModes.register(this, robotContainer);
+    publishOpModes();
 
     // Short pre-match checklist, visible from the driver station without paper.
     // TODO: fill in the device count and add one line per 2027 mechanism, in the order the

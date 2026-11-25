@@ -25,13 +25,10 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.littletonrobotics.junction.LogDataReceiver;
-import org.littletonrobotics.junction.LogTable;
 import org.littletonrobotics.junction.Logger;
 import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
@@ -75,18 +72,6 @@ class RobotContainerSmokeTest {
 
   private static RobotContainer container;
 
-  /** Every key AdvantageKit logged, collected by a receiver added before {@code Logger.start()}. */
-  private static final KeyCollector loggedKeys = new KeyCollector();
-
-  private static final class KeyCollector implements LogDataReceiver {
-    final Set<String> keys = new CopyOnWriteArraySet<>();
-
-    @Override
-    public void putTable(LogTable table) {
-      keys.addAll(table.getAll(false).keySet());
-    }
-  }
-
   @BeforeAll
   static void buildContainer() {
     // JUnit's assertTrue, deliberately not the Java `assert` keyword. It always runs and fails
@@ -114,9 +99,7 @@ class RobotContainerSmokeTest {
 
     // Logger.start() normally exits the JVM unless the main class extends a Logged robot base, and
     // Vision.periodic()/Drive.periodic() call Logger.processInputs unconditionally.
-    Logger.AdvancedHooks.disableRobotBaseCheck();
-    Logger.addDataReceiver(loggedKeys);
-    Logger.start();
+    TestLogging.start();
 
     container = new RobotContainer();
   }
@@ -144,13 +127,13 @@ class RobotContainerSmokeTest {
     // under /RealOutputs) — the convention each subsystem follows when it calls
     // Logger.processInputs. A subsystem missing here is one RobotContainer.periodic()
     // does not call.
-    loggedKeys.keys.clear();
+    TestLogging.keys().clear();
     Logger.AdvancedHooks.invokePeriodicBeforeUser();
     container.periodic();
     Logger.AdvancedHooks.invokePeriodicAfterUser(0, 0);
     // The receiver runs on AdvantageKit's thread; wait briefly for the table to arrive.
     for (int i = 0;
-        i < 150 && loggedKeys.keys.stream().noneMatch(key -> key.startsWith("/Drive/"));
+        i < 150 && TestLogging.keys().stream().noneMatch(key -> key.startsWith("/Drive/"));
         i++) {
       Thread.sleep(20);
     }
@@ -158,7 +141,7 @@ class RobotContainerSmokeTest {
     List<String> missing = new ArrayList<>();
     for (Object subsystem : wiredSubsystems()) {
       String prefix = "/" + subsystem.getClass().getSimpleName() + "/";
-      if (loggedKeys.keys.stream().noneMatch(key -> key.startsWith(prefix))) {
+      if (TestLogging.keys().stream().noneMatch(key -> key.startsWith(prefix))) {
         missing.add(subsystem.getClass().getSimpleName());
       }
     }

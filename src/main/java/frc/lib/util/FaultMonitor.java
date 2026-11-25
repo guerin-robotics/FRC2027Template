@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
 import org.littletonrobotics.junction.Logger;
-import org.wpilib.telemetry.Telemetry;
 
 /**
  * Collapses every known fault condition into one thing the drive team can actually watch.
@@ -79,8 +78,8 @@ public class FaultMonitor {
     Logger.recordOutput("RobotHealth/ActiveFaults", activeFaults.toArray(new String[0]));
 
     // Dashboard mirror — this is the one the pit actually watches.
-    Telemetry.log("Robot OK", healthy);
-    Telemetry.log("Active Faults", healthy ? "None" : String.join(", ", activeFaults));
+    Logger.recordOutput(
+        "RobotHealth/ActiveFaultSummary", healthy ? "None" : String.join(", ", activeFaults));
   }
 
   /** True when no registered fault is currently present. */

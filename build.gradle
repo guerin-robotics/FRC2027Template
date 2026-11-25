@@ -1,3 +1,6 @@
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
+
 plugins {
     id "java"
     id "application"
@@ -123,7 +126,12 @@ gversion {
 }
 
 // Create commit with working changes on event branches
-task(eventDeploy) {
+abstract class EventDeployTask extends DefaultTask {
+    @Inject
+    abstract ExecOperations getExecOperations()
+}
+
+task(eventDeploy, type: EventDeployTask) {
     doLast {
         if (project.gradle.startParameter.taskNames.any({ it.toLowerCase().contains("deploy") })) {
             def branchPrefix = "event"
@@ -131,12 +139,12 @@ task(eventDeploy) {
             def commitMessage = "Update at '${new Date().toString()}'"
 
             if (branch.startsWith(branchPrefix)) {
-                exec {
+                execOperations.exec {
                     workingDir(projectDir)
                     executable 'git'
                     args 'add', '-A'
                 }
-                exec {
+                execOperations.exec {
                     workingDir(projectDir)
                     executable 'git'
                     args 'commit', '-m', commitMessage

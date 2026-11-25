@@ -59,12 +59,12 @@ public class LoopTimeMonitor {
 
   /** Call at the very top of {@code robotPeriodic()}. */
   public void begin() {
-    startSeconds = Timer.getTimestamp();
+    startSeconds = Timer.getMonotonicTimestamp();
   }
 
   /** Call at the very bottom of {@code robotPeriodic()}. */
   public void end() {
-    double elapsedMs = (Timer.getTimestamp() - startSeconds) * 1000.0;
+    double elapsedMs = (Timer.getMonotonicTimestamp() - startSeconds) * 1000.0;
 
     totalLoops++;
     if (elapsedMs > BUDGET_MS) {

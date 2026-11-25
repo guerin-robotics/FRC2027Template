@@ -511,6 +511,7 @@ public class DriveCommands {
     Command measure =
         Command.noRequirements(
                 co -> {
+                  state.positions = null;
                   co.wait(Seconds.of(1.0));
                   state.positions = drive.getWheelRadiusCharacterizationPositions();
                   state.lastAngle = drive.getRotation();
@@ -524,6 +525,9 @@ public class DriveCommands {
                 })
             .whenExited(
                 () -> {
+                  if (state.positions == null) {
+                    return;
+                  }
                   double[] positions = drive.getWheelRadiusCharacterizationPositions();
                   double wheelDelta = 0.0;
                   for (int i = 0; i < 4; i++) {
@@ -549,7 +553,7 @@ public class DriveCommands {
   }
 
   private static class WheelRadiusCharacterizationState {
-    double[] positions = new double[4];
+    double[] positions;
     Rotation2d lastAngle = Rotation2d.ZERO;
     double gyroDelta = 0.0;
   }

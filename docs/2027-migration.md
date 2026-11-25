@@ -3,8 +3,8 @@
 > **Status: ported on branch `feature/2027-v3`; desktop-verified only.** The code is on WPILib
 > **2027.0.0-alpha-8** (GradleRIO `org.wpilib.GradleRIO`), Gradle 9.4.1, Java 25, `org.wpilib`
 > imports, Commands **V3**, and a Systemcore deploy target. `./gradlew build` (format check,
-> compile, 28 tests) passes on a desktop. **Nothing has run on Systemcore hardware, nothing has run
-> against a real CAN bus, and CI has not run.** This document keeps the audit and records what the
+> compile, 30 tests) passes on a desktop. **Nothing has run on Systemcore hardware, nothing has run
+> against a real CAN bus. The integration PR passed its first GitHub Actions build.** This document keeps the audit and records what the
 > port actually found.
 >
 > *Audit dates: 2026-09-28 against alpha-7; the port itself on 2026-11-25 against alpha-8, reading
@@ -211,7 +211,7 @@ Done on `feature/2027-v3`:
 - [x] **5.** Branched (`feature/2027-v3`); `main` is untouched.
 - [x] **6.** `build.gradle`: GradleRIO 2027 alpha-8, Java 25, Systemcore deploy target and
       dependency configurations, `application` plugin. Gradle wrapper 8.11 → 9.4.1.
-- [x] **7.** CI workflow bumped to JDK 25. **Not run.**
+- [x] **7.** CI workflow bumped to JDK 25. The integration PR passed its first CI run.
 - [x] **8.** 2027 vendordeps: AdvantageKit `27.0.0-alpha-7`, Phoenix 6 `26.70.0-alpha-2`, PhotonVision
       (a dev snapshot built for alpha-7, not a tagged release), BLine-Lib `2027.0.0-beta.3`, Grapple
       `27.0.0`, plus the WPILib `CommandsV3`, `AprilTag` and `CameraServer` vendordeps.
@@ -248,10 +248,11 @@ Done on `feature/2027-v3`:
 - [ ] **Re-diff V3 and BLine at beta.** BLine `2027.0.0-beta.3` was built against alpha-7 and has not
       been run on alpha-8. PhotonVision is a dev snapshot.
 - [ ] **maple-sim**: add back when it ships a 2027 build (`template/deferred/maple-sim/README.md`).
-- [ ] **CI**: first run will likely need the alpha maven artifacts made resolvable (see the comment
-      in `build.yml`).
+- [x] **CI**: the integration PR passed on the hosted runner.
 - [ ] **Telemetry backend**: confirm the `Auto Preview` and `Visualizer` widgets actually appear on a
       dashboard; `Telemetry.log` has no backend in the unit tests.
+- [ ] **Phoenix online update URL**: CTRE's 2027 latest manifest URL currently returns 404.
+      Select the pinned Phoenix release from WPILib's Vendor Dependencies list if needed.
 - [ ] **Controller input current** for `BatteryLogger`: Systemcore exposes none.
 - [ ] **FieldConstants / AprilTag layout** for the 2027 game when WPILib ships it, and PhotonVision's
       pose estimator against that `Field` type.

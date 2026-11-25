@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import frc.robot.RobotState;
+import frc.robot.TestLogging;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.vision.io.VisionIO;
 import frc.robot.subsystems.vision.io.VisionIO.PoseObservation;
@@ -20,7 +21,6 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.littletonrobotics.junction.Logger;
 import org.wpilib.hardware.hal.HAL;
 import org.wpilib.math.geometry.Pose2d;
 import org.wpilib.math.geometry.Pose3d;
@@ -65,8 +65,7 @@ class VisionFilterTest {
     assertTrue(HAL.initialize(), "HAL failed to initialize; sim-backed tests cannot run");
 
     // Vision.periodic() calls Logger.processInputs and Logger.recordOutput unconditionally.
-    Logger.AdvancedHooks.disableRobotBaseCheck();
-    Logger.start();
+    TestLogging.start();
 
     // Report disabled before the first periodic(). AdvantageKit builds the struct schema for a
     // record type the first time one is logged, and warns when that happens while enabled
