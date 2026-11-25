@@ -425,7 +425,10 @@ public class DriveCommands {
   /**
    * Measures the velocity feedforward constants for the drive motors.
    *
-   * <p>This command should only be used in voltage control mode.
+   * <p>On the real drivetrain, the configured drive output type determines the ramp units. With
+   * {@code TorqueCurrentFOC}, the ramp requests torque current in amps. The fit uses requested
+   * current and measured wheel speed in rotations per second, so kS is in amps and kV is in amps
+   * per rotation per second. With {@code Voltage} output, the ramp and fit use volts instead.
    */
   public static Command feedforwardCharacterization(Drive drive) {
     List<Double> velocitySamples = new LinkedList<>();
