@@ -71,8 +71,9 @@ Rules that survive and get sharper:
   with no default gets `idle()` — a motor mechanism still needs an explicit stop/hold default.
 - Triggers: `whileTrue` is not restarted if the command ends while held; use `retryWhileTrue` only
   where V2's behavior must be kept. `debounce` takes a `Time`.
-- Re-zero-gyro style bindings that require the drive for `ignoringDisable` become
-  `Command.noRequirements(...)`. Do **not** mark `Drive` `controllableDuringDisabled`.
+- Gyro reset uses a requirement-free command while disabled. While enabled, dispatch to a
+  command that requires Drive so scheduler ownership is preserved. Keep Drive unavailable to
+  motion commands while disabled.
 - Cancellation flags: reach for priorities or scoped triggers first. If a flag stays, document when
   it is set and cleared.
 

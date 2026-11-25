@@ -1,16 +1,16 @@
 package frc.robot.subsystems.exampleArm;
 
-import static edu.wpi.first.units.Units.Amps;
-import static edu.wpi.first.units.Units.Degrees;
+import static org.wpilib.units.Units.Amps;
+import static org.wpilib.units.Units.Degrees;
 
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.Voltage;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.lib.util.CommandLogger;
 import frc.robot.Robot;
 import frc.robot.subsystems.exampleArm.io.ExampleArmIO;
 import frc.robot.subsystems.exampleArm.io.ExampleArmIOInputsAutoLogged;
 import org.littletonrobotics.junction.Logger;
+import org.wpilib.command3.Mechanism;
+import org.wpilib.units.measure.Angle;
+import org.wpilib.units.measure.Voltage;
 
 /**
  * Rotary position-controlled mechanism — arm, pivot, hood, wrist, turret.
@@ -35,7 +35,7 @@ import org.littletonrobotics.junction.Logger;
  *       RobotState} or take a {@code Supplier} in the constructor.
  * </ol>
  */
-public class ExampleArm extends SubsystemBase {
+public class ExampleArm implements Mechanism {
 
   /**
    * Fraction of the stator limit at which the mechanism counts as saturated.
@@ -73,7 +73,11 @@ public class ExampleArm extends SubsystemBase {
     this.inputs = new ExampleArmIOInputsAutoLogged();
   }
 
-  @Override
+  /**
+   * Reads inputs and logs. Commands V3 has no {@code Subsystem.periodic()}: nothing calls this for
+   * you. Add it to {@code RobotContainer.periodic()}, or {@code Logger.processInputs()} never runs
+   * and replay silently breaks. {@code RobotContainerSmokeTest} fails if it is missing.
+   */
   public void periodic() {
     io.updateInputs(inputs);
     Logger.processInputs(ExampleArmConstants.NAME, inputs); // NEVER remove this line

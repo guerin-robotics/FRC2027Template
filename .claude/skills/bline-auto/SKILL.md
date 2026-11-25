@@ -32,7 +32,7 @@ follower**.
 
 - What the auto does, in order: where it starts, each stop, what mechanism acts where.
 - Which side it is drawn on. **Every auto is authored blue-left only.** Red comes from the Driver
-  Station alliance; Right comes from the `Auto Side` chooser. Do not draw separate paths for them
+  Station alliance; Right comes from selecting the `(Right)` autonomous OpMode. Do not draw separate paths for them
   unless the field or a mechanism is genuinely asymmetric.
 - Which mechanism actions fire mid-path (they become event triggers) and which happen between
   paths (they become steps in the routine).
@@ -72,14 +72,15 @@ Give them a checklist, per path:
   "path-1", "path-2", ...)`. List the path files in order — the auto preview draws from that list,
   and a routine added with `routines.put` instead has no preview and a false start check.
 - **Compose the routine** as in the example at the bottom of `BLineAutos`:
-  - Reset odometry on the **first path only**: `builder.withPoseReset(drive::setPose).build(first)`,
-    then `builder.withPoseReset(ignored -> {})` for the rest. Never `drive.setPose(path.getStartPose())`.
+  - Reset odometry on the **first path only** with `BLineAutos.followFirst(builder, first)`.
+    Use `BLineAutos.follow(builder, path)` for the rest. Never `drive.setPose(path.getStartPose())`.
   - Every path command gets `.withTimeout(...)`. BLine never times out on its own. Size each value
     from the path's measured duration in sim, with margin, and keep the routine's total inside the
     auto period. The 3.0 s `Constants.Waits.PATH_TIMEOUT_SECONDS` placeholder only covers about a
     5 m leg at the shipped limits; give a longer path its own value in `Constants.Waits`.
-  - If an event command shares a requirement with another step of the same routine, compose with
-    `BLineCommands.sequence` / `deadline`, not `Commands.*`, or the event cancels the whole routine.
+  - If an event command shares a requirement with another step of the same routine, use a requirements-free V3 coroutine
+    and `co.await(...)` for each path or action. A group that reserves the event mechanism can be
+    canceled by the event.
   - Name the routine: `"Auto_<Name>"`.
 - **Never** put `driveToPose` in a routine. It does not finish.
 - Do not also call `Path.flip()` or `mirror()` on a path you give the builder.
@@ -91,7 +92,7 @@ Run in order and report each result:
 1. `./gradlew spotlessApply compileJava`
 2. `./gradlew build` — includes the event-key check against the new paths.
 3. `./gradlew simulateJava`, then in AdvantageScope / Elastic:
-   - Select the auto, set `Auto Side` to Left, then Right, and set the alliance to Blue, then Red
+   - Select the Left and Right versions of the auto on the Driver Station and try both alliances
      (Driver Station sim). The **Auto Preview** widget must show the path on the correct side each
      time, and `Auto/StartCheck/*` must report the start pose.
    - Run auto. `FollowPath/pathTranslations` should match the preview. Check elapsed time against
@@ -176,11 +177,11 @@ Start with P only. Add D only when a repeatable plot shows it is needed.
 | Finishes while still moving | No final-velocity criterion: add a max-velocity cap over the last ordinals; tightening tolerance alone does not help |
 | Right shape, wrong direction | Frame contract (robot-relative in and out), no driver-perspective transform on auto output |
 | Works on blue, fails on red | A transform applied zero or two times: do not also call `Path.flip()`; first path must reset pose through the builder |
-| Wrong side when mirrored | Mirror applied twice, or a side-mounted mechanism; check the `Auto Side` chooser |
+| Wrong side when mirrored | Mirror applied twice, or a side-mounted mechanism; check the selected autonomous OpMode |
 | Event does not fire | Exact case-sensitive `lib_key`, `t_ratio` in [0,1], increasing order, key bound before routines were built |
 | Event cancels the whole auto | Event command shares a requirement with another step: compose with `BLineCommands`; it must not require the drive |
 | Never finishes when blocked | Timeout missing: every path command needs one |
-| Drives toward (0,0) first | Pose captured at startup: build runtime paths inside `Commands.deferredProxy` |
+| Drives toward (0,0) first | Pose captured at startup: build runtime paths in the V3 coroutine when that step starts |
 | JSON constraint has no effect | Velocity/acceleration constraints must be arrays of ranged objects in v0.9.3 |
 
 ### 5. Report, then ask

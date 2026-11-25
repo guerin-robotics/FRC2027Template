@@ -1,6 +1,6 @@
 # Autos
 
-Autos are **BLine paths**, in one chooser. The follower is BLine's `FollowPath`, configured in
+Autos are **BLine paths**, selected as Driver Station OpModes. The follower is BLine's `FollowPath`, configured in
 `BLineAutos.createBuilder`.
 
 | Authored in | How the robot moves | Use it when |
@@ -48,26 +48,26 @@ Draw paths in BLine Web and export the autos folder to `src/main/deploy/autos/` 
 `BLineAutos`:
 
 ```java
-public static Command twoPieceLeft(FollowPath.Builder builder, Drive drive) {
+// Import org.wpilib.command3.Command and static org.wpilib.units.Units.Seconds.
+public static Command twoPiece(FollowPath.Builder builder) {
   Path toFirst = new Path("left-to-first");   // deploy/autos/paths/left-to-first.json
   Path toScore = new Path("first-to-score");
 
-  // Reset odometry from the first path only, then clear it for the rest.
-  Command first = builder.withPoseReset(drive::setPose).build(toFirst);
-  builder.withPoseReset(ignored -> {});
-  Command second = builder.build(toScore);
+  // Reset odometry from the first path only. Both helpers apply the selected mirror.
+  Command first = followFirst(builder, toFirst);
+  Command second = follow(builder, toScore);
 
-  return Commands.sequence(
-          first.withTimeout(Constants.Waits.PATH_TIMEOUT_SECONDS),
-          second.withTimeout(Constants.Waits.PATH_TIMEOUT_SECONDS))
-      .withName("Auto_TwoPieceLeft");
+  return Command.sequence(
+          first.withTimeout(Seconds.of(Constants.Waits.PATH_TIMEOUT_SECONDS)),
+          second.withTimeout(Seconds.of(Constants.Waits.PATH_TIMEOUT_SECONDS)))
+      .named("Auto_TwoPiece");
 }
 ```
 
 and list it in `BLineAutos.all(...)`:
 
 ```java
-add(routines, "Two Piece Left", () -> twoPieceLeft(builder, drive),
+add(routines, "Two Piece", () -> twoPiece(builder),
     "left-to-first", "first-to-score");
 ```
 
@@ -81,7 +81,7 @@ Draw every auto **blue-left only**. Two things happen when the auto starts:
 
 - **Alliance** — `withDefaultShouldFlip()` reads the Driver Station alliance, which is the FMS
   station on the field, and flips the path rotationally for red. Nothing to select.
-- **Side** — the `Auto Side` chooser (Left / Right) feeds `withShouldMirror`, which reflects the
+- **Side** — the Driver Station's Left/Right autonomous OpMode supplies `withShouldMirror`, which reflects the
   path across the field centerline for Right. Flip is applied first, then mirror; they commute, so
   all four combinations (blue/red x left/right) come from the one path.
 
@@ -122,11 +122,10 @@ BLineAutos.bind("Intake", IntakeCommands.deploy(intake));
 ```
 
 - A bound command must **not** require the drive — it runs beside the path, which does.
-- It is scheduled through the `CommandScheduler` and is not cancelled with the routine. Give it an
-  end condition.
+- It is scheduled through the V3 `Scheduler` independently of the path. Give it an end condition.
 - If an event command shares a requirement with a later step of the same routine, compose the
-  routine with `BLineCommands.sequence` / `deadline` (they proxy their children) instead of
-  `Commands`, or scheduling the event cancels the whole group.
+  routine with a requirements-free V3 coroutine and use `co.await(...)` for each path or action.
+  A group that reserves the event mechanism can be canceled by the event.
 - `RobotContainerSmokeTest` fails if a path uses a `lib_key` nothing is bound to.
 
 ## Tuning
@@ -141,10 +140,15 @@ overshoots. Tune all of them with `/bline-auto` on the real chassis.
 
 ---
 
-## The chooser
+## Driver Station selection
 
-`RobotContainer` keeps AdvantageKit's `LoggedDashboardChooser<Supplier<Command>>`, (the same one the drive already uses). The selection is a logged input, so replay knows which auto ran; each option is a
-supplier, so a routine — and its paths — is built only when it is selected and auto starts.
+Each routine registered in `BLineAutos.all(...)` appears on the Driver Station as
+`<routine> (Left)` and `<routine> (Right)`. AdvantageKit logs the selected OpMode for replay.
+The selected routine is built on enable. Its preview clears when the selection is released.
+
+`Auto/Outcome` distinguishes completion, rejection, interruption, cancellation, failure, and
+an OpMode ending with the routine still running. The last case sets `Auto/Overran` and can
+also occur on an early disable since WPILib does not supply the reason the OpMode ended.
 
 ---
 

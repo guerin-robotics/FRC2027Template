@@ -1,24 +1,24 @@
 package frc.robot.subsystems.exampleLift;
 
-import static edu.wpi.first.units.Units.Inches;
-import static edu.wpi.first.units.Units.RPM;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
-import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
-import static edu.wpi.first.units.Units.Second;
-import static edu.wpi.first.units.Units.Seconds;
+import static org.wpilib.units.Units.Inches;
+import static org.wpilib.units.Units.RPM;
+import static org.wpilib.units.Units.RotationsPerSecond;
+import static org.wpilib.units.Units.RotationsPerSecondPerSecond;
+import static org.wpilib.units.Units.Second;
+import static org.wpilib.units.Units.Seconds;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
-import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.geometry.Translation3d;
-import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.units.measure.Distance;
-import edu.wpi.first.units.measure.Time;
 import frc.lib.util.MotorSpecs;
 import frc.robot.Constants;
+import org.wpilib.math.geometry.Rotation3d;
+import org.wpilib.math.geometry.Translation3d;
+import org.wpilib.math.system.DCMotor;
+import org.wpilib.units.measure.Distance;
+import org.wpilib.units.measure.Time;
 
 /**
  * Constants and motor configuration for a <b>LINEAR POSITION-CONTROLLED</b> mechanism.
@@ -537,10 +537,10 @@ public class ExampleLiftConstants {
     // obviously wrong on sight. That is the intent.
 
     /** Retracted carriage position in the robot frame. */
-    public static final Translation3d CARRIAGE_OFFSET = Translation3d.kZero;
+    public static final Translation3d CARRIAGE_OFFSET = Translation3d.ZERO;
 
     /** Fixed mounting rotation of the component. A lift does not turn, so this never changes. */
-    public static final Rotation3d CARRIAGE_ROTATION = Rotation3d.kZero;
+    public static final Rotation3d CARRIAGE_ROTATION = Rotation3d.ZERO;
   }
 
   // ==========================================================================================

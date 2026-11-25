@@ -43,12 +43,16 @@ module and cannot be guessed or derived. Only the Tuner X wizard should change t
 
 ---
 
-## CAN Bus: RIO (`"rio"`)
+## Systemcore mechanism CAN buses
 
-Everything that is not odometry-critical.
+`Constants.CanIds` defines placeholder ports `CAN_S0` (bus A) and `CAN_S1` (bus B).
+The scaffolds use bus A. Record each device and its physical port once wiring is confirmed.
 
-| CAN ID | Device | Type | Subsystem | Notes |
+| Port | CAN ID | Device | Type | Subsystem |
 |---|---|---|---|---|
+| | | | | |
+
+---|---|---|---|---|
 | | | | | |
 
 Add a row per device as it is wired. Match each entry to a constant in
@@ -162,7 +166,7 @@ the file is right and this table is stale.
 |---|---|
 | Log storage | USB drive at `/U/` — must be present for match logs |
 | PDH | Powers all subsystems; voltage logged via `BatteryLogger` |
-| RoboRIO | Main control; `"rio"` CAN bus terminates here |
+| Systemcore | Main controller with native mechanism CAN ports |
 | CANivore | Separate USB-CAN adapter; `"Canivore"` bus |
 
 2026 logged 491 brownouts across 23 matches, with the battery sagging to ~6.3 V under a
@@ -172,17 +176,5 @@ the file is right and this table is stale.
 
 ## Vendor Library Versions
 
-*All 2026 — update every one at the start of the season.*
-
-| Library | Version | Config file |
-|---|---|---|
-| WPILib | 2026.2.1 | `build.gradle`, `settings.gradle` (`frcYear`) |
-| CTRE Phoenix 6 | 26.3.0 | `vendordeps/Phoenix6-26.3.0.json` |
-| PhotonVision | v2026.3.4 | `vendordeps/photonlib.json` |
-| AdvantageKit | see vendordep | `vendordeps/AdvantageKit.json` |
-| BLine-Lib | v0.9.3 | `vendordeps/BLine-Lib.json` |
-| Studica (NavX) | see vendordep | `vendordeps/Studica.json` |
-| Grapple (LaserCAN) | 2026.0.0 | `vendordeps/libgrapplefrc2026.json` |
-
-Update vendor libraries at the start of each season. Do not update mid-season unless
-fixing a known critical bug.
+The alpha toolchain and pinned versions are listed in [2027-migration.md](2027-migration.md).
+The build uses the version in `build.gradle` and each library descriptor in `vendordeps/`.

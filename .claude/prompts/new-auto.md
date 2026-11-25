@@ -20,7 +20,7 @@ Event triggers (lib_key) used in these paths:
 
 Bind any new keys with BLineAutos.bind(...) in RobotContainer BEFORE any routine is
 built. A bound command must not require the drive.
-Author blue-left only (alliance flip and the Auto Side mirror are applied by the builder).
+Author blue-left only (alliance flip and the selected autonomous OpMode's mirror are applied by the builder).
 Reset odometry on the first path only (builder.withPoseReset(drive::setPose), then clear it).
 Give every path command a timeout from Constants.Waits.
 List the routine in BLineAutos.all(...).

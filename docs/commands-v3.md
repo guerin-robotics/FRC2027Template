@@ -1,17 +1,32 @@
 # Commands V3 — What Our Rules Become
 
-> **Status: doctrine, not code.** The robot code is Commands V2 and stays V2 until the port in
-> [2027-migration.md](2027-migration.md). `.claude/rules/03-commands.md` describes the code that
-> exists and is still the rule to follow today.
+> **Status: implemented.** The robot code is Commands V3 (`org.wpilib.command3`) as of the 2027
+> port, checked against allwpilib **`2027.0.0-alpha-8`** (read from the `commandsv3-java` sources
+> jar, not from memory). `.claude/rules/03-commands.md` was rewritten from this document in the
+> same change and is now the rule to follow; this file is the design record — why each rule became
+> what it did — and the list of alpha-8 differences from the alpha-7 text it was first written
+> against. Re-diff the signatures at beta.
 >
-> This document is the target for that port: for every command rule in this repo, what it becomes
-> under V3, written before anyone has to decide it under a deadline. When the port happens,
-> `03-commands.md` gets rewritten from this, and this file is deleted or kept as the V2 → V3
-> history.
->
-> *Checked against allwpilib `v2027.0.0-alpha-7` and `main` of 2026-09-27, package
-> `org.wpilib.command3`. The package name has held since alpha-5; the API inside it has not
-> (`Mechanism` became an interface in alpha-7). Re-diff the signatures below at beta.*
+> **Nothing here has run on Systemcore hardware.** It has been built and unit-tested on a desktop,
+> and the V3 scheduler has run against `Drive` and a BLine `FollowPath` in `RobotContainerSmokeTest`.
+
+## What alpha-8 changed from the alpha-7 text
+
+- **`whenExited(...)` exists on the builder.** It runs on any exit — completion, cancel or
+  interruption — so `finallyDo` now has a direct equivalent. Alpha-7 had only `whenCanceled`, and
+  this doc's earlier advice to "clean up at the bottom of the body as well" is obsolete. Use
+  `whenExited`; `whenCanceled` remains for the cancel-only case.
+- **`Command` is an interface** with `name()`, `requirements()`, `run(Coroutine)`, `priority()`,
+  `onCancel()` and `onExit()`. A command is read with `command.name()`, not `getName()`.
+- **`Scheduler.addPeriodic(Runnable)` exists**, but the repo does not use it: see
+  [processInputs](#loggerprocessinputs--the-hard-stop-that-v3-makes-easy-to-break).
+- **`Coroutine.waitUntil(cond, Time)` returns a `WaitResult`** with `timedOut()`, as described.
+- **`SysIdRoutine.Config` no longer accepts `null`** (use `Config.DEFAULT_*`), `SysIdRoutine.Mechanism`
+  is `SysIdMechanism`, and `Direction` is `FORWARD` / `REVERSE`.
+- **Trigger, controller and Gamepad types** moved to `org.wpilib.command3.Trigger` and
+  `org.wpilib.command3.button.*`. The Xbox Start button is `menu()` and Back is `view()`;
+  `CommandJoystick` has no `button(int)` — go through `getHID().button(int)`.
+- **Scheduler timestamps are nanoseconds** (`SchedulerEvent.timestampNanos`).
 
 ---
 
@@ -62,16 +77,15 @@ public static Command runAtVelocity(Intake roller, AngularVelocity velocity) {
         roller.setVelocity(velocity);
         coroutine.park(); // hold until canceled
       })
-      .whenCanceled(roller::stop) // park() never returns, so cancel is the only way out
+      .whenExited(roller::stop) // park() never returns, so cancel is the only way out
       .named(roller.getName() + "_Velocity");
 }
 ```
 
-**Cleanup hooks differ between alpha-7 and `main`.** Alpha-7's builder has only
-`whenCanceled(...)`, which runs **only** when the command is canceled — not on natural completion.
-`whenExited(...)`, which runs on any exit, was added on `main` after alpha-7. A body that parks
-forever (like the one above) can only exit by cancel, so `whenCanceled` is enough. A body that can
-finish on its own must also clean up at its end, or use `whenExited` once a release ships it.
+**Cleanup hooks.** `whenCanceled(...)` runs **only** when the command is canceled — not on natural
+completion. `whenExited(...)` (present in alpha-8) runs on any exit. A body that parks forever (like
+the one above) can only exit by cancel, so either works there; use `whenExited` everywhere so a body
+that later gains an exit path is still cleaned up.
 
 ### The factory table
 
@@ -79,8 +93,8 @@ finish on its own must also clean up at its end, or use `whenExited` once a rele
 |---|---|
 | `Commands.runOnce(action, sub)` | `mech.run(co -> action.run()).named(...)` |
 | `Commands.run(action, sub)` | `mech.runRepeatedly(action).named(...)` |
-| `Commands.startEnd(start, end, sub)` | `mech.run(co -> { start.run(); co.park(); }).whenCanceled(end).named(...)` — `park()` only exits by cancel |
-| `cmd.finallyDo(end)` | alpha-7: `.whenCanceled(end)` **and** `end` at the bottom of the body — `whenCanceled` does not run on natural completion. `main` (post-alpha-7): `.whenExited(end)`, which runs on completion, cancel or interrupt |
+| `Commands.startEnd(start, end, sub)` | `mech.run(co -> { start.run(); co.park(); }).whenExited(end).named(...)` — `park()` only exits by cancel |
+| `cmd.finallyDo(end)` | `.whenExited(end)`, which runs on completion, cancel or interrupt |
 | `Commands.sequence(a, b, c)` | `Command.sequence(a, b, c).named(...)`, or `a.andThen(b).andThen(c).named(...)` |
 | `Commands.parallel(a, b)` | `Command.parallel(a, b).named(...)` — ends when **all** finish |
 | `Commands.race(a, b)` | `Command.race(a, b).named(...)` — ends when **any** finishes |
@@ -189,18 +203,20 @@ V2's `CommandScheduler` calls every registered `Subsystem.periodic()`. **V3 call
 `Mechanism` has no `periodic()`. Port `Drive`, `Vision` and every mechanism subsystem
 naively and `processInputs()` simply never runs: no inputs, no replay, no error.
 
-At the port, choose one of these and apply it to every subsystem, including `Vision`, which
-requires nothing and is not a mechanism at all:
+**Decision (made at the port):** every subsystem's `periodic()` is called explicitly from
+**`RobotContainer.periodic()`**, which `Robot.robotPeriodic()` calls **before**
+`Scheduler.getDefault().run()`, in a fixed order (`Drive`, then `Vision`). This includes `Vision`,
+which requires nothing and is not a mechanism at all. It was chosen over
+`Scheduler.addPeriodic(sub::periodic)` because it is one visible list, it is testable without a
+scheduler, and registering periodics at construction would accumulate across the many instances a
+test suite builds (the default scheduler has no way to remove one).
 
-- call each `periodic()` explicitly from `Robot.robotPeriodic()`, **before**
-  `Scheduler.getDefault().run()`, in a fixed order; or
-- register each once with `Scheduler.getDefault().addPeriodic(sub::periodic)` at construction —
-  periodic callbacks run before triggers are polled and before commands run, which is the order we
-  need.
-
-Then make `RobotContainerSmokeTest` prove it: construct the container, run one loop, and assert every
-subsystem's inputs were processed. This is the one V3 change that can silently disable replay, so
-it gets a test, not a checklist line.
+`RobotContainerSmokeTest.everySubsystemProcessesItsInputsEveryLoop` proves it. It drives one loop
+the way `robotPeriodic` does — AdvantageKit's before-user hook, `RobotContainer.periodic()`, the
+after-user hook — captures every logged key with a data receiver, and asserts each subsystem found in
+`RobotContainer` (by reflection: anything with a public `periodic()`) logged inputs under
+`/<ClassName>/`. Removing `vision.periodic()` makes it fail; that was checked. A new subsystem is
+covered automatically.
 
 ### Triggers — keep the rules, check the semantics
 
@@ -235,54 +251,39 @@ If a flag is still needed, the V2 rule stands: write down when it is set and whe
 
 ### Disabled
 
-V2's `.ignoringDisable(true)` is per command. V3 decides per **mechanism**:
-`Mechanism.controllableDuringDisabled()` defaults to `false`, and a command requiring a
-non-controllable mechanism cannot be scheduled while disabled — and is canceled on disable.
-
-Commands that require **no** mechanism are unaffected. So our re-zero-gyro binding, which today
-requires `drive` and sets `ignoringDisable(true)`, becomes a `Command.noRequirements(...)` command:
-resetting a pose does not need to own the drivetrain. Do **not** mark `Drive`
-`controllableDuringDisabled` to get the same effect — that would let any drive command be scheduled
-while disabled.
-
-### BLine event triggers — open
-
-The V2 rule — a command bound to an event trigger must not require the drive, or it interrupts the
-path — exists because the bound command and the path command are scheduled side by side and
-conflict on the drive requirement. V3's mechanism ownership and priorities may change its form.
-
-**This depends on BLine-Lib's 2027 command story.** Its current release (v0.9.3) targets the 2026
-`CommandScheduler` (V2) and has not been checked against V3. Keep the V2 rule until BLine-Lib ships
-V3 support; then re-derive it from what its V3 path command actually owns.
+V2's `.ignoringDisable(true)` is per command. V3 uses each mechanism's
+`controllableDuringDisabled()` permission. The gyro-reset binding dispatches on the button
+edge. While disabled it resets only the odometry heading. While enabled it awaits a command
+that requires `Drive`, preserving normal interruption and priority rules.
 
 ---
 
 ## Our `frc/lib` classes under V3
 
-| Class | V3 verdict |
+| Class | What happened |
 |---|---|
-| `ContinuousConditionalCommand` | **Probably delete.** It exists because V2's `ConditionalCommand` checks its condition once. In V3, a body that loops, re-checks the condition and forks the matching command does the same thing in a few lines — or a `StateMachine` with a transition each way (`a.switchTo(b).when(() -> !cond)`, `b.switchTo(a).when(cond)`). Check that the state machine's fixed initial state does not run the wrong branch for a cycle before relying on it |
-| `LoggedTrigger` | **Port.** V3 `Trigger` is still a subclassable `BooleanSupplier` with a `(BooleanSupplier)` constructor, so the wrapping-supplier approach carries over. The `debounce` overrides change to take `Time`. Scoped bindings do not affect it — logging is in the supplier |
-| `CommandLogger` | **Rewrite on `Scheduler.addEventListener`.** V3 emits typed `SchedulerEvent`s — `Scheduled`, `Mounted`, `Completed`, `CompletedWithError`, `Canceled`, `Interrupted(command, interrupter)`, `ForkFailure`. `Interrupted` carries **who** interrupted, which is exactly the "scheduled and interrupted — by what?" question this class was written to answer. `recordCurrentCommand` becomes `mechanism.getRunningCommands()`. V3's `Scheduler` is also protobuf-serializable (the command tree, with per-command runtimes); decide whether to log that instead of, or beside, ours |
-| Mechanism subsystems and their `*Commands` (the `template/` scaffolds and everything copied from them) | **Implement `org.wpilib.command3.Mechanism`** instead of extending `SubsystemBase`; wire `periodic()` per the processInputs section; `setName` goes away — override `getName()`. Port each `*Commands` class verb by verb with the factory table above — a spin-up wait becomes `coroutine.waitUntil(roller::isAtVelocity, timeout)` and can now log whether it timed out. Port the scaffolds first so every later mechanism is copied from V3 code |
-| `DriveCommands.driveToPose` | **Port** with the factory table: a body that runs until interrupted. The seeding and setpoint feedforward are plain math and carry over unchanged. Its finishing variants (`driveToPoseWithin`, `driveToWaypoint`) were removed with point-to-point autos; give a ported one a `withTimeout(Time)` if it returns |
+| `ContinuousConditionalCommand` | **Deleted** (it had no callers). V3's body that loops, re-checks and forks the matching command, or a `StateMachine` with a transition each way, replaces it |
+| `LoggedTrigger` | **Ported.** Same wrapping-supplier approach; the `debounce` overrides take a `Time`. Scoped bindings do not affect it |
+| `CommandLogger` | **Rewritten on `Scheduler.addEventListener`.** It counts `Scheduled` against `Completed` / `CompletedWithError` / `Canceled`, and logs `Interrupted(command, interrupter)` as `Commands/LastInterrupt` — the "interrupted by what?" answer V2 could not give. `recordCurrentCommand` uses `mechanism.getRunningCommands()`. The V3 `Scheduler` is also protobuf-serializable; logging that beside ours is open |
+| Mechanism subsystems and their `*Commands` (the `template/` scaffolds) | **Ported:** the subsystem `implements Mechanism`, its `periodic()` is public and called from `RobotContainer.periodic()`, and each `*Commands` class uses the factory table. Spin-up waits are `coroutine.waitUntil(..., Time)` and log whether they timed out. The scaffolds still fail to compile on exactly the values they owe (gear ratio, CAN IDs, soft limits, encoder split, drum geometry) and nothing else |
+| `DriveCommands` | **Ported** verb by verb. `driveToPose` seeds its profiles at the top of the body; the math is unchanged. The two characterization commands are a `Command.sequence` and a `Command.parallel` of named parts |
 
 ---
 
 ## Tests under V3
 
-- **Scheduler isolation.** Today every sim test cancels and unregisters from the JVM-wide
-  `CommandScheduler`. V3 offers `Scheduler.createIndependentScheduler()`, which can end the
-  teardown ritual — but a `Mechanism` reports its scheduler through `getRegisteredScheduler()`,
-  which defaults to `Scheduler.getDefault()`. For a test scheduler to own a mechanism, each
-  mechanism subsystem needs to accept the scheduler at construction and return it there. Design
-  that in during the port rather than retrofitting it.
-- **Time.** V3's `coroutine.wait` / `waitUntil(…, timeout)` use WPILib's `Timer`, which reads
-  `RobotController.getTime()` — the same clock V2 used. So the `RobotController.setTimeSource`
-  workaround in `docs/testing.md` should carry over; confirm it on the first V3 sim test. Note
-  alpha-7's raw timestamps are nanoseconds.
-- **`RobotContainerSmokeTest`** needs rewriting: default-command and naming checks move to the V3
-  `Scheduler` API, and it gains the processInputs assertion above.
+- **Scheduler isolation.** `Scheduler.getDefault()` is JVM-wide. The smoke test cancels everything
+  it started in `@AfterAll`. `Scheduler.createIndependentScheduler()` could end that, but a
+  `Mechanism` reports its scheduler through `getRegisteredScheduler()`, which defaults to the default
+  scheduler, so each mechanism would need to accept a scheduler at construction. Not done yet.
+- **Time.** AdvantageKit sets `RobotController.setTimeSource(Logger::getTimestamp)`, and in 2027
+  that source, `Timer`, and the scheduler's events are **nanoseconds**. `Timer.getTimestamp()` is the
+  seconds-valued clock; the repo uses it wherever 2026 used `Timer.getFPGATimestamp()`.
+- **Disabled.** V3 will not schedule a command that requires `Drive` while disabled, so the test that
+  runs a BLine `FollowPath` enables the sim Driver Station for that one cycle.
+- **`RobotContainerSmokeTest`** was rewritten for the V3 `Scheduler`: default commands (present, and
+  below `DEFAULT_PRIORITY`), every OpMode routine builds a command, the BLine logging reaches the
+  preview widget, every BLine event key is bound, and the processInputs gate above.
 
 ---
 
