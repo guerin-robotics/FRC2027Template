@@ -282,10 +282,13 @@ back, they need a tolerance or timeout (`withTimeout(Time)`).
 
 ## Conditional Re-evaluation
 
-V3 deleted the need for a `ContinuousConditionalCommand` (it was removed from `frc.lib`). Write the
-body as a loop that re-checks the condition and forks or awaits the matching command, or use a
-`StateMachine` with a transition each way. Check that a state machine's fixed initial state does not
-run the wrong branch for one cycle before relying on it.
+Use a V3 `StateMachine` with transitions in both directions. Check that its initial state
+matches the condition before any branch commands the mechanism.
+
+For a coroutine, fork the matching child and yield each pass so the parent can keep checking
+the condition. When it changes, cancel the active child before forking the replacement.
+Keep the parent requirements-free if each child owns the mechanism. Use `await` only for
+steps that should complete before the parent proceeds. A parked child never returns on its own.
 
 ---
 

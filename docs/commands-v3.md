@@ -262,7 +262,7 @@ that requires `Drive`, preserving normal interruption and priority rules.
 
 | Class | What happened |
 |---|---|
-| `ContinuousConditionalCommand` | **Deleted** (it had no callers). V3's body that loops, re-checks and forks the matching command, or a `StateMachine` with a transition each way, replaces it |
+| `ContinuousConditionalCommand` | **Deleted** (it had no callers). Use a `StateMachine` with transitions both ways, or a coroutine that keeps checking the condition and cancels the old child before forking a replacement. See the [command rules](../.claude/rules/03-commands.md#conditional-re-evaluation). |
 | `LoggedTrigger` | **Ported.** Same wrapping-supplier approach; the `debounce` overrides take a `Time`. Scoped bindings do not affect it |
 | `CommandLogger` | **Rewritten on `Scheduler.addEventListener`.** It counts `Scheduled` against `Completed` / `CompletedWithError` / `Canceled`, and logs `Interrupted(command, interrupter)` as `Commands/LastInterrupt` — the "interrupted by what?" answer V2 could not give. `recordCurrentCommand` uses `mechanism.getRunningCommands()`. The V3 `Scheduler` is also protobuf-serializable; logging that beside ours is open |
 | Mechanism subsystems and their `*Commands` (the `template/` scaffolds) | **Ported:** the subsystem `implements Mechanism`, its `periodic()` is public and called from `RobotContainer.periodic()`, and each `*Commands` class uses the factory table. Spin-up waits are `coroutine.waitUntil(..., Time)` and log whether they timed out. The scaffolds still fail to compile on exactly the values they owe (gear ratio, CAN IDs, soft limits, encoder split, drum geometry) and nothing else |
