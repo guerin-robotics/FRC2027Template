@@ -84,9 +84,9 @@ roller.run(co -> {
 }).whenExited(roller::stop).named("Roller_WhenReady");
 ```
 
-Phase 2 timeout = total budget minus phase 1. This guarantees the robot always acts within the
-total budget even if alignment never arrives. All timeout constants live in a constants class — not
-inline.
+The alignment timeout is the total budget minus the configured readiness timeout. It stays
+fixed when readiness finishes early. This caps the time spent waiting before the action.
+Keep timeout values in a constants class.
 
 Two V3 behaviors to know:
 

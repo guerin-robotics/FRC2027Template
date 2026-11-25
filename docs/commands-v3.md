@@ -135,9 +135,9 @@ and every `WaitResult` is checked.*
 
 ### Ready → Align → Act — keep the budget, write it straight
 
-The budget arithmetic is unchanged: phase 2 gets the total minus phase 1's budget, so the robot
-always acts within the total. The coroutine form reads top to bottom and can log which phase ran
-out:
+The alignment phase gets a fixed timeout equal to the total budget minus the configured
+readiness timeout. An early readiness result leaves that alignment timeout unchanged. The
+coroutine logs which phase timed out:
 
 ```java
 public static Command score(Shooter shooter, Feeder feeder, BooleanSupplier isAligned) {
