@@ -160,6 +160,16 @@ Then, for each mechanism:
       and the owner's `periodic()` calls each device's `periodic()`
 - [ ] Verify the logs appear in AdvantageScope
 
+## Simulation Readiness
+
+- [ ] **TODO — Vision sim.** Measure the camera mounts and fill in the identity
+      `robotToCameraN` transforms in `VisionConstants`. Update `FieldConstants.aprilTagLayout`
+      from the 2026 AprilTag field to the 2027 layout. Vision-sim results are only meaningful
+      for the 2027 robot once both are done.
+- [ ] **TODO — Chassis sim.** The `RobotContainer` SIM branch uses `new GyroIO() {}`, so there is
+      no simulated gyro. Restore full-chassis physics and gyro simulation once maple-sim ships
+      a 2027 vendordep. See [the deferred maple-sim wiring](deferred/maple-sim/README.md).
+
 ## Tuning — Mechanisms and Vision
 
 Drivetrain tuning is the ordered sequence above. This section is everything else.
@@ -176,13 +186,9 @@ Drivetrain tuning is the ordered sequence above. This section is everything else
 - [ ] Use MotionMagic for anything with real inertia or travel; set cruise velocity and
       acceleration deliberately (they are Hard Stop items)
 - [ ] `kI = 0` everywhere unless you can explain the windup behavior during a stall
-- [ ] **Recover the sim gain-sweep harness** for the first mechanism you tune —
-      `git show 7b81e48:src/test/java/frc/robot/GainSweepTest.java`. It is what `/pid-tune`
-      drives — it sweeps gains against the physics sim
-      and reports rise time, overshoot and steady-state error, the same way the 2026 season
-      found its path-following gains without touching the robot. Point it at the new mechanism's
-      `IOSim` rather than building a harness from scratch, and remember the `IOSim` closes its
-      loop on its own `Sim` gains — the sweep tunes those, not the Talon's
+- [ ] Use the [sim gain-sweep harness](GUIDE.md#verify-the-mechanism-scaffolds) for the first
+      mechanism you tune with `/pid-tune`. Point it at the mechanism's `IOSim` to measure rise
+      time, overshoot and steady-state error for its simulation controller.
 - [ ] Build any distance → setpoint interpolation tables against the real field element
 - [ ] Validate vision std dev scaling against real AprilTag observations
 - [ ] Re-validate the vision rejection thresholds against 2027 logs (they're 2026-derived)

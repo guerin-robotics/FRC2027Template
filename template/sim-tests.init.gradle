@@ -1,0 +1,58 @@
+gradle.projectsEvaluated {
+    def robot = gradle.rootProject
+    def scaffolds = robot.file('template/src/main/java')
+    def generated = robot.layout.buildDirectory.dir('generated/scaffold-sim')
+    // Fixture geometry and IDs exist only in the disposable test sources.
+    def fixtures = [
+        ExampleRollerConstants: [GEAR_RATIO: '2.0'],
+        ExampleArmConstants: [
+            FORWARD_SOFT_LIMIT_DEGREES: '100.0',
+            REVERSE_SOFT_LIMIT_DEGREES: '-30.0',
+            GEAR_RATIO: '30.0',
+            ROTOR_TO_SENSOR_RATIO: '30.0',
+            SENSOR_TO_MECHANISM_RATIO: '1.0',
+            MAGNET_OFFSET_ROTATIONS: '0.0'
+        ],
+        ExampleLiftConstants: [
+            GEAR_RATIO: '5.0',
+            DRUM_PITCH_DIAMETER: 'Inches.of(2.0)',
+            STAGE_COUNT: '2',
+            MAX_TRAVEL_INCHES: '36.0'
+        ]
+    ]
+    def fixtureIds = [EXAMPLE_ROLLER_MOTOR: 20, EXAMPLE_ARM_MOTOR: 21,
+        EXAMPLE_ARM_ENCODER: 22, EXAMPLE_LIFT_MOTOR: 23]
+
+    def prepare = robot.tasks.register('prepareScaffoldSimSources') {
+        inputs.dir(scaffolds)
+        inputs.property('fixtures', fixtures)
+        inputs.property('fixtureIds', fixtureIds)
+        outputs.dir(generated)
+        doLast {
+            robot.sync {
+                from scaffolds
+                into generated
+                filteringCharset = 'UTF-8'
+                filesMatching('**/*.java') {
+                    def values = fixtures[name - '.java'] ?: [:]
+                    filter { String line ->
+                        def declaration = line =~ /^(\s*)\/\/ (public static final \w+ )(\w+) = (?:Inches\.of\(\))?;$/
+                        if (declaration.matches() && values.containsKey(declaration[0][3])) {
+                            def (_, indent, type, field) = declaration[0]
+                            return "${indent}${type}${field} = ${values[field]};".toString()
+                        }
+                        fixtureIds.each { field, id ->
+                            line = line.replace("Constants.CanIds.${field}".toString(), id.toString())
+                        }
+                        return line
+                    }
+                }
+            }
+        }
+    }
+
+    robot.sourceSets.test.java.srcDirs(generated, robot.file('template/src/test/java'))
+    robot.tasks.named('compileTestJava') { dependsOn prepare }
+    robot.configurations.testAnnotationProcessor.extendsFrom(robot.configurations.annotationProcessor)
+    robot.tasks.named('test') { testLogging.showStandardStreams = true }
+}

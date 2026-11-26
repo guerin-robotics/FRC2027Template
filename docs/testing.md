@@ -72,6 +72,11 @@ The maple-sim chassis tests are saved in [template/deferred/maple-sim](../templa
 The current SIM wiring uses per-module simulation. The smoke test checks that Drive and
 Vision log their inputs every loop and that each registered routine factory builds a command.
 
+### Simulated mechanism scaffolds
+
+The roller, arm and lift have [opt-in scaffold tests](../template/GUIDE.md#verify-the-mechanism-scaffolds)
+and a reusable IOSim gain sweep under `template/`.
+
 ---
 
 ## Removed tests — where to find them
@@ -83,7 +88,6 @@ with `git show <commit>:<path>` if a mechanism or season needs one back.
 |---|---|---|
 | `frc/robot/commands/DriveToPoseSimTest`, `JoystickDriveAtAngleSimTest` | `driveToPose` and heading hold converge in sim | `7b81e48` |
 | `frc/robot/subsystems/drive/DriveOdometrySimTest` | +X/+Y/+ω commands move odometry the right way | `7b81e48` |
-| `frc/robot/GainSweepTest` | Gain-sweep harness for `/pid-tune` | `7b81e48` |
 | `frc/lib/util/LoopTimeMonitorTest` | The loop-overrun watchdog | `7b81e48` |
 | `frc/lib/mechanism/**` (`MotorConfigTest`, `*MechanismSimTest`, `LinearZeroingSoftLimitTest`, `RotaryGravityFrameTest`, …) | The removed W8-style mechanism library. Not applicable to the per-mechanism scaffolds, but the zeroing and gravity-frame tests show what to assert if you test those paths | `f9b09f9` (sim tests), `4dcafdb^` (`MotorConfigTest`) |
 | `frc/robot/subsystems/drive/DrivePeriodicBudgetTest` | Wall-clock cost of `Drive.periodic()` | `f9b09f9` |

@@ -80,9 +80,18 @@ public class ExampleArmIOSim implements ExampleArmIO {
           Units.degreesToRadians(ExampleArmConstants.Sim.STARTING_ANGLE_DEGREES)
               + GRAVITY_FRAME_OFFSET_RADIANS);
 
-  private final PIDController controller =
-      new PIDController(
-          ExampleArmConstants.Sim.KP, ExampleArmConstants.Sim.KI, ExampleArmConstants.Sim.KD);
+  private final PIDController controller;
+
+  public ExampleArmIOSim() {
+    this(
+        new PIDController(
+            ExampleArmConstants.Sim.KP, ExampleArmConstants.Sim.KI, ExampleArmConstants.Sim.KD));
+  }
+
+  /** Uses a caller-supplied controller for simulation tests and gain sweeps. */
+  public ExampleArmIOSim(PIDController controller) {
+    this.controller = controller;
+  }
 
   /**
    * Gravity-aware feedforward.
