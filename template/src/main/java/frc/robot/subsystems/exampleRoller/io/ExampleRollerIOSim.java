@@ -49,11 +49,20 @@ public class ExampleRollerIOSim implements ExampleRollerIO {
               ExampleRollerConstants.GEAR_RATIO),
           ExampleRollerConstants.Sim.MOTOR);
 
-  private final PIDController controller =
-      new PIDController(
-          ExampleRollerConstants.Sim.KP,
-          ExampleRollerConstants.Sim.KI,
-          ExampleRollerConstants.Sim.KD);
+  private final PIDController controller;
+
+  public ExampleRollerIOSim() {
+    this(
+        new PIDController(
+            ExampleRollerConstants.Sim.KP,
+            ExampleRollerConstants.Sim.KI,
+            ExampleRollerConstants.Sim.KD));
+  }
+
+  /** Uses a caller-supplied controller for simulation tests and gain sweeps. */
+  public ExampleRollerIOSim(PIDController controller) {
+    this.controller = controller;
+  }
 
   private final SimpleMotorFeedforward feedforward =
       new SimpleMotorFeedforward(

@@ -41,12 +41,11 @@ repeatable, automatic, and becomes a permanent asset. The 2026 season had a
 configured in `BLineAutos.createBuilder` now) and found the retune
 values without touching the robot.
 
-**The template no longer ships the harness in the build** — the test suite was cut to a
-6328-style minimum (see `docs/testing.md`). Recover it rather than starting from scratch:
-`git show 7b81e48:src/test/java/frc/robot/GainSweepTest.java` is the sweep harness, and
-`DriveToPoseSimTest` / `JoystickDriveAtAngleSimTest` at the same commit are the
-convergence-check pattern for a closed-loop command. Ask the user whether the recovered
-harness should be committed or kept local to the tuning session.
+Start with `template/src/test/java/frc/robot/scaffold/GainSweepTest.java` and the opt-in
+runner in [the template guide](../../../template/GUIDE.md#verify-the-mechanism-scaffolds).
+The roller example sweeps kP through its IOSim. Adapt the sampler, gain grid, and
+response criteria to the mechanism being tuned. For closed-loop command convergence,
+`DriveToPoseSimTest` and `JoystickDriveAtAngleSimTest` at `7b81e48` are reference tests.
 
 The harness must:
 - Drive the mechanism's `IOSim` (or the physics sim) through the test motion
@@ -69,8 +68,9 @@ What it also cannot tell you: whether the inertia or mass in the sim model is ri
 mechanism binds, or how it behaves with a game piece in it. Say which of your conclusions depend on
 those.
 
-The harness must wait for a condition to hold rather than run a fixed loop count, or it races how
-loaded the machine is.
+When calling IOSim directly, advance by simulated 20 ms updates. For scheduler-driven
+tests, synchronize with command execution before sampling. Verify that the error stays within
+tolerance for a defined interval before claiming a settling time.
 
 ## Step 3 — Iterate
 

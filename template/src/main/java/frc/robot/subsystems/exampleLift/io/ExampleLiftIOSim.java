@@ -78,9 +78,18 @@ public class ExampleLiftIOSim implements ExampleLiftIO {
           ExampleLiftConstants.Sim.SIMULATE_GRAVITY,
           Units.inchesToMeters(ExampleLiftConstants.MIN_TRAVEL_INCHES));
 
-  private final PIDController controller =
-      new PIDController(
-          ExampleLiftConstants.Sim.KP, ExampleLiftConstants.Sim.KI, ExampleLiftConstants.Sim.KD);
+  private final PIDController controller;
+
+  public ExampleLiftIOSim() {
+    this(
+        new PIDController(
+            ExampleLiftConstants.Sim.KP, ExampleLiftConstants.Sim.KI, ExampleLiftConstants.Sim.KD));
+  }
+
+  /** Uses a caller-supplied controller for simulation tests and gain sweeps. */
+  public ExampleLiftIOSim(PIDController controller) {
+    this.controller = controller;
+  }
 
   /**
    * Gravity-aware feedforward.

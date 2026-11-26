@@ -464,19 +464,27 @@ Raise the stator limit and the torque-current clamp together. A clamp above the 
 is not a clamp — the loop asks for current the device refuses — and a stator limit raised
 without the clamp leaves the mechanism exactly as weak as before.
 
-**To check the scaffolds**, temporarily put them in the source set:
+### Verify the mechanism scaffolds
 
-```groovy
-// build.gradle, temporarily
-sourceSets { main { java { srcDir 'template/src/main/java' } } }
+From the repo root with the WPILib 2027 JDK selected, run:
+
+```bash
+./gradlew -I template/sim-tests.init.gradle test --tests 'frc.robot.scaffold.*'
 ```
 
-Expect exactly the symbols in the table above and no others — every error is `cannot find symbol`,
-and `GEAR_RATIO` accounts for twelve of the sites because all three scaffolds want one and
-`exampleArm` checks it three times over (see below). Anything else is rot. Run this check after editing a scaffold; it is what caught the old one still using the
-`TalonFX(int, String)` constructor, which Phoenix 6 deprecated for removal. A scaffold is the worst
-place for a deprecated call, since being copied is its whole purpose.
+On Windows, use `.\gradlew.bat` with the same arguments. The init script fills fixture geometry and
+IDs in a generated copy under `build/`, compiles the scaffolds with AdvantageKit annotation
+processing, and runs the JUnit tests on desktop HAL. The shipped scaffolds still need real
+mechanism values before they can be copied into robot code. A plain `./gradlew build` runs the
+regular robot tests.
 
-The check also confirms the annotation processor still generates all three `*IOInputsAutoLogged`
-classes. If one of those turns up in the error list, an `@AutoLog` inputs class has a problem that
-would otherwise only surface when someone copied it.
+The smoke tests step the roller, arm and lift IOSim at 20 ms with fixture PID gains. They check
+setpoint convergence, duty-cycle-scaled supply current, zero torque current, both position limits,
+and the lift's reported position before and after zeroing.
+
+[GainSweepTest](src/test/java/frc/robot/scaffold/GainSweepTest.java) has a runnable roller example.
+To sweep another mechanism, adapt the sampler to create a fresh IOSim and PID controller for
+each candidate, command the setpoint, and return the measurements in the setpoint's units at
+20 ms intervals. Choose the gain grid and response criteria for that mechanism. The report shows
+time to reach 95% of the step, overshoot as a percentage of the step, and absolute error at the
+end of the run as an estimate of steady-state error. These results describe the sim controller.
