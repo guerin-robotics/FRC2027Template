@@ -19,6 +19,9 @@ import org.wpilib.simulation.RoboRioSim;
 /** Step-response harness adapted from the 2026 gain sweep. */
 class GainSweepTest {
   private static final double DT = 0.02;
+  private static final double SETTLING_TOLERANCE =
+      0.05; // Rotations per second in the roller example.
+  private static final double SETTLING_HOLD_SECONDS = 0.30;
 
   @BeforeAll
   static void initializeHal() {
@@ -36,10 +39,22 @@ class GainSweepTest {
                 result ->
                     result.riseTimeSeconds() <= 1.5
                         && result.overshootFraction() <= 0.15
-                        && result.steadyStateError() <= 0.05)
+                        && Double.isFinite(result.settlingTimeSeconds()))
             .min(Comparator.comparingDouble(Result::riseTimeSeconds))
             .orElseThrow(() -> new AssertionError("No candidate met the response criteria"));
     System.out.printf("Best qualifying kP: %.3f%n", best.kP());
+  }
+
+  @Test
+  void lateExitFromToleranceRestartsSettlingWindow() {
+    double target = 3.0;
+    double[] samples = new double[30];
+    Arrays.fill(samples, target);
+    samples[samples.length - 2] = 2.9;
+    var measurements = Arrays.stream(samples).iterator();
+    Result result =
+        simulate(0.0, new Step(0.0, measurements::nextDouble), target, samples.length * DT);
+    assertTrue(Double.isInfinite(result.settlingTimeSeconds()));
   }
 
   private static Step rollerStep(double kP, double target) {
@@ -66,9 +81,10 @@ class GainSweepTest {
             kP -> {
               Result result = simulate(kP, createStep.apply(kP), target, duration);
               System.out.printf(
-                  "kP %.3f | rise (95%%) %.3f s | overshoot %.1f%% | final error %.3f%n",
+                  "kP %.3f | rise (95%%) %.3f s | settling %.3f s | overshoot %.1f%% | final error %.3f%n",
                   kP,
                   result.riseTimeSeconds(),
+                  result.settlingTimeSeconds(),
                   result.overshootFraction() * 100,
                   result.steadyStateError());
               return result;
@@ -82,6 +98,8 @@ class GainSweepTest {
     double riseTime = Double.POSITIVE_INFINITY;
     double peak = 0.0;
     double measurement = initial;
+    // Start of the final in-tolerance interval, reset whenever the response leaves the band.
+    int firstInTolerance = Math.abs(step) <= SETTLING_TOLERANCE ? 0 : 1;
     int steps = (int) Math.round(duration / DT);
     for (int i = 1; i <= steps; i++) {
       measurement = response.tick().getAsDouble();
@@ -91,12 +109,24 @@ class GainSweepTest {
       if (riseTime == Double.POSITIVE_INFINITY && progress >= 0.95) {
         riseTime = i * DT;
       }
+      if (Math.abs(target - measurement) > SETTLING_TOLERANCE) {
+        firstInTolerance = i + 1;
+      }
     }
-    return new Result(kP, riseTime, Math.max(0.0, peak - 1.0), Math.abs(target - measurement));
+    double settlingTime =
+        (steps - firstInTolerance) * DT >= SETTLING_HOLD_SECONDS
+            ? firstInTolerance * DT
+            : Double.POSITIVE_INFINITY;
+    return new Result(
+        kP, riseTime, settlingTime, Math.max(0.0, peak - 1.0), Math.abs(target - measurement));
   }
 
   private record Step(double initial, DoubleSupplier tick) {}
 
   private record Result(
-      double kP, double riseTimeSeconds, double overshootFraction, double steadyStateError) {}
+      double kP,
+      double riseTimeSeconds,
+      double settlingTimeSeconds,
+      double overshootFraction,
+      double steadyStateError) {}
 }

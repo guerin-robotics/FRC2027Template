@@ -11,7 +11,9 @@ gradle.projectsEvaluated {
             GEAR_RATIO: '30.0',
             ROTOR_TO_SENSOR_RATIO: '30.0',
             SENSOR_TO_MECHANISM_RATIO: '1.0',
-            MAGNET_OFFSET_ROTATIONS: '0.0'
+            MAGNET_OFFSET_ROTATIONS: '0.0',
+            GRAVITY_HORIZONTAL_OFFSET_DEGREES: '30.0',
+            STARTING_ANGLE_DEGREES: '75.0'
         ],
         ExampleLiftConstants: [
             GEAR_RATIO: '5.0',
@@ -36,7 +38,7 @@ gradle.projectsEvaluated {
                 filesMatching('**/*.java') {
                     def values = fixtures[name - '.java'] ?: [:]
                     filter { String line ->
-                        def declaration = line =~ /^(\s*)\/\/ (public static final \w+ )(\w+) = (?:Inches\.of\(\))?;$/
+                        def declaration = line =~ /^(\s*)(?:\/\/ )?(public static final \w+ )(\w+) = [^;]*;$/
                         if (declaration.matches() && values.containsKey(declaration[0][3])) {
                             def (_, indent, type, field) = declaration[0]
                             return "${indent}${type}${field} = ${values[field]};".toString()

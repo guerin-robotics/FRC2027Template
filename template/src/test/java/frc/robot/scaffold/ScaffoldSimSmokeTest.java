@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.wpilib.units.Units.Amps;
 import static org.wpilib.units.Units.Degrees;
+import static org.wpilib.units.Units.RadiansPerSecond;
 import static org.wpilib.units.Units.Rotations;
 import static org.wpilib.units.Units.RotationsPerSecond;
 import static org.wpilib.units.Units.Volts;
@@ -84,6 +85,19 @@ class ScaffoldSimSmokeTest {
   }
 
   @Test
+  void armGravityMovesAwayFromVerticalInTheOffsetFrame() {
+    var sim = new ExampleArmIOSim();
+    var inputs = new ExampleArmIOInputs();
+    assertEquals(75.0, sim.getSimulatedPosition().in(Degrees), EPSILON);
+    sim.setVoltage(Volts.of(0.0));
+    sim.updateInputs(inputs);
+
+    // In the fixture, 75° + 30° starts past vertical. With zero or reversed offset, it falls back.
+    assertTrue(
+        inputs.motorVelocity.in(RadiansPerSecond) > 0.0, "Gravity should increase the arm angle");
+  }
+
+  @Test
   void liftConvergesRespectsBothTravelLimitsAndZeros() {
     var sim = new ExampleLiftIOSim(new PIDController(10.0, 5.0, 0.0));
     var inputs = new ExampleLiftIOInputs();
@@ -115,6 +129,8 @@ class ScaffoldSimSmokeTest {
     sim.setPosition(liftPosition(upper + 12.0));
     step(boundedTick);
     assertEquals(upper, liftHeightInches(inputs), EPSILON);
+    // Two stages each travel one drum circumference per rotation on the 2-inch drum.
+    assertEquals(36.0 / (4.0 * Math.PI), inputs.motorPosition.in(Rotations), EPSILON);
 
     sim.zeroPosition();
     // The previous command still holds the carriage at its physical upper stop.
