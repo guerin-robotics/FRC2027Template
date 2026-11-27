@@ -32,10 +32,15 @@ Ask for, or read:
 The transform is robot center to camera lens: X forward, Y left, Z up, then roll/pitch/yaw.
 In WPILib a camera tilted **upward has NEGATIVE pitch**.
 
-Have a human measure from the robot origin (center of the frame, floor level) to the lens with a
-tape measure, and the mounting angles with a level or angle finder. Record each in inches, then
-convert in code with `Units.inchesToMeters` / `Units.degreesToRadians`. Write the starting guess
-down before refining it so the refinement can be judged against it.
+**Start from CAD.** Read the camera pose from the robot CAD: origin at the center of the frame at
+floor level, to the lens, plus the mounting angles. Record each in inches and degrees, then convert in
+code with `Units.inchesToMeters` / `Units.degreesToRadians`. CAD is the value that goes in
+`VisionConstants`. Use a tape measure and angle finder on the real robot only to spot-check CAD
+against what was actually built.
+
+**Do not run Step 3 by default.** Refine only when the CAD value needs checking or fixing: vision
+poses are offset or swim with distance, a mount was hit or changed, or the tape check disagrees with
+CAD. If CAD is right, stop here.
 
 ## Step 3 — Refine from logged observations
 
@@ -60,6 +65,17 @@ Diagnose by pattern, then adjust **one axis at a time**:
 | Two cameras seeing the same tag disagree on the robot pose | One camera's transform is wrong — compare each to a multi-tag solution |
 | Pose jumps when the tag set changes | A single camera is wrong while the multi-tag solve is right |
 | Heading wrong but position right | Yaw (or Pigeon mount calibration — check that first) |
+
+**Double-check or fix a CAD value (PhotonVision):** `robot_to_camera.py` in this folder computes
+`robotToCamera` from one stationary robot square to one tag, a measured tag distance and height, and
+the 30 s+ AdvantageScope *median* of PhotonVision's `targetPose` (translation and quaternion). Run
+`python robot_to_camera.py --help` (needs `pip install robotpy-wpimath`), one camera per run. Compare
+its output to the CAD value:
+
+- **Agrees (within roughly 1 cm and 1 degree):** CAD is confirmed; change nothing.
+- **Disagrees:** suspect the measurement setup first (tag not square, wrong tag distance or height).
+  Repeat once. If it still disagrees, the camera is not where CAD says (mount flex, bent bracket, or a
+  CAD error). Propose the measured value and say why.
 
 Check the Pigeon 2 mount calibration before blaming a camera — a tilted gyro mimics a yaw error.
 See `docs/characterization-and-tuning.md`.
