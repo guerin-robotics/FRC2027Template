@@ -9,7 +9,7 @@
   <!-- Update this path if the repo lives somewhere else. -->
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/parkerpulfer/Repos/guerin-robotics/Rebuilt2026/tools/log-sync/sync-logs.sh</string>
+    <string>/ABSOLUTE/PATH/TO/FRC2027Template/tools/log-sync/sync-logs.sh</string>
     <string>--watch</string>
   </array>
 

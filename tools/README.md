@@ -29,20 +29,21 @@ changes rather than editing it in place.
 
 ## log-sync
 
-Pulls new `.wpilog` files off the roboRIO over SFTP and pushes them to Google Drive via
-`rclone`, so the USB stick never has to be moved to a laptop. Includes a macOS launchd
-plist for running it on a schedule.
+Pulls new `.wpilog` files off the Systemcore over SFTP and pushes them to Google Drive via
+`rclone`, so the USB stick never has to be moved to a laptop. Runs on macOS and Windows
+(`sync-logs.sh` / `sync-logs.ps1`), with a launchd plist and a Task Scheduler recipe for
+running it on a schedule.
 
 ```bash
 ./sync-logs.sh            # sync once
 ./sync-logs.sh --watch    # sync every $INTERVAL seconds
 ```
 
-**Needs configuring per season:** the `roborio` rclone remote points at a team-number
-IP (`10.TE.AM.2`). Everything else — `/U/logs` as the source path, `*.wpilog` as the
-filter — carries over unchanged. See `log-sync/README.md` for the one-time rclone setup.
+**Needs configuring per season:** the `systemcore` rclone remote needs the robot's
+address and the `systemcore` login. `/U/logs` is still the default source path, but USB
+mounting is flaky on Systemcore alphas; see the caveats there. See `log-sync/README.md` for the one-time rclone setup.
 
-Note the practical limit documented there: at competition the roboRIO is firewalled off
+Note the practical limit documented there: at competition the robot is firewalled off
 the internet on the field, so uploads happen from the pit between matches, not live.
 
 ---

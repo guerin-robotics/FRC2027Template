@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# sync-logs.sh — pull new WPILib logs off the roboRIO over SFTP and upload them
+# sync-logs.sh — pull new WPILib logs off the Systemcore over SFTP and upload them
 # to Google Drive, without ever mounting the robot's USB stick on this computer.
 #
 # Requires two rclone remotes (see README.md for the one-time setup):
-#   roborio:  SFTP to the roboRIO  (host + user configured inside the remote)
+#   systemcore:  SFTP to the Systemcore  (host + user configured inside the remote)
 #   gdrive:   Google Drive         (OAuth configured inside the remote)
 #
 # rclone only transfers files the destination is missing, so re-running this is
@@ -17,8 +17,8 @@
 set -euo pipefail
 
 # ---- Config (override via environment) --------------------------------------
-SRC_REMOTE="${SRC_REMOTE:-roborio}"     # rclone remote name for the roboRIO
-SRC_PATH="${SRC_PATH:-/U/logs}"          # log directory on the roboRIO USB
+SRC_REMOTE="${SRC_REMOTE:-systemcore}" # rclone remote name for the Systemcore
+SRC_PATH="${SRC_PATH:-/U/logs}"          # USB log dir; internal fallback: /home/systemcore/logs
 DST_REMOTE="${DST_REMOTE:-gdrive}"       # rclone remote name for Google Drive
 DST_PATH="${DST_PATH:-FRC-Logs}"         # destination folder in Google Drive
 INCLUDE="${INCLUDE:-*.wpilog}"           # also add *.hoot if you want CTRE logs

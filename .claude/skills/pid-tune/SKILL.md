@@ -57,7 +57,7 @@ If the mechanism's `IOSim` is stubs with no physics, say so — tuning against
 stubs is meaningless. Offer to add a simple physics model (e.g., WPILib
 `FlywheelSim` / `SingleJointedArmSim`) as a separate reviewed change first.
 
-**Know which gains you are tuning.** The scaffold `IOSim`s close their loop on the roboRIO with
+**Know which gains you are tuning.** The scaffold `IOSim`s close their loop on the robot controller with
 their own `Sim` gain block (a WPILib `PIDController` + feedforward at 50 Hz), while the robot runs
 Motion Magic on the Talon at 1 kHz with the real `Slot0` gains. A sweep of the `Sim` block tunes
 the simulation, not the robot. What transfers is the shape of the answer — whether the profile is

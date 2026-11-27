@@ -34,7 +34,7 @@ Classify the pattern before looking at code:
 | Overruns only with vision targets in view | Vision processing per frame |
 | Sim fine, real slow | CAN reads blocking, or Phoenix signals not batched |
 
-**Sim loop time is not robot loop time.** A desktop is far faster than a roboRIO. Use sim only to
+**Sim loop time is not robot loop time.** A desktop is far faster than a Systemcore. Use sim only to
 find *relative* hot spots and allocation; judge the budget from a real log.
 
 ## Step 2 — Audit the usual suspects

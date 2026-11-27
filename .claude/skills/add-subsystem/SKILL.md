@@ -270,7 +270,7 @@ This split is the one most often gotten wrong. See `.claude/rules/03-commands.md
 | Command timeouts | `Constants.Waits` |
 
 Real-robot gains, Motion Magic profile values, tolerances, and thresholds are compiled constants.
-Use Phoenix Tuner X to explore Phoenix gains and `/pid-tune` in simulation for roboRIO-side gains;
+Use Phoenix Tuner X to explore Phoenix gains and `/pid-tune` in simulation for robot-controller-side gains;
 copy selected values into code and commit them. Gear ratio and `MAX_SPEED_RPM` are also static —
 they describe the machine, not a knob.
 

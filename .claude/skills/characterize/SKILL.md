@@ -95,5 +95,5 @@ check the result.
 ## Related
 
 - `docs/characterization-and-tuning.md` — the full procedure and the TorqueCurrentFOC trap
-- `/pid-tune` — sim-based tuning of the roboRIO-side controllers once the FF is right
+- `/pid-tune` — sim-based tuning of the robot-controller-side controllers once the FF is right
 - `docs/skills.md` — how to run this skill in sim and on the robot
